@@ -23,42 +23,58 @@ function getTelegramUser() {
 
 // ==================== CEK SESSION ====================
 async function checkSession() {
-    const token = localStorage.getItem('session_token');
-    
-    if (!token) {
-        console.log('❌ Tidak ada session token');
-        showUnauthorized();
-        return false;
+  const token = localStorage.getItem('session_token');
+
+  if (!token) {
+    console.log('❌ Tidak ada session token');
+    showUnauthorized();
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session_token: token
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_token: token
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success && data.user) {
-            console.log('✅ Session valid:', data.user);
-            currentUser = data.user;
-            return true;
-        } else {
-            console.log('❌ Session tidak valid');
-            localStorage.removeItem('session_token');
-            showUnauthorized();
-            return false;
-        }
-    } catch (error) {
-        console.error('Error checking session:', error);
-        showUnauthorized();
-        return false;
+
+    const data = await response.json();
+
+    if (data.success && data.user) {
+      console.log('✅ Session valid:', data.user);
+      currentUser = data.user;
+      return true;
+    } else {
+      console.log('❌ Session tidak valid');
+      localStorage.removeItem('session_token');
+      showUnauthorized();
+      return false;
     }
+  } catch (error) {
+    console.error('Error checking session:', error);
+    // Tampilkan pesan error yang lebih user-friendly
+    showUnauthorizedWithMessage('Gagal memverifikasi session. Periksa koneksi Anda.');
+    return false;
+  }
+}
+
+function showUnauthorizedWithMessage(message = 'Anda belum memiliki akun. Silakan login atau daftar terlebih dahulu.') {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('unauthorizedScreen').style.display = 'flex';
+
+  // Update pesan
+  const messageEl = document.querySelector('#unauthorizedScreen p');
+  if (messageEl) {
+    messageEl.textContent = message;
+  }
 }
 
 // ==================== TAMPILKAN UNAUTHORIZED ====================
