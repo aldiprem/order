@@ -15,8 +15,3 @@ nohup python3 app.py > flask.log 2>&1 &
 # Get the PID
 FLASK_PID=$!
 echo "Flask started with PID: $FLASK_PID"
-
-# Start Cloudflared tunnel
-echo "Starting Cloudflared tunnel..."
-echo "Your public URL will appear below:"
-cloudflared tunnel --url http://127.0.0.1:5000
