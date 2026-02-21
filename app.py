@@ -72,15 +72,16 @@ def register():
         data = request.json
         print("📥 Register request received")
         
-        # ✅ AMBIL LANGSUNG DARI ROOT OBJECT
+        # Ambil data dari request
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
         telegram_data = data.get('telegram_data', {})
         
         print(f"📝 Username: {username}, Email: {email}")
+        print(f"📱 Telegram data: {telegram_data}")
         
-        # Validasi
+        # Validasi form (wajib)
         if not username or not email or not password:
             missing = []
             if not username: missing.append('username')
@@ -89,6 +90,26 @@ def register():
             return jsonify({
                 'success': False,
                 'message': f'Field wajib diisi: {", ".join(missing)}'
+            }), 400
+        
+        # Validasi panjang
+        if len(username) < 3:
+            return jsonify({
+                'success': False,
+                'message': 'Username minimal 3 karakter'
+            }), 400
+        
+        if len(password) < 6:
+            return jsonify({
+                'success': False,
+                'message': 'Password minimal 6 karakter'
+            }), 400
+        
+        # Email sederhana
+        if '@' not in email or '.' not in email:
+            return jsonify({
+                'success': False,
+                'message': 'Email tidak valid'
             }), 400
         
         # Hash password
@@ -119,8 +140,16 @@ def register():
             
             # Ambil data user
             user = db.get_user_by_id(result['user_id'])
+            
+            # Hapus password dari response
             if user and 'password' in user:
                 del user['password']
+            
+            # Pastikan user punya field yang diperlukan dashboard
+            if 'first_name' not in user or not user['first_name']:
+                user['first_name'] = username
+            if 'last_name' not in user:
+                user['last_name'] = ''
             
             return jsonify({
                 'success': True,
@@ -129,6 +158,7 @@ def register():
                 'user': user
             }), 201
         else:
+            print(f"❌ Register gagal: {result['message']}")
             return jsonify({
                 'success': False,
                 'message': result['message']
