@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import secrets
 
@@ -166,7 +166,6 @@ class Database:
         session_token = self.generate_session_token()
         
         # Session berlaku selama 7 hari
-        from datetime import timedelta
         expires_at = datetime.now() + timedelta(days=7)
         
         cursor.execute('''
