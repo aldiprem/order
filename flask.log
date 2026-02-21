@@ -1,0 +1,19 @@
+Database initialized successfully!
+Starting Flask server...
+Database: users.db
+
+Available endpoints:
+  GET  /
+  POST /api/register
+  POST /api/login
+  POST /api/google-login
+  POST /api/logout
+  GET  /api/verify
+  GET  /api/profile
+  GET  /api/users (debug)
+
+Server running on http://127.0.0.1:5000
+ * Serving Flask app 'app'
+ * Debug mode: on
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
