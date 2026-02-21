@@ -119,24 +119,24 @@ async function handleRegister(formData) {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
-                telegram_data: telegramUser // Kirim data Telegram jika ada
+                telegram_data: telegramUser
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('Pendaftaran berhasil! Silakan login.', 'success');
+            showMessage('Pendaftaran berhasil! Mengalihkan...', 'success');
             
-            // Reset form
-            document.getElementById('authForm').reset();
+            // Simpan session token
+            if (data.session_token) {
+                localStorage.setItem('session_token', data.session_token);
+            }
             
-            // Ganti ke mode login setelah 2 detik
+            // Redirect ke dashboard setelah 1 detik
             setTimeout(() => {
-                if (currentMode !== 'login') {
-                    toggleMode();
-                }
-            }, 2000);
+                window.location.href = '/dashboard.html';
+            }, 1000);
         } else {
             showMessage(data.message || 'Pendaftaran gagal');
         }
@@ -155,7 +155,7 @@ async function handleLogin(formData) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                username_or_email: formData.username, // Bisa username atau email
+                username_or_email: formData.username,
                 password: formData.password,
                 telegram_data: telegramUser
             })
@@ -164,16 +164,16 @@ async function handleLogin(formData) {
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('Login berhasil!', 'success');
+            showMessage('Login berhasil! Mengalihkan...', 'success');
             
             // Simpan session token
             if (data.session_token) {
                 localStorage.setItem('session_token', data.session_token);
             }
             
-            // Redirect ke halaman utama setelah 1 detik
+            // Redirect ke dashboard setelah 1 detik
             setTimeout(() => {
-                window.location.href = '/dashboard.html'; // Ganti dengan halaman tujuan
+                window.location.href = '/dashboard.html';
             }, 1000);
         } else {
             showMessage(data.message || 'Login gagal');
@@ -276,15 +276,20 @@ async function handleTelegramLogin() {
                     toggleMode();
                 }
                 
-                // Isi form dengan data dari Telegram (optional)
+                // Isi form dengan data dari Telegram
                 if (telegramUser.username) {
                     document.getElementById('username').value = telegramUser.username;
+                }
+                
+                // Isi email dengan placeholder
+                if (telegramUser.username) {
+                    document.getElementById('email').value = `${telegramUser.username}@telegram.user`;
                 }
                 
                 showMessage('Lengkapi data untuk mendaftar', 'success');
             } else {
                 // Login sukses
-                showMessage('Login dengan Telegram berhasil!', 'success');
+                showMessage('Login dengan Telegram berhasil! Mengalihkan...', 'success');
                 
                 if (data.session_token) {
                     localStorage.setItem('session_token', data.session_token);
@@ -305,89 +310,71 @@ async function handleTelegramLogin() {
     }
 }
 
-// ==================== CEK SESSION (UNTUK REDIRECT) ====================
-async function checkSession() {
-  const token = localStorage.getItem('session_token');
-  if (!token) return false; // Tidak ada token, tetap di halaman login
+// ==================== CEK SESSION UNTUK REDIRECT ====================
+async function checkSessionAndRedirect() {
+    const token = localStorage.getItem('session_token');
+    if (!token) return false;
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_token: token
-      })
-    });
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_token: token
+            })
+        });
 
-    const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    if (data.success) {
-      console.log('✅ Session valid, redirect ke dashboard');
-      window.location.href = '/dashboard.html';
-      return true;
-    } else {
-      // Token tidak valid, hapus
-      localStorage.removeItem('session_token');
-      return false;
+        const data = await response.json();
+
+        if (data.success && data.user) {
+            console.log('✅ Session valid, redirect ke dashboard');
+            // Simpan data user untuk digunakan nanti
+            sessionStorage.setItem('current_user', JSON.stringify(data.user));
+            window.location.href = '/dashboard.html';
+            return true;
+        } else {
+            console.log('❌ Session tidak valid');
+            localStorage.removeItem('session_token');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking session:', error);
+        return false;
     }
-  } catch (error) {
-    console.error('Error checking session:', error);
-    // Jangan redirect kalau error, biarkan user di halaman login
-    return false;
-  }
-}
-
-// ==================== CEK SESSION TANPA REDIRECT ====================
-async function checkSessionWithoutRedirect() {
-  const token = localStorage.getItem('session_token');
-  if (!token) return null;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_token: token
-      })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      return data.user; // Kembalikan data user tanpa redirect
-    } else {
-      localStorage.removeItem('session_token');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error checking session:', error);
-    return null;
-  }
 }
 
 // ==================== INITIALIZATION ====================
 async function init() {
-  console.log('🚀 App initialized');
-
-  // Cek session untuk redirect (kalau valid, langsung redirect)
-  await checkSession();
-
-  // Ambil data Telegram
-  telegramUser = getTelegramUser();
-
-  // Tampilkan kartu Telegram jika ada data
-  if (telegramUser) {
-    showTelegramCard(telegramUser);
-  }
-
-  // Event listeners
-  document.getElementById('authForm').addEventListener('submit', handleSubmit);
-  document.getElementById('toggleBtn').addEventListener('click', toggleMode);
-  document.getElementById('telegramBtn').addEventListener('click', handleTelegramLogin);
+    console.log('🚀 App initialized');
+    
+    // Cek session untuk redirect
+    const redirected = await checkSessionAndRedirect();
+    
+    // Jika tidak redirect, lanjutkan inisialisasi halaman login
+    if (!redirected) {
+        // Ambil data Telegram
+        telegramUser = getTelegramUser();
+        
+        // Tampilkan kartu Telegram jika ada data
+        if (telegramUser) {
+            showTelegramCard(telegramUser);
+        }
+        
+        // Event listeners
+        const authForm = document.getElementById('authForm');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const telegramBtn = document.getElementById('telegramBtn');
+        
+        if (authForm) authForm.addEventListener('submit', handleSubmit);
+        if (toggleBtn) toggleBtn.addEventListener('click', toggleMode);
+        if (telegramBtn) telegramBtn.addEventListener('click', handleTelegramLogin);
+    }
 }
 
 // ==================== START ====================
