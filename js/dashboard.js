@@ -1,5 +1,5 @@
 // ==================== KONFIGURASI ====================
-const API_BASE_URL = 'https://individually-threaded-jokes-letting.trycloudflare.com';
+const API_BASE_URL = 'https://daughters-configuration-replied-ethernet.trycloudflare.com';
 
 // State
 let currentUser = null;
