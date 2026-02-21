@@ -1,5 +1,5 @@
 // ==================== KONFIGURASI ====================
-const API_BASE_URL = 'https://covers-instructional-warehouse-samuel.trycloudflare.com';
+const API_BASE_URL = 'https://daughters-configuration-replied-ethernet.trycloudflare.com';
 
 // State
 let currentMode = 'login';
