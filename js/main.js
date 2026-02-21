@@ -1,11 +1,10 @@
 // ==================== KONFIGURASI ====================
-const API_BASE_URL = 'https://individually-threaded-jokes-letting.trycloudflare.com'; // Ganti dengan URL tunnel Anda
+const API_BASE_URL = 'https://covers-instructional-warehouse-samuel.trycloudflare.com';
 
 // State
-let currentMode = 'login'; // 'login' atau 'register'
+let currentMode = 'login';
 let telegramUser = null;
 
-// ==================== AMBIL DATA TELEGRAM ====================
 function getTelegramUser() {
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
@@ -51,6 +50,9 @@ function showTelegramCard(user) {
     } else {
         premiumBadge.style.display = 'none';
     }
+    
+    // Simpan data Telegram ke sessionStorage juga (untuk digunakan nanti)
+    sessionStorage.setItem('telegram_user', JSON.stringify(user));
     
     // Simpan data Telegram ke hidden input
     document.getElementById('telegramData').value = JSON.stringify(user);
@@ -110,6 +112,10 @@ function showMessage(message, type = 'error') {
 // ==================== HANDLE REGISTER ====================
 async function handleRegister(formData) {
     try {
+        // Ambil data Telegram dari sessionStorage jika ada
+        const savedTelegramUser = sessionStorage.getItem('telegram_user');
+        const telegramData = savedTelegramUser ? JSON.parse(savedTelegramUser) : telegramUser;
+        
         const response = await fetch(`${API_BASE_URL}/api/register`, {
             method: 'POST',
             headers: {
@@ -119,24 +125,24 @@ async function handleRegister(formData) {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
-                telegram_data: telegramUser // Kirim data Telegram jika ada
+                telegram_data: telegramData // Kirim data Telegram
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('Pendaftaran berhasil! Silakan login.', 'success');
+            showMessage('Pendaftaran berhasil! Mengalihkan...', 'success');
             
-            // Reset form
-            document.getElementById('authForm').reset();
+            // Simpan session token
+            if (data.session_token) {
+                localStorage.setItem('session_token', data.session_token);
+            }
             
-            // Ganti ke mode login setelah 2 detik
+            // Redirect ke dashboard setelah 1 detik
             setTimeout(() => {
-                if (currentMode !== 'login') {
-                    toggleMode();
-                }
-            }, 2000);
+                window.location.href = '/dashboard.html';
+            }, 1000);
         } else {
             showMessage(data.message || 'Pendaftaran gagal');
         }
@@ -149,6 +155,10 @@ async function handleRegister(formData) {
 // ==================== HANDLE LOGIN ====================
 async function handleLogin(formData) {
     try {
+        // Ambil data Telegram dari sessionStorage jika ada
+        const savedTelegramUser = sessionStorage.getItem('telegram_user');
+        const telegramData = savedTelegramUser ? JSON.parse(savedTelegramUser) : telegramUser;
+        
         const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: {
@@ -157,23 +167,23 @@ async function handleLogin(formData) {
             body: JSON.stringify({
                 username_or_email: formData.username, // Bisa username atau email
                 password: formData.password,
-                telegram_data: telegramUser
+                telegram_data: telegramData // Kirim data Telegram
             })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('Login berhasil!', 'success');
+            showMessage('Login berhasil! Mengalihkan...', 'success');
             
             // Simpan session token
             if (data.session_token) {
                 localStorage.setItem('session_token', data.session_token);
             }
             
-            // Redirect ke halaman utama setelah 1 detik
+            // Redirect ke dashboard setelah 1 detik
             setTimeout(() => {
-                window.location.href = '/dashboard.html'; // Ganti dengan halaman tujuan
+                window.location.href = '/dashboard.html';
             }, 1000);
         } else {
             showMessage(data.message || 'Login gagal');
@@ -281,10 +291,15 @@ async function handleTelegramLogin() {
                     document.getElementById('username').value = telegramUser.username;
                 }
                 
+                // Isi email dengan placeholder (user bisa mengganti)
+                if (telegramUser.username) {
+                    document.getElementById('email').value = `${telegramUser.username}@telegram.user`;
+                }
+                
                 showMessage('Lengkapi data untuk mendaftar', 'success');
             } else {
                 // Login sukses
-                showMessage('Login dengan Telegram berhasil!', 'success');
+                showMessage('Login dengan Telegram berhasil! Mengalihkan...', 'success');
                 
                 if (data.session_token) {
                     localStorage.setItem('session_token', data.session_token);
@@ -325,6 +340,7 @@ async function checkSession() {
         
         if (data.success) {
             // Session valid, langsung redirect
+            console.log('✅ Session valid, redirect ke dashboard');
             window.location.href = '/dashboard.html';
         } else {
             // Session tidak valid, hapus
