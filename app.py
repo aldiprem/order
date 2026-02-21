@@ -47,6 +47,13 @@ def index():
     """Render halaman utama"""
     return render_template('index.html')
 
+# ✅ TAMBAHKAN ROUTE INI
+@app.route('/dashboard.html')
+@app.route('/dashboard')
+def dashboard():
+    """Render halaman dashboard"""
+    return render_template('dashboard.html')
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Endpoint untuk cek kesehatan API"""
@@ -60,23 +67,20 @@ def health_check():
 def register():
     """
     Endpoint untuk registrasi user baru
-    Menerima data Telegram dan data form
     """
     try:
         data = request.json
         print("📥 Register request received")
-        print("Data received:", data)
         
-        # Ambil data dari request - LANGSUNG dari root object
+        # ✅ AMBIL LANGSUNG DARI ROOT OBJECT
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
         telegram_data = data.get('telegram_data', {})
         
         print(f"📝 Username: {username}, Email: {email}")
-        print(f"📱 Telegram data: {bool(telegram_data)}")
         
-        # Validasi form data
+        # Validasi
         if not username or not email or not password:
             missing = []
             if not username: missing.append('username')
@@ -87,40 +91,17 @@ def register():
                 'message': f'Field wajib diisi: {", ".join(missing)}'
             }), 400
         
-        # Validasi panjang
-        if len(username) < 3:
-            return jsonify({
-                'success': False,
-                'message': 'Username minimal 3 karakter'
-            }), 400
-            
-        if len(password) < 6:
-            return jsonify({
-                'success': False,
-                'message': 'Password minimal 6 karakter'
-            }), 400
-        
-        # Email regex sederhana
-        if '@' not in email or '.' not in email:
-            return jsonify({
-                'success': False,
-                'message': 'Email tidak valid'
-            }), 400
-        
         # Hash password
         hashed_password = hash_password(password)
         
-        # Siapkan form_data untuk database
+        # Siapkan data untuk database
         form_data = {
             'username': username,
             'email': email,
-            'password': hashed_password
+            'password': hashed_password,
+            'ip': request.headers.get('X-Forwarded-For', request.remote_addr),
+            'user_agent': request.headers.get('User-Agent', '')
         }
-        
-        # Tambahkan IP dan User Agent
-        ip, user_agent = get_client_info()
-        form_data['ip'] = ip
-        form_data['user_agent'] = user_agent
         
         # Simpan ke database
         result = db.create_user(telegram_data, form_data)
@@ -132,19 +113,12 @@ def register():
                 result['user_id'], 
                 telegram_data, 
                 session_token,
-                ip, 
-                user_agent
+                form_data['ip'], 
+                form_data['user_agent']
             )
             
-            # Ambil data user lengkap
-            if telegram_data and telegram_data.get('id'):
-                user = db.get_user_by_telegram_id(telegram_data.get('id'))
-            else:
-                user = db.get_user_by_username(username)
-            
-            print(f"✅ Register berhasil untuk user ID: {result['user_id']}")
-            
-            # Hapus password dari response
+            # Ambil data user
+            user = db.get_user_by_id(result['user_id'])
             if user and 'password' in user:
                 del user['password']
             
@@ -155,7 +129,6 @@ def register():
                 'user': user
             }), 201
         else:
-            print(f"❌ Register gagal: {result['message']}")
             return jsonify({
                 'success': False,
                 'message': result['message']
@@ -171,7 +144,7 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     """
-    Endpoint untuk login manual (username/email + password)
+    Endpoint untuk login manual
     """
     try:
         data = request.json
@@ -180,9 +153,6 @@ def login():
         username_or_email = data.get('username_or_email')
         password = data.get('password')
         telegram_data = data.get('telegram_data', {})
-        
-        print(f"📝 Login - Username/Email: {username_or_email}")
-        print(f"📱 Telegram data: {bool(telegram_data)}")
         
         if not username_or_email or not password:
             return jsonify({
@@ -197,42 +167,34 @@ def login():
         if user:
             # Update data Telegram jika ada
             if telegram_data and telegram_data.get('id'):
-                # Cek apakah Telegram ID sudah terdaftar
-                existing_user = db.get_user_by_telegram_id(telegram_data.get('id'))
-                
-                if existing_user and existing_user['id'] != user['id']:
-                    print(f"⚠️ Telegram ID {telegram_data.get('id')} sudah terdaftar")
-                else:
-                    # Update user dengan Telegram ID
-                    conn = db.get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                        UPDATE users SET 
-                            telegram_id = ?,
-                            telegram_username = ?,
-                            first_name = ?,
-                            last_name = ?,
-                            language_code = ?,
-                            is_premium = ?
-                        WHERE id = ?
-                    ''', (
-                        telegram_data.get('id'),
-                        telegram_data.get('username'),
-                        telegram_data.get('first_name'),
-                        telegram_data.get('last_name'),
-                        telegram_data.get('language_code'),
-                        1 if telegram_data.get('is_premium') else 0,
-                        user['id']
-                    ))
-                    conn.commit()
-                    conn.close()
-                    print(f"✅ User {user['id']} di-link dengan Telegram")
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE users SET 
+                        telegram_id = ?,
+                        telegram_username = ?,
+                        first_name = ?,
+                        last_name = ?,
+                        language_code = ?,
+                        is_premium = ?
+                    WHERE id = ?
+                ''', (
+                    telegram_data.get('id'),
+                    telegram_data.get('username'),
+                    telegram_data.get('first_name'),
+                    telegram_data.get('last_name'),
+                    telegram_data.get('language_code'),
+                    1 if telegram_data.get('is_premium') else 0,
+                    user['id']
+                ))
+                conn.commit()
+                conn.close()
             
             # Update last login
             ip, user_agent = get_client_info()
             db.update_last_login(user['id'], ip, user_agent)
             
-            # Buat session baru
+            # Buat session
             session_token = generate_session_token()
             db.create_session(
                 user['id'], 
@@ -242,23 +204,17 @@ def login():
                 user_agent
             )
             
-            # Ambil data user terbaru
-            updated_user = db.get_user_by_username(user['username'])
-            
-            # Hapus password dari response
-            if updated_user and 'password' in updated_user:
-                del updated_user['password']
-            
-            print(f"✅ Login berhasil untuk user ID: {user['id']}")
+            # Hapus password
+            if 'password' in user:
+                del user['password']
             
             return jsonify({
                 'success': True,
                 'message': 'Login berhasil',
                 'session_token': session_token,
-                'user': updated_user or user
+                'user': user
             }), 200
         else:
-            print(f"❌ Login gagal: username/email atau password salah")
             return jsonify({
                 'success': False,
                 'message': 'Username/email atau password salah'
