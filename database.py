@@ -76,27 +76,28 @@ class Database:
     def create_user(self, telegram_data, form_data):
         """
         Membuat user baru dengan menggabungkan data Telegram dan form
-        telegram_data: data dari Telegram WebApp
+        telegram_data: data dari Telegram WebApp (bisa kosong)
         form_data: username, email, password dari form
         """
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Ekstrak data Telegram
-            telegram_id = telegram_data.get('id')
-            telegram_username = telegram_data.get('username')
-            first_name = telegram_data.get('first_name')
-            last_name = telegram_data.get('last_name')
-            language_code = telegram_data.get('language_code')
-            is_premium = 1 if telegram_data.get('is_premium') else 0
-            photo_url = telegram_data.get('photo_url')
+            # Ekstrak data Telegram (dengan default value)
+            telegram_id = telegram_data.get('id') if telegram_data else None
+            telegram_username = telegram_data.get('username') if telegram_data else None
+            first_name = telegram_data.get('first_name') if telegram_data else form_data.get('username', '')
+            last_name = telegram_data.get('last_name') if telegram_data else ''
+            language_code = telegram_data.get('language_code') if telegram_data else 'id'
+            is_premium = 1 if telegram_data and telegram_data.get('is_premium') else 0
+            photo_url = telegram_data.get('photo_url') if telegram_data else None
             
-            # Data dari form
+            # Data dari form (wajib ada)
             username = form_data.get('username')
             email = form_data.get('email')
-            password = form_data.get('password')  # TODO: Hash password!
+            password = form_data.get('password')
             
+            # Insert ke database
             cursor.execute('''
                 INSERT INTO users (
                     telegram_id, telegram_username, first_name, last_name, 
@@ -117,13 +118,14 @@ class Database:
             
         except sqlite3.IntegrityError as e:
             if 'UNIQUE constraint failed' in str(e):
-                if 'username' in str(e):
-                    return {'success': False, 'message': 'Username already exists'}
-                elif 'email' in str(e):
-                    return {'success': False, 'message': 'Email already exists'}
-                elif 'telegram_id' in str(e):
-                    return {'success': False, 'message': 'Telegram account already registered'}
-            return {'success': False, 'message': str(e)}
+                error_msg = str(e)
+                if 'username' in error_msg:
+                    return {'success': False, 'message': 'Username sudah digunakan'}
+                elif 'email' in error_msg:
+                    return {'success': False, 'message': 'Email sudah terdaftar'}
+                elif 'telegram_id' in error_msg:
+                    return {'success': False, 'message': 'Akun Telegram sudah terdaftar'}
+            return {'success': False, 'message': f'Database error: {str(e)}'}
         except Exception as e:
             return {'success': False, 'message': str(e)}
         finally:
