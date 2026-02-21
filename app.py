@@ -1,22 +1,14 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from database import db
-import os
-from datetime import timedelta
 import secrets
+from datetime import timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
-app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# CORS configuration untuk GitHub Pages
-CORS(app, origins=[
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://aldiprem.github.io",
-    "https://*.github.io"
-], supports_credentials=True)
+CORS(app, origins="*", supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
 
 @app.route('/', methods=['GET'])
 def home():
