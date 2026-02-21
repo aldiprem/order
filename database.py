@@ -300,6 +300,17 @@ class Database:
         
         return True
 
+    def get_user_by_id(self, user_id):
+        """Mendapatkan user berdasarkan ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        conn.close()
+        return dict(user) if user else None
+
 # Buat instance database global
 db = Database()
 
