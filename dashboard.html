@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - Telegram App</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <!-- Telegram Web App Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Font Awesome untuk icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="spinner"></div>
+        <p>Memverifikasi akses...</p>
+    </div>
+
+    <!-- Unauthorized Screen (tidak punya akses) -->
+    <div id="unauthorizedScreen" class="unauthorized-screen" style="display: none;">
+        <i class="fas fa-lock icon-lock"></i>
+        <h2>Akses Ditolak</h2>
+        <p>Anda belum memiliki akun. Silakan login atau daftar terlebih dahulu.</p>
+        <button id="backToLoginBtn" class="btn-primary">
+            <i class="fas fa-arrow-left"></i> Kembali ke Login
+        </button>
+    </div>
+
+    <!-- Dashboard Content (hanya tampil jika authorized) -->
+    <div id="dashboardContent" class="dashboard-container" style="display: none;">
+        <!-- Sidebar Navigation (menu 3 garis) -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>TeleApp</span>
+                </div>
+                <button id="closeSidebarBtn" class="close-sidebar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-menu">
+                <div class="menu-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Beranda</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Statistik</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Pesan</span>
+                    <span class="badge">3</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Jadwal</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Pengaturan</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="menu-item" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Keluar</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation Bar -->
+            <nav class="top-nav">
+                <div class="nav-left">
+                    <button id="menuToggle" class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+                
+                <!-- Search Bar di tengah -->
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Cari sesuatu...">
+                </div>
+                
+                <!-- User Profile di kanan -->
+                <div class="nav-right">
+                    <div class="user-profile" id="userProfileBtn">
+                        <div class="user-avatar" id="userAvatar"></div>
+                        <div class="user-info-dropdown">
+                            <span class="user-name" id="userName">Loading...</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Overlay untuk sidebar di mobile -->
+            <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+            <!-- Dashboard Content Area -->
+            <div class="content-area">
+                <!-- Welcome Banner -->
+                <div class="welcome-banner">
+                    <div class="welcome-text">
+                        <h2>Selamat datang kembali, <span id="welcomeName">User</span>!</h2>
+                        <p>Berikut adalah aktivitas terbaru akun Anda</p>
+                    </div>
+                    <div class="welcome-stats">
+                        <div class="stat-badge">
+                            <i class="fas fa-calendar-check"></i>
+                            <span id="memberSince">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3>Total Pengikut</h3>
+                            <p class="stat-value" id="totalFollowers">1,234</p>
+                            <p class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +12%
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3>Total Tayangan</h3>
+                            <p class="stat-value" id="totalViews">8,567</p>
+                            <p class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +8%
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3>Peringkat</h3>
+                            <p class="stat-value" id="userRank">#42</p>
+                            <p class="stat-change negative">
+                                <i class="fas fa-arrow-down"></i> -2
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3>Waktu Online</h3>
+                            <p class="stat-value" id="onlineTime">12 jam</p>
+                            <p class="stat-change">Hari ini</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Section -->
+                <div class="recent-activity">
+                    <div class="section-header">
+                        <h3><i class="fas fa-history"></i> Aktivitas Terbaru</h3>
+                        <a href="#" class="view-all">Lihat Semua <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    
+                    <div class="activity-list" id="activityList">
+                        <!-- Akan diisi oleh JavaScript -->
+                        <div class="activity-item">
+                            <div class="activity-icon blue">
+                                <i class="fas fa-sign-in-alt"></i>
+                            </div>
+                            <div class="activity-details">
+                                <p class="activity-title">Login dari perangkat baru</p>
+                                <p class="activity-time">2 menit yang lalu</p>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-icon green">
+                                <i class="fas fa-user-edit"></i>
+                            </div>
+                            <div class="activity-details">
+                                <p class="activity-title">Profil diperbarui</p>
+                                <p class="activity-time">1 jam yang lalu</p>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-icon orange">
+                                <i class="fas fa-share-alt"></i>
+                            </div>
+                            <div class="activity-details">
+                                <p class="activity-title">Konten dibagikan</p>
+                                <p class="activity-time">3 jam yang lalu</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Details Card (informasi lengkap) -->
+                <div class="user-details-card">
+                    <h3><i class="fas fa-id-card"></i> Detail Akun</h3>
+                    
+                    <div class="details-grid">
+                        <div class="detail-row">
+                            <span class="detail-label">ID Pengguna:</span>
+                            <span class="detail-value" id="detailUserId">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Telegram ID:</span>
+                            <span class="detail-value" id="detailTelegramId">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Username:</span>
+                            <span class="detail-value" id="detailUsername">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Email:</span>
+                            <span class="detail-value" id="detailEmail">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Nama Lengkap:</span>
+                            <span class="detail-value" id="detailFullName">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status Premium:</span>
+                            <span class="detail-value" id="detailPremium">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Bahasa:</span>
+                            <span class="detail-value" id="detailLanguage">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Bergabung:</span>
+                            <span class="detail-value" id="detailJoined">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Terakhir Login:</span>
+                            <span class="detail-value" id="detailLastLogin">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
