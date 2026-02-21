@@ -1,5 +1,5 @@
 // ==================== KONFIGURASI ====================
-const API_BASE_URL = 'https://daughters-configuration-replied-ethernet.trycloudflare.com';
+const API_BASE_URL = 'https://individually-threaded-jokes-letting.trycloudflare.com';
 
 // State
 let currentUser = null;
@@ -23,64 +23,63 @@ function getTelegramUser() {
 
 // ==================== CEK SESSION ====================
 async function checkSession() {
-  const token = localStorage.getItem('session_token');
+    const token = localStorage.getItem('session_token');
 
-  if (!token) {
-    console.log('❌ Tidak ada session token');
-    showUnauthorized();
-    return false;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_token: token
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!token) {
+        console.log('❌ Tidak ada session token');
+        showUnauthorized('Anda belum login. Silakan login terlebih dahulu.');
+        return false;
     }
 
-    const data = await response.json();
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_token: token
+            })
+        });
 
-    if (data.success && data.user) {
-      console.log('✅ Session valid:', data.user);
-      currentUser = data.user;
-      return true;
-    } else {
-      console.log('❌ Session tidak valid');
-      localStorage.removeItem('session_token');
-      showUnauthorized();
-      return false;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.user) {
+            console.log('✅ Session valid:', data.user);
+            currentUser = data.user;
+
+            // Pastikan data user punya field yang diperlukan
+            if (!currentUser.first_name) currentUser.first_name = currentUser.username || 'User';
+            if (!currentUser.last_name) currentUser.last_name = '';
+
+            return true;
+        } else {
+            console.log('❌ Session tidak valid');
+            localStorage.removeItem('session_token');
+            showUnauthorized('Session tidak valid. Silakan login ulang.');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking session:', error);
+        showUnauthorized('Gagal memverifikasi session. Periksa koneksi Anda.');
+        return false;
     }
-  } catch (error) {
-    console.error('Error checking session:', error);
-    // Tampilkan pesan error yang lebih user-friendly
-    showUnauthorizedWithMessage('Gagal memverifikasi session. Periksa koneksi Anda.');
-    return false;
-  }
-}
-
-function showUnauthorizedWithMessage(message = 'Anda belum memiliki akun. Silakan login atau daftar terlebih dahulu.') {
-  document.getElementById('loadingScreen').style.display = 'none';
-  document.getElementById('unauthorizedScreen').style.display = 'flex';
-
-  // Update pesan
-  const messageEl = document.querySelector('#unauthorizedScreen p');
-  if (messageEl) {
-    messageEl.textContent = message;
-  }
 }
 
 // ==================== TAMPILKAN UNAUTHORIZED ====================
-function showUnauthorized() {
+function showUnauthorized(message = 'Anda belum memiliki akun. Silakan login atau daftar terlebih dahulu.') {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('unauthorizedScreen').style.display = 'flex';
+    
+    // Update pesan
+    const messageEl = document.querySelector('#unauthorizedScreen p');
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
 }
 
 // ==================== LOAD DASHBOARD ====================
@@ -97,7 +96,7 @@ function loadDashboard() {
     // Generate avatar
     generateAvatar();
     
-    // Load aktivitas (contoh)
+    // Load aktivitas
     loadRecentActivities();
 }
 
@@ -125,10 +124,11 @@ function updateUserUI() {
     document.getElementById('detailFullName').textContent = fullName;
     
     // Status premium
-    const isPremium = currentUser.is_premium || currentUser.telegram_is_premium || false;
-    document.getElementById('detailPremium').innerHTML = isPremium ? 
-        '<span class="premium-badge">✅ PREMIUM</span>' : 
-        '<span class="regular-badge">⚫ REGULER</span>';
+    const isPremium = currentUser.is_premium || false;
+    const premiumBadge = isPremium ? 
+        '<span style="background: #ffd700; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 12px;">✅ PREMIUM</span>' : 
+        '<span style="background: #e0e0e0; color: #666; padding: 2px 8px; border-radius: 12px; font-size: 12px;">⚫ REGULER</span>';
+    document.getElementById('detailPremium').innerHTML = premiumBadge;
     
     // Bahasa
     document.getElementById('detailLanguage').textContent = 
@@ -145,7 +145,7 @@ function updateUserUI() {
     // Member since di banner
     document.getElementById('memberSince').innerHTML = `<i class="far fa-calendar-alt"></i> Member since ${formatDate(joinedDate, false, 'MMM YYYY')}`;
     
-    // Stats (contoh, bisa diganti dengan data real)
+    // Stats (contoh)
     document.getElementById('totalFollowers').textContent = formatNumber(Math.floor(Math.random() * 5000) + 1000);
     document.getElementById('totalViews').textContent = formatNumber(Math.floor(Math.random() * 20000) + 5000);
     document.getElementById('userRank').textContent = '#' + (Math.floor(Math.random() * 100) + 1);
@@ -155,7 +155,6 @@ function updateUserUI() {
 // ==================== GENERATE AVATAR ====================
 function generateAvatar() {
     const avatarEl = document.getElementById('userAvatar');
-    const sidebarAvatar = document.querySelector('.user-avatar');
     
     if (!currentUser) return;
     
@@ -183,11 +182,9 @@ function generateAvatar() {
 // ==================== FORMAT DATE ====================
 function formatDate(date, withTime = false, format = 'DD MMM YYYY') {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const monthsFull = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     
     const day = date.getDate().toString().padStart(2, '0');
     const month = months[date.getMonth()];
-    const monthFull = monthsFull[date.getMonth()];
     const year = date.getFullYear();
     
     const hours = date.getHours().toString().padStart(2, '0');
@@ -215,7 +212,7 @@ function formatNumber(num) {
     return num.toString();
 }
 
-// ==================== LOAD RECENT ACTIVITIES (CONTOH) ====================
+// ==================== LOAD RECENT ACTIVITIES ====================
 function loadRecentActivities() {
     const activities = [
         {
@@ -241,12 +238,6 @@ function loadRecentActivities() {
             iconColor: 'purple',
             title: 'Pengaturan keamanan diubah',
             time: '5 jam yang lalu'
-        },
-        {
-            icon: 'fas fa-download',
-            iconColor: 'blue',
-            title: 'File diunduh',
-            time: '1 hari yang lalu'
         }
     ];
     
@@ -314,34 +305,40 @@ async function init() {
     
     if (isValid) {
         // Load dashboard
-        setTimeout(() => {
-            loadDashboard();
-        }, 1000); // Simulasi loading
+        loadDashboard();
     }
     
     // Event listeners
-    document.getElementById('backToLoginBtn').addEventListener('click', () => {
-        window.location.href = '/';
-    });
+    const backToLoginBtn = document.getElementById('backToLoginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const menuToggle = document.getElementById('menuToggle');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const searchInput = document.getElementById('searchInput');
     
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    if (backToLoginBtn) {
+        backToLoginBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+    }
     
-    // Sidebar toggle
-    document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-    document.getElementById('closeSidebarBtn').addEventListener('click', toggleSidebar);
-    document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    if (menuToggle) menuToggle.addEventListener('click', toggleSidebar);
+    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
     
-    // User profile click (bisa untuk dropdown)
-    document.getElementById('userProfileBtn').addEventListener('click', () => {
-        console.log('Profile clicked');
-        // Implement dropdown menu jika diperlukan
-    });
+    if (userProfileBtn) {
+        userProfileBtn.addEventListener('click', () => {
+            console.log('Profile clicked');
+        });
+    }
     
-    // Search input
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        console.log('Search:', e.target.value);
-        // Implement search functionality
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            console.log('Search:', e.target.value);
+        });
+    }
 }
 
 // ==================== START ====================
