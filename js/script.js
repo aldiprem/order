@@ -1,5 +1,5 @@
 // ==================== KONFIGURASI ====================
-const API_BASE_URL = 'https://covers-instructional-warehouse-samuel.trycloudflare.com';
+const API_BASE_URL = 'https://mag-ministries-fits-plc.trycloudflare.com';
 
 const GOOGLE_CLIENT_ID = '511164982818-r096839s7vh55rbmc4uh8hbj6kqtkmg9.apps.googleusercontent.com';
 
