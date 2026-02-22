@@ -65,96 +65,97 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
 // ============= USER AUTHENTICATION =============
 
 async function initTelegramUser() {
-    showLoading(true);
+    console.log('Initializing Telegram user...');
     
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const user = tg.initDataUnsafe.user;
+        console.log('Telegram user data:', user);
         
-        // Kirim ke server untuk penyimpanan
-        const result = await apiRequest('init', 'POST', {
-            user: {
-                id: user.id,
-                username: user.username,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                photo_url: user.photo_url,
-                language_code: user.language_code,
-                is_premium: user.is_premium || false
+        // Update currentUser dengan data dari Telegram
+        currentUser = {
+            id: user.id || 'guest',
+            username: user.username || `user_${user.id}`,
+            firstName: user.first_name || 'User',
+            photo: user.photo_url || null,
+            isAdmin: false
+        };
+        
+        // Kirim ke server untuk penyimpanan (optional, jangan tunggu)
+        try {
+            const result = await apiRequest('init', 'POST', {
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    photo_url: user.photo_url,
+                    language_code: user.language_code,
+                    is_premium: user.is_premium || false
+                }
+            });
+            
+            if (result && result.status === 'authenticated') {
+                currentUser.isAdmin = result.is_admin || false;
             }
-        });
-        
-        if (result && result.status === 'authenticated') {
-            currentUser = {
-                id: result.user.id,
-                username: result.user.username || `user_${result.user.id}`,
-                firstName: result.user.first_name || 'User',
-                photo: result.user.photo_url,
-                isAdmin: result.is_admin || false
-            };
+        } catch (error) {
+            console.error('Error sending user data to server:', error);
         }
+    } else {
+        console.log('No Telegram user data, using guest');
     }
     
     updateUserDisplay();
-    showLoading(false);
+    console.log('Current user:', currentUser);
 }
 
 // Update tampilan user
 function updateUserDisplay() {
     const displayName = document.getElementById('displayName');
     const userAvatar = document.getElementById('userAvatar');
-    if (!displayName || !userAvatar) return;
     
-    displayName.textContent = currentUser.username;
+    if (displayName) {
+        displayName.textContent = currentUser.username;
+    }
     
-    if (currentUser.photo) {
-        userAvatar.innerHTML = `<img src="${currentUser.photo}" alt="avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-    } else {
-        userAvatar.textContent = currentUser.firstName.charAt(0).toUpperCase();
+    if (userAvatar) {
+        if (currentUser.photo) {
+            userAvatar.innerHTML = `<img src="${currentUser.photo}" alt="avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+        } else {
+            userAvatar.textContent = currentUser.firstName.charAt(0).toUpperCase();
+        }
     }
 }
 
 // ============= DATA LOADING =============
 
 async function loadUsernames() {
-    showLoading(true);
+    // This would load from API, for now use mock data
+    const mockUsernames = [
+        { id: 1, name: 'Jennie', type: 'OP', category: 'idol', price: 250, status: 'available', original: 'Jennie', desc: 'Blackpink' },
+        { id: 2, name: 'LisaS', type: 'SCANON', category: 'idol', price: 180, status: 'available', original: 'Lisa', desc: 'Blackpink + S' },
+        { id: 3, name: 'Gojo', type: 'OP', category: 'anime', price: 320, status: 'available', original: 'Gojo', desc: 'JJK' },
+        { id: 4, name: 'Mikay', type: 'OP', category: 'game', price: 140, status: 'available', original: 'Mikay', desc: 'Mobile Legends' },
+    ];
     
-    // Build query parameters
-    const params = new URLSearchParams({
-        category: currentFilters.category,
-        type: currentFilters.type,
-        min_price: currentFilters.minPrice,
-        max_price: currentFilters.maxPrice,
-        search: currentFilters.search
-    });
-    
-    const data = await apiRequest(`usernames?${params.toString()}`);
-    
-    if (data && Array.isArray(data)) {
-        usernames = data;
-    } else {
-        usernames = [];
-        showNotification('Gagal memuat data username', 'error');
-    }
-    
+    usernames = mockUsernames;
     applyFilters();
-    showLoading(false);
 }
 
 async function loadStats() {
-    const data = await apiRequest('stats');
-    
-    if (data) {
-        stats = data;
-        updateStats();
-    }
+    stats = {
+        total: usernames.length,
+        available: usernames.filter(u => u.status === 'available').length,
+        sold: usernames.filter(u => u.status === 'sold').length,
+        min_price: Math.min(...usernames.map(u => u.price)),
+        max_price: Math.max(...usernames.map(u => u.price))
+    };
+    updateStats();
 }
 
 // Load data awal
 async function loadData() {
-    await Promise.all([
-        loadUsernames(),
-        loadStats()
-    ]);
+    await loadUsernames();
+    await loadStats();
 }
 
 // ============= FILTER FUNCTIONS =============
@@ -187,6 +188,7 @@ function applyFilters() {
     
     applySort();
     updateActiveFilters();
+    renderUsernames();
 }
 
 // Apply sorting
@@ -201,13 +203,12 @@ function applySort() {
         case 'name_asc':
             filteredUsernames.sort((a, b) => a.name.localeCompare(b.name));
             break;
-        default: // newest (by id)
+        default:
             filteredUsernames.sort((a, b) => b.id - a.id);
     }
-    renderUsernames();
 }
 
-// Update price range dari data
+// Update price range
 function updatePriceRange() {
     if (usernames.length === 0) return;
     
@@ -264,7 +265,6 @@ function updateActiveFilters() {
 
 // ============= FUZZY SEARCH FUNCTIONS =============
 
-// Fungsi Levenshtein Distance
 function levenshteinDistance(a, b) {
     const matrix = [];
     for (let i = 0; i <= b.length; i++) matrix[i] = [i];
@@ -286,7 +286,6 @@ function levenshteinDistance(a, b) {
     return matrix[b.length][a.length];
 }
 
-// Cek kesamaan string dengan toleransi 1 perubahan
 function isSimilar(str1, str2, tolerance = 1) {
     const s1 = str1.toLowerCase();
     const s2 = str2.toLowerCase();
@@ -295,7 +294,6 @@ function isSimilar(str1, str2, tolerance = 1) {
     return levenshteinDistance(s1, s2) <= tolerance;
 }
 
-// Pencarian fuzzy
 function fuzzySearch(query, username) {
     if (!query) return true;
     const q = query.toLowerCase().trim();
@@ -320,11 +318,6 @@ function renderUsernames() {
     const grid = document.getElementById('usernameGrid');
     if (!grid) return;
     
-    if (isLoading) {
-        grid.innerHTML = '<div class="loading">Memuat data...</div>';
-        return;
-    }
-    
     if (filteredUsernames.length === 0) {
         grid.innerHTML = '<div class="no-results">Tidak ada username ditemukan</div>';
         return;
@@ -334,7 +327,7 @@ function renderUsernames() {
         <div class="username-card ${item.status}">
             <div class="username-name">@${item.name}</div>
             <div class="username-type">${item.type}</div>
-            <div class="username-category">${getCategoryName(item.category)} • ${item.desc || item.description || ''}</div>
+            <div class="username-category">${getCategoryName(item.category)} • ${item.desc || ''}</div>
             <div class="username-details">
                 <span class="username-price">${item.price}</span>
                 <span class="username-status status-${item.status}">${item.status === 'available' ? 'Tersedia' : 'Terjual'}</span>
@@ -364,29 +357,17 @@ function updateStats() {
     const minPriceStat = document.getElementById('minPriceStat');
     const maxPriceStat = document.getElementById('maxPriceStat');
     
-    if (totalCount) totalCount.textContent = stats.total || usernames.length;
-    if (availableCount) availableCount.textContent = stats.available || usernames.filter(u => u.status === 'available').length;
-    if (soldCount) soldCount.textContent = stats.sold || usernames.filter(u => u.status === 'sold').length;
-    
+    if (totalCount) totalCount.textContent = stats.total || 0;
+    if (availableCount) availableCount.textContent = stats.available || 0;
+    if (soldCount) soldCount.textContent = stats.sold || 0;
     if (minPriceStat) minPriceStat.textContent = `$${stats.min_price || 0}`;
     if (maxPriceStat) maxPriceStat.textContent = `$${stats.max_price || 0}`;
 }
 
 // ============= UI FUNCTIONS =============
 
-// Show/hide loading
 function showLoading(show) {
-    isLoading = show;
-    const grid = document.getElementById('usernameGrid');
-    if (grid && show) {
-        grid.innerHTML = '<div class="loading">Memuat data...</div>';
-    }
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-    // Bisa diimplementasikan sesuai kebutuhan
-    console.log(`[${type}] ${message}`);
+    // Optional - bisa diisi jika diperlukan
 }
 
 // Toggle filter panel
@@ -437,13 +418,12 @@ function resetFilters() {
     if (searchInput) searchInput.value = '';
     
     updateFilterUI();
-    loadUsernames(); // Reload data dengan filter baru
+    applyFilters();
     toggleFilterPanel();
 }
 
 // ============= SEARCH SUGGESTIONS =============
 
-// Update search suggestion
 function updateSearchSuggestion() {
     const searchInput = document.getElementById('searchInput');
     let suggestionBox = document.getElementById('searchSuggestion');
@@ -480,12 +460,11 @@ function updateSearchSuggestion() {
     suggestionBox.style.display = 'block';
 }
 
-// Select suggestion
 window.selectSuggestion = (suggestion) => {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = suggestion;
     currentFilters.search = suggestion;
-    loadUsernames(); // Reload dengan pencarian baru
+    applyFilters();
     const box = document.getElementById('searchSuggestion');
     if (box) box.style.display = 'none';
 };
@@ -511,12 +490,11 @@ window.removeFilter = (filterType) => {
             break;
     }
     updateFilterUI();
-    loadUsernames(); // Reload dengan filter baru
+    applyFilters();
 };
 
 // ============= ACCORDION INITIALIZATION =============
 
-// Inisialisasi Accordion
 function initFilterAccordion() {
     const filterGroups = document.querySelectorAll('.filter-group');
     
@@ -525,7 +503,6 @@ function initFilterAccordion() {
         const options = group.querySelector('.filter-options, .price-range');
         if (!label || !options) return;
         
-        // Cek apakah sudah diinisialisasi
         if (group.querySelector('.filter-group-header')) return;
         
         const header = document.createElement('div');
@@ -557,7 +534,6 @@ function initFilterAccordion() {
     });
 }
 
-// Inisialisasi Clear Search
 function initClearSearchButton() {
     const searchInput = document.getElementById('searchInput');
     const clearButton = document.getElementById('clearSearch');
@@ -573,7 +549,7 @@ function initClearSearchButton() {
             searchInput.value = '';
             clearButton.style.display = 'none';
             currentFilters.search = '';
-            loadUsernames(); // Reload tanpa pencarian
+            applyFilters();
             searchInput.focus();
             const box = document.getElementById('searchSuggestion');
             if (box) box.style.display = 'none';
@@ -581,17 +557,17 @@ function initClearSearchButton() {
     }
 }
 
-// ============= EVENT LISTENERS =============
+// ============= MAIN INITIALIZATION =============
 
-// Main initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOM loaded');
+    console.log('DOM loaded - main.js');
     
-    // Inisialisasi user
+    // Inisialisasi user TERLEBIH DAHULU
     await initTelegramUser();
     
-    // Load data awal
+    // Load data
     await loadData();
+    updatePriceRange();
     
     // Filter toggle
     const filterToggle = document.getElementById('filterToggle');
@@ -610,7 +586,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 currentFilters.search = e.target.value;
-                loadUsernames(); // Reload dengan pencarian
+                applyFilters();
                 updateSearchSuggestion();
             }, 300);
         });
@@ -618,7 +594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 currentFilters.search = e.target.value;
-                loadUsernames(); // Reload dengan pencarian
+                applyFilters();
                 const box = document.getElementById('searchSuggestion');
                 if (box) box.style.display = 'none';
             }
@@ -632,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const input = document.getElementById('searchInput');
             if (input) {
                 currentFilters.search = input.value;
-                loadUsernames(); // Reload dengan pencarian
+                applyFilters();
                 const box = document.getElementById('searchSuggestion');
                 if (box) box.style.display = 'none';
             }
@@ -654,7 +630,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilters.sort = btn.dataset.sort;
-            applySort(); // Apply sorting without reload
+            applySort();
         });
     });
     
@@ -664,6 +640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('[data-category]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilters.category = btn.dataset.category;
+            applyFilters();
         });
     });
     
@@ -673,6 +650,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilters.type = btn.dataset.type;
+            applyFilters();
         });
     });
     
@@ -682,6 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('[data-status]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilters.status = btn.dataset.status;
+            applyFilters();
         });
     });
     
@@ -693,7 +672,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const maxPrice = document.getElementById('maxPrice');
             currentFilters.minPrice = parseInt(minPrice?.value) || 0;
             currentFilters.maxPrice = parseInt(maxPrice?.value) || 1000;
-            loadUsernames(); // Reload dengan filter baru
+            applyFilters();
             toggleFilterPanel();
         });
     }
@@ -715,7 +694,5 @@ window.debug = {
     getCurrentUser: () => currentUser,
     getFilters: () => currentFilters,
     getUsernames: () => usernames,
-    getStats: () => stats,
-    reloadData: () => loadData(),
-    apiRequest
+    getStats: () => stats
 };
