@@ -16,7 +16,7 @@ async function initProfile() {
     // Load user data from API
     await loadUserData();
     
-    // Load user's usernames
+    // Load user's usernames from API
     await loadUserUsernames();
     
     // Check for pending OTP session
@@ -84,27 +84,127 @@ async function loadUserData() {
     }
 }
 
+// Load user's usernames from API
 async function loadUserUsernames() {
-    // Mock data for demonstration
-    const mockUserUsernames = [
-        { id: 1, name: 'Jennie', type: 'OP', price: 250, status: 'selling', date: '2024-01-15' },
-        { id: 2, name: 'LisaS', type: 'SCANON', price: 180, status: 'sold', date: '2024-01-10' },
-        { id: 3, name: 'Gojo', type: 'OP', price: 320, status: 'selling', date: '2024-01-05' },
-        { id: 4, name: 'Mikay', type: 'OP', price: 140, status: 'bought', date: '2024-01-01' },
-        { id: 5, name: 'Naruto', type: 'OP', price: 450, status: 'selling', date: '2024-01-20' },
-        { id: 6, name: 'Claude', type: 'OP', price: 280, status: 'sold', date: '2024-01-18' },
-    ];
-    
-    userListings = mockUserUsernames;
-    updateAssetStats(mockUserUsernames);
-    renderAllUsernames();
+    try {
+        // Ganti dengan endpoint yang sesuai untuk mendapatkan username milik user
+        // Ini contoh endpoint, sesuaikan dengan yang ada di backend
+        const response = await apiRequest('user/usernames');
+        
+        if (response && Array.isArray(response)) {
+            userListings = response;
+        } else {
+            // Jika endpoint belum ada, gunakan mock data sebagai fallback
+            console.log('Using mock data for usernames');
+            const mockUserUsernames = [
+                { 
+                    id: 1, 
+                    name: 'Jennie', 
+                    type: 'OP', 
+                    category: 'idol', 
+                    price: 250, 
+                    status: 'selling', 
+                    original: 'Jennie', 
+                    desc: 'Blackpink',
+                    date: '2024-01-15',
+                    verified: true,
+                    target_type: 'user'
+                },
+                { 
+                    id: 2, 
+                    name: 'LisaS', 
+                    type: 'SCANON', 
+                    category: 'idol', 
+                    price: 180, 
+                    status: 'sold', 
+                    original: 'Lisa', 
+                    desc: 'Blackpink + S',
+                    date: '2024-01-10',
+                    verified: true,
+                    target_type: 'user'
+                },
+                { 
+                    id: 3, 
+                    name: 'Gojo', 
+                    type: 'OP', 
+                    category: 'anime', 
+                    price: 320, 
+                    status: 'selling', 
+                    original: 'Gojo', 
+                    desc: 'JJK',
+                    date: '2024-01-05',
+                    verified: true,
+                    target_type: 'user'
+                },
+                { 
+                    id: 4, 
+                    name: 'Mikay', 
+                    type: 'OP', 
+                    category: 'game', 
+                    price: 140, 
+                    status: 'bought', 
+                    original: 'Mikay', 
+                    desc: 'Mobile Legends',
+                    date: '2024-01-01',
+                    verified: true,
+                    target_type: 'user'
+                },
+                { 
+                    id: 5, 
+                    name: 'KpopChannel', 
+                    type: 'CHANNEL', 
+                    category: 'idol', 
+                    price: 0, 
+                    status: 'selling', 
+                    original: 'KpopChannel', 
+                    desc: 'Channel K-Pop',
+                    date: '2024-01-20',
+                    verified: true,
+                    target_type: 'channel',
+                    owner: '@channel_owner'
+                },
+                { 
+                    id: 6, 
+                    name: 'GameGroup', 
+                    type: 'GROUP', 
+                    category: 'game', 
+                    price: 0, 
+                    status: 'selling', 
+                    original: 'GameGroup', 
+                    desc: 'Grup Diskusi Game',
+                    date: '2024-01-18',
+                    verified: true,
+                    target_type: 'group',
+                    owner: '@group_owner'
+                },
+            ];
+            userListings = mockUserUsernames;
+        }
+        
+        // Update asset stats based on real data
+        updateAssetStats(userListings);
+        
+        // Render usernames in grid
+        renderUsernamesGrid(userListings);
+        
+    } catch (error) {
+        console.error('Error loading user usernames:', error);
+        // Show error in grid
+        const grid = document.getElementById('myUsernamesGrid');
+        if (grid) {
+            grid.innerHTML = '<div class="no-results">Gagal memuat data username</div>';
+        }
+    }
 }
 
+// Update asset statistics based on user's usernames
 function updateAssetStats(usernames) {
     const total = usernames.length;
     const sold = usernames.filter(u => u.status === 'sold').length;
     const bought = usernames.filter(u => u.status === 'bought').length;
-    const totalVolume = usernames.reduce((sum, u) => sum + u.price, 0) * 15000;
+    
+    // Hitung total volume (total harga semua username)
+    const totalVolume = usernames.reduce((sum, u) => sum + (u.price || 0), 0) * 15000;
     
     const formatRupiah = (number) => {
         return 'Rp' + number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -115,29 +215,86 @@ function updateAssetStats(usernames) {
     document.getElementById('totalVolume').textContent = formatRupiah(totalVolume);
 }
 
-function renderAllUsernames() {
+// Render usernames in 2-column grid (like MARKET page)
+function renderUsernamesGrid(usernames) {
     const grid = document.getElementById('myUsernamesGrid');
     if (!grid) return;
     
-    if (userListings.length === 0) {
+    if (usernames.length === 0) {
         grid.innerHTML = '<div class="no-results">Belum ada username</div>';
         return;
     }
     
-    const sorted = [...userListings].sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Sort by date (newest first)
+    const sorted = [...usernames].sort((a, b) => {
+        if (a.date && b.date) {
+            return new Date(b.date) - new Date(a.date);
+        }
+        return 0;
+    });
     
-    grid.innerHTML = sorted.map(item => `
-        <div class="my-username-card">
-            <div class="my-username-info">
-                <div class="my-username-name">@${item.name}</div>
-                <div class="my-username-meta">${item.type} • ${item.date}</div>
+    // Render grid with 2 columns
+    grid.innerHTML = sorted.map(item => {
+        // Determine status text and class
+        let statusText = '';
+        let statusClass = '';
+        
+        if (item.status === 'selling') {
+            statusText = 'Dijual';
+            statusClass = 'status-selling';
+        } else if (item.status === 'sold') {
+            statusText = 'Terjual';
+            statusClass = 'status-sold';
+        } else if (item.status === 'bought') {
+            statusText = 'Dibeli';
+            statusClass = 'status-bought';
+        } else {
+            statusText = item.status || 'Tersedia';
+            statusClass = 'status-available';
+        }
+        
+        // Determine type display
+        let typeDisplay = item.type || 'CUSTOM';
+        let categoryDisplay = item.category ? getCategoryName(item.category) : 'Lainnya';
+        
+        // Add target type indicator
+        if (item.target_type) {
+            if (item.target_type === 'channel') {
+                typeDisplay = '📢 ' + typeDisplay;
+            } else if (item.target_type === 'group') {
+                typeDisplay = '👥 ' + typeDisplay;
+            }
+        }
+        
+        // Format price
+        const priceDisplay = item.price ? `$${item.price}` : '-';
+        
+        return `
+            <div class="username-card profile-username-card">
+                <div class="username-name">@${item.name}</div>
+                <div class="username-type">${typeDisplay}</div>
+                <div class="username-category">${categoryDisplay} • ${item.desc || item.description || ''}</div>
+                ${item.owner ? `<div class="username-owner">👑 Owner: ${item.owner}</div>` : ''}
+                <div class="username-details">
+                    <span class="username-price">${priceDisplay}</span>
+                    <span class="username-status ${statusClass}">${statusText}</span>
+                </div>
             </div>
-            <div class="my-username-price">${item.price}</div>
-            <div class="my-username-status status-${item.status}">
-                ${item.status === 'selling' ? 'Dijual' : item.status === 'sold' ? 'Terjual' : 'Dibeli'}
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+}
+
+// Get category name
+function getCategoryName(category) {
+    const categories = {
+        'idol': 'Idol K-Pop', 
+        'mulchar': 'Multichar', 
+        'anime': 'Anime',
+        'game': 'Game', 
+        'common': 'Common', 
+        'uncommon': 'Uncommon'
+    };
+    return categories[category] || category;
 }
 
 // ============= ADD USERNAME FUNCTIONS =============
@@ -150,65 +307,73 @@ function extractUsername(input) {
 }
 
 async function checkUsernameType(username) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const types = ['user', 'channel', 'group'];
-            const randomType = types[Math.floor(Math.random() * types.length)];
-            
-            resolve({
-                success: true,
-                type: randomType,
-                id: Math.floor(Math.random() * 1000000000),
-                title: username,
-                canSend: randomType !== 'channel' || Math.random() > 0.3
-            });
-        }, 1500);
-    });
-}
-
-function generateOTP() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+        const result = await apiRequest('username/check', 'POST', { username });
+        return result;
+    } catch (error) {
+        console.error('Error checking username:', error);
+        return {
+            success: false,
+            error: 'Network error'
+        };
+    }
 }
 
 async function sendOTP(target, type, targetId, targetTitle) {
-    const otp = generateOTP();
-    
-    pendingOTP = {
-        code: otp,
-        target: target,
-        type: type,
-        targetId: targetId,
-        targetTitle: targetTitle,
-        timestamp: Date.now(),
-        expiresIn: 300
-    };
-    
-    localStorage.setItem('pendingOTP', JSON.stringify(pendingOTP));
-    showMessageButton(true);
-    
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const success = Math.random() > 0.2;
-            
-            if (success) {
-                resolve({
-                    success: true,
-                    message: `Kode OTP ${otp} telah dikirim ke ${targetTitle || target}`
-                });
-            } else {
-                resolve({
-                    success: false,
-                    message: type === 'channel' ? 
-                        'Bot tidak dapat mengirim pesan ke channel. Pastikan bot sudah menjadi admin.' :
-                        type === 'group' ?
-                        'Bot tidak dapat mengirim pesan ke grup. Pastikan bot sudah ditambahkan.' :
-                        'User belum pernah memulai bot. Minta user untuk /start bot terlebih dahulu.'
-                });
-            }
-        }, 2000);
-    });
+    try {
+        const result = await apiRequest('username/send-otp', 'POST', {
+            username: target,
+            type: type,
+            target_id: targetId,
+            title: targetTitle
+        });
+        
+        if (result.success) {
+            // Store OTP info locally
+            pendingOTP = {
+                target: target,
+                type: type,
+                targetId: targetId,
+                targetTitle: targetTitle,
+                timestamp: Date.now(),
+                expiresIn: 300
+            };
+            localStorage.setItem('pendingOTP', JSON.stringify(pendingOTP));
+            showMessageButton(true);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('Error sending OTP:', error);
+        return {
+            success: false,
+            message: 'Gagal mengirim OTP. Silakan coba lagi.'
+        };
+    }
 }
 
+async function verifyOTP(otp) {
+    try {
+        const result = await apiRequest('username/verify-otp', 'POST', { otp });
+        return result;
+    } catch (error) {
+        console.error('Error verifying OTP:', error);
+        return {
+            success: false,
+            message: 'Gagal memverifikasi OTP.'
+        };
+    }
+}
+
+async function cancelVerification() {
+    try {
+        await apiRequest('username/cancel', 'POST', {});
+    } catch (error) {
+        console.error('Error canceling verification:', error);
+    }
+}
+
+// Show/hide message button
 function showMessageButton(show) {
     const btn = document.getElementById('messageButton');
     const badge = document.getElementById('messageBadge');
@@ -225,6 +390,7 @@ function showMessageButton(show) {
     }
 }
 
+// Check pending OTP session
 function checkPendingOTP() {
     const saved = localStorage.getItem('pendingOTP');
     if (saved) {
@@ -244,6 +410,7 @@ function checkPendingOTP() {
     }
 }
 
+// Start OTP timer
 function startOTPTimer(expiresIn, timerElement) {
     if (otpTimer) clearInterval(otpTimer);
     
@@ -273,7 +440,7 @@ function startOTPTimer(expiresIn, timerElement) {
 // ============= MODAL FUNCTIONS =============
 
 function showAddModal() {
-    if (currentUser.id === 'guest') {
+    if (!currentUser || currentUser.id === 'guest') {
         alert('Silakan login dengan Telegram terlebih dahulu');
         return;
     }
@@ -380,15 +547,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const result = await checkUsernameType(username);
                 
-                if (result.success) {
-                    document.getElementById('targetType').textContent = result.type;
-                    document.getElementById('targetId').textContent = result.id;
-                    document.getElementById('targetTitle').textContent = result.title;
+                if (result && result.success) {
+                    document.getElementById('targetType').textContent = result.type || 'unknown';
+                    document.getElementById('targetId').textContent = result.id || '-';
+                    document.getElementById('targetTitle').textContent = result.title || username;
                     
-                    targetInput.dataset.type = result.type;
-                    targetInput.dataset.id = result.id;
-                    targetInput.dataset.title = result.title;
-                    targetInput.dataset.canSend = result.canSend;
+                    targetInput.dataset.type = result.type || 'unknown';
+                    targetInput.dataset.id = result.id || '';
+                    targetInput.dataset.title = result.title || username;
+                    targetInput.dataset.canSend = result.can_send || false;
+                } else {
+                    document.getElementById('targetType').textContent = 'error';
+                    document.getElementById('addStatusMessage').textContent = result?.error || 'Username tidak ditemukan';
+                    document.getElementById('addStatusMessage').className = 'status-message error';
+                    document.getElementById('addStatusMessage').style.display = 'block';
                 }
             }, 500);
         });
@@ -410,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetId = document.getElementById('targetId').textContent;
             const targetTitle = document.getElementById('targetTitle').textContent;
             
-            if (type === '-' || type === 'Mengecek...') {
+            if (type === '-' || type === 'Mengecek...' || type === 'error') {
                 alert('Tunggu hingga pengecekan selesai');
                 return;
             }
@@ -429,7 +601,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 confirmAddBtn.innerHTML = 'Verifikasi';
                 
-                confirmAddBtn.onclick = () => {
+                // Update click handler for verification
+                confirmAddBtn.onclick = async () => {
                     const otp = document.getElementById('otpInput').value;
                     
                     if (otp.length !== 6) {
@@ -439,7 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                     
-                    if (pendingOTP && otp === pendingOTP.code) {
+                    const verifyResult = await verifyOTP(otp);
+                    
+                    if (verifyResult.success) {
                         document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
                         document.getElementById('addStatusMessage').className = 'status-message success';
                         document.getElementById('addStatusMessage').style.display = 'block';
@@ -448,17 +623,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         pendingOTP = null;
                         showMessageButton(false);
                         
+                        // Refresh username list
+                        await loadUserUsernames();
+                        
                         setTimeout(() => {
                             hideAddModal();
                         }, 2000);
                     } else {
-                        document.getElementById('addStatusMessage').textContent = '❌ Kode OTP salah';
+                        document.getElementById('addStatusMessage').textContent = verifyResult.message || '❌ Kode OTP salah';
                         document.getElementById('addStatusMessage').className = 'status-message error';
                         document.getElementById('addStatusMessage').style.display = 'block';
                     }
                 };
             } else {
-                document.getElementById('addStatusMessage').textContent = result.message;
+                document.getElementById('addStatusMessage').textContent = result.message || 'Gagal mengirim OTP';
                 document.getElementById('addStatusMessage').className = 'status-message error';
                 document.getElementById('addStatusMessage').style.display = 'block';
                 
@@ -468,10 +646,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Verify OTP button
+    // Verify OTP button in OTP modal
     const verifyOtpBtn = document.getElementById('verifyOtpBtn');
     if (verifyOtpBtn) {
-        verifyOtpBtn.addEventListener('click', () => {
+        verifyOtpBtn.addEventListener('click', async () => {
             const otp = document.getElementById('pendingOtpInput').value;
             
             if (otp.length !== 6) {
@@ -481,7 +659,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            if (pendingOTP && otp === pendingOTP.code) {
+            const result = await verifyOTP(otp);
+            
+            if (result.success) {
                 document.getElementById('otpStatusMessage').textContent = '✅ Verifikasi berhasil!';
                 document.getElementById('otpStatusMessage').className = 'status-message success';
                 document.getElementById('otpStatusMessage').style.display = 'block';
@@ -490,11 +670,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 pendingOTP = null;
                 showMessageButton(false);
                 
+                // Refresh username list
+                await loadUserUsernames();
+                
                 setTimeout(() => {
                     hideOtpModal();
                 }, 2000);
             } else {
-                document.getElementById('otpStatusMessage').textContent = '❌ Kode OTP salah';
+                document.getElementById('otpStatusMessage').textContent = result.message || '❌ Kode OTP salah';
                 document.getElementById('otpStatusMessage').className = 'status-message error';
                 document.getElementById('otpStatusMessage').style.display = 'block';
             }
