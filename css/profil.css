@@ -1,0 +1,395 @@
+/* Profile Container */
+.profile-container {
+    padding: 0 0 80px 0;
+    width: 100%;
+}
+
+/* Profile Header */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    margin-bottom: 20px;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #808080, #404040);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-avatar span {
+    font-size: 36px;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-info h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 5px;
+}
+
+.profile-username {
+    font-size: 14px;
+    color: #a0a0a0;
+    margin-bottom: 8px;
+}
+
+.profile-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(128, 128, 128, 0.2);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #e0e0e0;
+}
+
+/* Add Username Button */
+.add-username-container {
+    margin-bottom: 20px;
+}
+
+.add-username-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #808080, #404040);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.add-username-btn:hover {
+    background: linear-gradient(135deg, #909090, #505050);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.add-username-btn svg {
+    stroke: white;
+}
+
+/* Asset Stats Card - BARU */
+.asset-stats-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+.asset-stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.asset-stat-item.left {
+    text-align: left;
+    align-items: flex-start;
+}
+
+.asset-stat-item.center {
+    text-align: left;
+    align-items: flex-start;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 20px;
+}
+
+.asset-stat-item.right {
+    text-align: left;
+    align-items: flex-start;
+}
+
+.asset-stat-label {
+    font-size: 12px;
+    color: #a0a0a0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.asset-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #ffffff, #e0e0e0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Info Section */
+.info-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.info-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 16px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #808080;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+/* My Usernames Section */
+.my-usernames-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.my-usernames-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 16px;
+}
+
+.my-usernames-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: 100px;
+}
+
+.my-username-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.my-username-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(128, 128, 128, 0.3);
+}
+
+.my-username-info {
+    flex: 1;
+}
+
+.my-username-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.my-username-meta {
+    font-size: 12px;
+    color: #808080;
+}
+
+.my-username-price {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    padding: 0 12px;
+}
+
+.my-username-price::before {
+    content: '$';
+    font-size: 12px;
+    color: #808080;
+    margin-right: 2px;
+}
+
+.my-username-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-selling {
+    background: rgba(64, 128, 64, 0.2);
+    border: 1px solid rgba(64, 128, 64, 0.3);
+    color: #90ee90;
+}
+
+.status-sold {
+    background: rgba(128, 64, 64, 0.2);
+    border: 1px solid rgba(128, 64, 64, 0.3);
+    color: #ff6b6b;
+}
+
+.status-bought {
+    background: rgba(64, 64, 128, 0.2);
+    border: 1px solid rgba(64, 64, 128, 0.3);
+    color: #6b8cff;
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #808080;
+    font-size: 14px;
+}
+
+/* No Results */
+.no-results {
+    text-align: center;
+    padding: 30px;
+    color: #808080;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+}
+
+/* Bottom Navigation - SAMA PERSIS dengan style.css */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #808080;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  transition: all 0.3s;
+}
+
+.nav-item.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #808080, #404040);
+}
+
+.nav-item.active svg {
+  stroke: #ffffff;
+}
+
+.nav-item:hover:not(.active) {
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .nav-item {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .nav-item svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .game-categories {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .bottom-nav {
+    padding: 8px 0;
+  }
+
+  .nav-item {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  .nav-item svg {
+    width: 20px;
+    height: 20px;
+  }
+}
