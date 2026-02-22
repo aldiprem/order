@@ -1,0 +1,7 @@
+.env
+*.pyc
+__pycache__/
+myenv/
+myenv310/
+bot.session
+*.db
