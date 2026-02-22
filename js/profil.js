@@ -1,425 +1,503 @@
-// Inisialisasi Telegram Web App
-const tg = window.Telegram.WebApp;
-tg.expand();
-tg.ready();
+// State untuk profil
+let userTransactions = [];
+let userListings = [];
+let pendingOTP = null;
+let otpTimer = null;
 
-// State Management
-let currentUser = {
-    id: 'guest',
-    username: 'guest_user',
-    firstName: 'Guest',
-    photo: null
-};
+// ============= PROFILE INITIALIZATION =============
 
-let usernames = [];
-let filteredUsernames = [];
-let currentFilters = {
-    search: '',
-    category: 'all',
-    type: 'all',
-    status: 'all',
-    sort: 'newest',
-    minPrice: 0,
-    maxPrice: 1000
-};
-
-// Data dummy usernames (sama dengan sebelumnya)
-const dummyUsernames = [
-    // IDOL K-POP
-    { id: 1, name: 'Jennie', type: 'OP', category: 'idol', price: 250, status: 'available', original: 'Jennie', desc: 'Blackpink' },
-    { id: 2, name: 'LisaS', type: 'SCANON', category: 'idol', price: 180, status: 'available', original: 'Lisa', desc: 'Blackpink + S' },
-    { id: 3, name: 'JaeminNa', type: 'OP', category: 'idol', price: 220, status: 'sold', original: 'Na Jaemin', desc: 'NCT' },
-    { id: 4, name: 'WiinWin', type: 'SOP', category: 'idol', price: 150, status: 'available', original: 'Winwin', desc: 'NCT/WayV' },
-    { id: 5, name: 'Markiee', type: 'CANON', category: 'idol', price: 190, status: 'available', original: 'Mark', desc: 'NCT (I to L)' },
+async function initProfile() {
+    console.log('Initializing profile...');
+    console.log('Current user from main.js:', currentUser);
     
-    // MULTICHAR
-    { id: 6, name: 'StrayKidz', type: 'TAMPING', category: 'mulchar', price: 300, status: 'available', original: 'Stray Kids', desc: 'Tambahan z' },
-    { id: 7, name: 'Enhypen', type: 'OP', category: 'mulchar', price: 400, status: 'sold', original: 'Enhypen', desc: 'Original' },
-    { id: 8, name: 'TXTbighit', type: 'TAMDAL', category: 'mulchar', price: 280, status: 'available', original: 'TXT', desc: 'Tambah dal bighit' },
-    { id: 9, name: 'SVTcarats', type: 'GANHUR', category: 'mulchar', price: 260, status: 'available', original: 'SEVENTEEN', desc: 'Ganti huruf' },
+    // Update profile display with data from main.js
+    updateProfileDisplay();
     
-    // ANIME
-    { id: 10, name: 'GojoSatoru', type: 'OP', category: 'anime', price: 350, status: 'available', original: 'Gojo Satoru', desc: 'JJK' },
-    { id: 11, name: 'Lelouch', type: 'CANON', category: 'anime', price: 200, status: 'available', original: 'Lelouch', desc: 'Code Geass' },
-    { id: 12, name: 'RoronoaZ', type: 'SCANON', category: 'anime', price: 180, status: 'sold', original: 'Roronoa Zoro', desc: 'One Piece' },
-    { id: 13, name: 'NarutoUzumaki', type: 'OP', category: 'anime', price: 450, status: 'available', original: 'Naruto Uzumaki', desc: 'Naruto' },
-    { id: 14, name: 'LeviAckermanS', type: 'SCANON', category: 'anime', price: 320, status: 'available', original: 'Levi Ackerman', desc: 'AOT + S' },
+    // Load user data from API
+    await loadUserData();
     
-    // GAME
-    { id: 15, name: 'Mikayy', type: 'SOP', category: 'game', price: 140, status: 'available', original: 'Mikay', desc: 'Mobile Legends' },
-    { id: 16, name: 'Claude', type: 'OP', category: 'game', price: 280, status: 'available', original: 'Claude', desc: 'MLBB' },
-    { id: 17, name: 'GusionP', type: 'TAMPING', category: 'game', price: 160, status: 'sold', original: 'Gusion', desc: 'Tambah P' },
-    { id: 18, name: 'Lingg', type: 'KURHUF', category: 'game', price: 120, status: 'available', original: 'Ling', desc: 'Kurang 1 huruf' },
-    { id: 19, name: 'Chouu', type: 'SOP', category: 'game', price: 150, status: 'available', original: 'Chou', desc: 'Double u' },
+    // Load user's usernames
+    await loadUserUsernames();
     
-    // COMMON
-    { id: 20, name: 'aRose', type: 'TAMPING', category: 'common', price: 90, status: 'available', original: 'Rose', desc: 'Tamping depan' },
-    { id: 21, name: 'Jisooy', type: 'TAMPING', category: 'common', price: 95, status: 'available', original: 'Jisoo', desc: 'Tamping belakang y' },
-    { id: 22, name: 'AhyeRon', type: 'TAMDAL', category: 'common', price: 110, status: 'sold', original: 'Ahyeon', desc: 'Tamdal R' },
-    { id: 23, name: 'PharitY', type: 'GANHUR', category: 'common', price: 85, status: 'available', original: 'Pharita', desc: 'Ganti A ke Y' },
-    { id: 24, name: 'Roar', type: 'SWITCH', category: 'common', price: 130, status: 'available', original: 'Rora', desc: 'Switch huruf' },
-    
-    // UNCOMMON
-    { id: 25, name: 'Wonyoung', type: 'OP', category: 'uncommon', price: 380, status: 'available', original: 'Wonyoung', desc: 'IVE' },
-    { id: 26, name: 'SakuraS', type: 'SCANON', category: 'uncommon', price: 270, status: 'available', original: 'Sakura', desc: 'Le Sserafim + S' },
-    { id: 27, name: 'JaemLn', type: 'CANON', category: 'uncommon', price: 290, status: 'sold', original: 'Jaemin', desc: 'I to L' },
-    { id: 28, name: 'Jinniie', type: 'SOP', category: 'uncommon', price: 230, status: 'available', original: 'Jinni', desc: 'NMIXX' },
-];
-
-// Inisialisasi Telegram User
-function initTelegramUser() {
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-        const user = tg.initDataUnsafe.user;
-        currentUser = {
-            id: user.id || 'guest',
-            username: user.username || `user_${user.id}`,
-            firstName: user.first_name || 'User',
-            photo: user.photo_url || null
-        };
-    }
-    
-    updateUserDisplay();
+    // Check for pending OTP session
+    checkPendingOTP();
 }
 
-// Update tampilan user
-function updateUserDisplay() {
-    const displayName = document.getElementById('displayName');
-    const userAvatar = document.getElementById('userAvatar');
+function updateProfileDisplay() {
+    const profileAvatarImg = document.getElementById('profileAvatarImg');
+    const profileAvatarText = document.getElementById('profileAvatarText');
+    const profileName = document.getElementById('profileName');
+    const profileUsername = document.getElementById('profileUsername');
+    const profileBadge = document.getElementById('profileBadge');
+
+    if (!currentUser) {
+        console.error('currentUser is not defined!');
+        return;
+    }
+
+    console.log('Updating profile with:', currentUser);
+
+    if (profileName) {
+        profileName.textContent = currentUser.firstName || 'Guest User';
+    }
     
-    displayName.textContent = currentUser.username;
-    
-    if (currentUser.photo) {
-        userAvatar.innerHTML = `<img src="${currentUser.photo}" alt="avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-    } else {
-        userAvatar.textContent = currentUser.firstName.charAt(0).toUpperCase();
+    if (profileUsername) {
+        profileUsername.textContent = `@${currentUser.username}`;
+    }
+
+    if (profileBadge) {
+        profileBadge.textContent = currentUser.isAdmin ? '👑 Admin' : '👤 User';
+        if (currentUser.isAdmin) {
+            profileBadge.style.background = 'rgba(255, 215, 0, 0.2)';
+            profileBadge.style.borderColor = 'rgba(255, 215, 0, 0.3)';
+            profileBadge.style.color = '#ffd700';
+        } else {
+            profileBadge.style.background = 'rgba(128, 128, 128, 0.2)';
+            profileBadge.style.borderColor = 'rgba(128, 128, 128, 0.3)';
+            profileBadge.style.color = '#e0e0e0';
+        }
+    }
+
+    if (currentUser.photo && profileAvatarImg) {
+        profileAvatarImg.src = currentUser.photo;
+        profileAvatarImg.style.display = 'block';
+        if (profileAvatarText) profileAvatarText.style.display = 'none';
+    } else if (profileAvatarText) {
+        profileAvatarText.textContent = (currentUser.firstName || 'G').charAt(0).toUpperCase();
+        profileAvatarText.style.display = 'flex';
+        if (profileAvatarImg) profileAvatarImg.style.display = 'none';
     }
 }
 
-// Load data
-function loadData() {
-    usernames = dummyUsernames;
-    updatePriceRange();
-    applyFilters();
-    updateStats();
-}
-
-// Update price range from data
-function updatePriceRange() {
-    const prices = usernames.map(u => u.price);
-    currentFilters.minPrice = Math.min(...prices);
-    currentFilters.maxPrice = Math.max(...prices);
-    
-    document.getElementById('minPrice').value = currentFilters.minPrice;
-    document.getElementById('maxPrice').value = currentFilters.maxPrice;
-}
-
-// Apply filters
-function applyFilters() {
-    filteredUsernames = usernames.filter(item => {
-        // Search filter
-        if (currentFilters.search && !item.name.toLowerCase().includes(currentFilters.search.toLowerCase()) &&
-            !item.original.toLowerCase().includes(currentFilters.search.toLowerCase())) {
-            return false;
-        }
+async function loadUserData() {
+    try {
+        const userData = await apiRequest('user/me');
         
-        // Category filter
-        if (currentFilters.category !== 'all' && item.category !== currentFilters.category) {
-            return false;
+        if (userData && !userData.error) {
+            document.getElementById('infoUserId').textContent = userData.id || '-';
+            document.getElementById('infoJoinDate').textContent = userData.created_at ? new Date(userData.created_at).toLocaleDateString('id-ID') : '-';
+            document.getElementById('infoLastLogin').textContent = userData.last_login ? new Date(userData.last_login).toLocaleDateString('id-ID') : '-';
+            document.getElementById('infoPremium').textContent = userData.is_premium ? 'Ya' : 'Tidak';
         }
-        
-        // Type filter
-        if (currentFilters.type !== 'all' && item.type !== currentFilters.type) {
-            return false;
-        }
-        
-        // Status filter
-        if (currentFilters.status !== 'all' && item.status !== currentFilters.status) {
-            return false;
-        }
-        
-        // Price filter
-        if (item.price < currentFilters.minPrice || item.price > currentFilters.maxPrice) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    // Apply sorting
-    applySort();
-    updateActiveFilters();
-}
-
-// Apply sorting
-function applySort() {
-    switch(currentFilters.sort) {
-        case 'price_asc':
-            filteredUsernames.sort((a, b) => a.price - b.price);
-            break;
-        case 'price_desc':
-            filteredUsernames.sort((a, b) => b.price - a.price);
-            break;
-        case 'name_asc':
-            filteredUsernames.sort((a, b) => a.name.localeCompare(b.name));
-            break;
-        default: // newest (by id)
-            filteredUsernames.sort((a, b) => b.id - a.id);
+    } catch (error) {
+        console.error('Error loading user data:', error);
     }
-    
-    renderUsernames();
 }
 
-// Render username grid
-function renderUsernames() {
-    const grid = document.getElementById('usernameGrid');
+async function loadUserUsernames() {
+    // Mock data for demonstration
+    const mockUserUsernames = [
+        { id: 1, name: 'Jennie', type: 'OP', price: 250, status: 'selling', date: '2024-01-15' },
+        { id: 2, name: 'LisaS', type: 'SCANON', price: 180, status: 'sold', date: '2024-01-10' },
+        { id: 3, name: 'Gojo', type: 'OP', price: 320, status: 'selling', date: '2024-01-05' },
+        { id: 4, name: 'Mikay', type: 'OP', price: 140, status: 'bought', date: '2024-01-01' },
+        { id: 5, name: 'Naruto', type: 'OP', price: 450, status: 'selling', date: '2024-01-20' },
+        { id: 6, name: 'Claude', type: 'OP', price: 280, status: 'sold', date: '2024-01-18' },
+    ];
     
-    if (filteredUsernames.length === 0) {
-        grid.innerHTML = '<div class="no-results">Tidak ada username ditemukan</div>';
+    userListings = mockUserUsernames;
+    updateAssetStats(mockUserUsernames);
+    renderAllUsernames();
+}
+
+function updateAssetStats(usernames) {
+    const total = usernames.length;
+    const sold = usernames.filter(u => u.status === 'sold').length;
+    const bought = usernames.filter(u => u.status === 'bought').length;
+    const totalVolume = usernames.reduce((sum, u) => sum + u.price, 0) * 15000;
+    
+    const formatRupiah = (number) => {
+        return 'Rp' + number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
+    
+    document.getElementById('assetCount').textContent = total;
+    document.getElementById('boughtSoldCount').textContent = `${bought}/${sold}`;
+    document.getElementById('totalVolume').textContent = formatRupiah(totalVolume);
+}
+
+function renderAllUsernames() {
+    const grid = document.getElementById('myUsernamesGrid');
+    if (!grid) return;
+    
+    if (userListings.length === 0) {
+        grid.innerHTML = '<div class="no-results">Belum ada username</div>';
         return;
     }
     
-    grid.innerHTML = filteredUsernames.map(item => `
-        <div class="username-card ${item.status}">
-            <div class="username-name">@${item.name}</div>
-            <div class="username-type">${item.type}</div>
-            <div class="username-category">${getCategoryName(item.category)} • ${item.desc}</div>
-            <div class="username-details">
-                <span class="username-price">${item.price}</span>
-                <span class="username-status status-${item.status}">${item.status === 'available' ? 'Tersedia' : 'Terjual'}</span>
+    const sorted = [...userListings].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    grid.innerHTML = sorted.map(item => `
+        <div class="my-username-card">
+            <div class="my-username-info">
+                <div class="my-username-name">@${item.name}</div>
+                <div class="my-username-meta">${item.type} • ${item.date}</div>
+            </div>
+            <div class="my-username-price">${item.price}</div>
+            <div class="my-username-status status-${item.status}">
+                ${item.status === 'selling' ? 'Dijual' : item.status === 'sold' ? 'Terjual' : 'Dibeli'}
             </div>
         </div>
     `).join('');
 }
 
-// Get category display name
-function getCategoryName(category) {
-    const categories = {
-        'idol': 'Idol K-Pop',
-        'mulchar': 'Multichar',
-        'anime': 'Anime',
-        'game': 'Game',
-        'common': 'Common',
-        'uncommon': 'Uncommon'
+// ============= ADD USERNAME FUNCTIONS =============
+
+function extractUsername(input) {
+    input = input.replace('@', '');
+    const tmeMatch = input.match(/t\.me\/([a-zA-Z0-9_]+)/);
+    if (tmeMatch) return tmeMatch[1];
+    return input;
+}
+
+async function checkUsernameType(username) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const types = ['user', 'channel', 'group'];
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            
+            resolve({
+                success: true,
+                type: randomType,
+                id: Math.floor(Math.random() * 1000000000),
+                title: username,
+                canSend: randomType !== 'channel' || Math.random() > 0.3
+            });
+        }, 1500);
+    });
+}
+
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function sendOTP(target, type, targetId, targetTitle) {
+    const otp = generateOTP();
+    
+    pendingOTP = {
+        code: otp,
+        target: target,
+        type: type,
+        targetId: targetId,
+        targetTitle: targetTitle,
+        timestamp: Date.now(),
+        expiresIn: 300
     };
-    return categories[category] || category;
+    
+    localStorage.setItem('pendingOTP', JSON.stringify(pendingOTP));
+    showMessageButton(true);
+    
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const success = Math.random() > 0.2;
+            
+            if (success) {
+                resolve({
+                    success: true,
+                    message: `Kode OTP ${otp} telah dikirim ke ${targetTitle || target}`
+                });
+            } else {
+                resolve({
+                    success: false,
+                    message: type === 'channel' ? 
+                        'Bot tidak dapat mengirim pesan ke channel. Pastikan bot sudah menjadi admin.' :
+                        type === 'group' ?
+                        'Bot tidak dapat mengirim pesan ke grup. Pastikan bot sudah ditambahkan.' :
+                        'User belum pernah memulai bot. Minta user untuk /start bot terlebih dahulu.'
+                });
+            }
+        }, 2000);
+    });
 }
 
-// Update stats
-function updateStats() {
-    const totalCount = document.getElementById('totalCount');
-    const availableCount = document.getElementById('availableCount');
-    const soldCount = document.getElementById('soldCount');
-    const minPriceStat = document.getElementById('minPriceStat');
-    const maxPriceStat = document.getElementById('maxPriceStat');
+function showMessageButton(show) {
+    const btn = document.getElementById('messageButton');
+    const badge = document.getElementById('messageBadge');
     
-    totalCount.textContent = usernames.length;
-    availableCount.textContent = usernames.filter(u => u.status === 'available').length;
-    soldCount.textContent = usernames.filter(u => u.status === 'sold').length;
-    
-    const prices = usernames.map(u => u.price);
-    minPriceStat.textContent = `$${Math.min(...prices)}`;
-    maxPriceStat.textContent = `$${Math.max(...prices)}`;
+    if (btn) {
+        btn.style.display = show ? 'flex' : 'none';
+        if (show && pendingOTP) {
+            badge.style.display = 'flex';
+            btn.classList.add('has-message');
+        } else {
+            badge.style.display = 'none';
+            btn.classList.remove('has-message');
+        }
+    }
 }
 
-// Update active filters display
-function updateActiveFilters() {
-    const container = document.getElementById('activeFilters');
-    const filters = [];
+function checkPendingOTP() {
+    const saved = localStorage.getItem('pendingOTP');
+    if (saved) {
+        try {
+            pendingOTP = JSON.parse(saved);
+            const elapsed = (Date.now() - pendingOTP.timestamp) / 1000;
+            
+            if (elapsed < pendingOTP.expiresIn) {
+                showMessageButton(true);
+            } else {
+                localStorage.removeItem('pendingOTP');
+                pendingOTP = null;
+            }
+        } catch (e) {
+            console.error('Error parsing pending OTP:', e);
+        }
+    }
+}
+
+function startOTPTimer(expiresIn, timerElement) {
+    if (otpTimer) clearInterval(otpTimer);
     
-    if (currentFilters.category !== 'all') {
-        filters.push(`Category: ${getCategoryName(currentFilters.category)}`);
-    }
-    if (currentFilters.type !== 'all') {
-        filters.push(`Type: ${currentFilters.type}`);
-    }
-    if (currentFilters.status !== 'all') {
-        filters.push(`Status: ${currentFilters.status === 'available' ? 'Tersedia' : 'Terjual'}`);
-    }
-    if (currentFilters.minPrice > 0 || currentFilters.maxPrice < 1000) {
-        filters.push(`Price: $${currentFilters.minPrice}-$${currentFilters.maxPrice}`);
-    }
-    if (currentFilters.sort !== 'newest') {
-        const sortLabels = {
-            'price_asc': 'Harga Terendah',
-            'price_desc': 'Harga Tertinggi',
-            'name_asc': 'A-Z'
-        };
-        filters.push(`Sort: ${sortLabels[currentFilters.sort]}`);
-    }
+    const endTime = Date.now() + expiresIn * 1000;
     
-    if (filters.length === 0) {
-        container.innerHTML = '';
+    otpTimer = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+        
+        if (remaining <= 0) {
+            clearInterval(otpTimer);
+            timerElement.textContent = '0:00';
+            
+            if (pendingOTP) {
+                localStorage.removeItem('pendingOTP');
+                pendingOTP = null;
+                showMessageButton(false);
+            }
+        } else {
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+}
+
+// ============= MODAL FUNCTIONS =============
+
+function showAddModal() {
+    if (currentUser.id === 'guest') {
+        alert('Silakan login dengan Telegram terlebih dahulu');
         return;
     }
     
-    container.innerHTML = filters.map(filter => `
-        <span class="filter-tag">
-            ${filter}
-            <button onclick="removeFilter('${filter.split(':')[0].toLowerCase().trim()}')">×</button>
-        </span>
-    `).join('');
+    const modal = document.getElementById('addUsernameModal');
+    if (!modal) return;
+    
+    modal.classList.add('show');
+    document.getElementById('step1').style.display = 'block';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('targetUsername').value = '';
+    document.getElementById('targetType').textContent = '-';
+    document.getElementById('targetId').textContent = '-';
+    document.getElementById('targetTitle').textContent = '-';
+    document.getElementById('addStatusMessage').style.display = 'none';
+    document.getElementById('confirmAddBtn').textContent = 'Lanjutkan';
+    document.getElementById('confirmAddBtn').disabled = false;
 }
 
-// Toggle filter panel
-function toggleFilterPanel() {
-    const panel = document.getElementById('filterPanel');
-    const overlay = document.getElementById('filterOverlay');
-    panel.classList.toggle('show');
-    overlay.classList.toggle('show');
-    
-    // Prevent body scroll when panel is open
-    if (panel.classList.contains('show')) {
-        document.body.style.overflow = 'hidden';
-    } else {
-        document.body.style.overflow = 'auto';
-    }
+function hideAddModal() {
+    const modal = document.getElementById('addUsernameModal');
+    if (modal) modal.classList.remove('show');
 }
 
-// Update filter UI active states
-function updateFilterUI() {
-    // Update sort buttons
-    document.querySelectorAll('[data-sort]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.sort === currentFilters.sort);
-    });
+function showOtpModal() {
+    if (!pendingOTP) return;
     
-    // Update category buttons
-    document.querySelectorAll('[data-category]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.category === currentFilters.category);
-    });
+    const modal = document.getElementById('otpModal');
+    if (!modal) return;
     
-    // Update type buttons
-    document.querySelectorAll('[data-type]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.type === currentFilters.type);
-    });
+    modal.classList.add('show');
+    document.getElementById('pendingOtpInput').value = '';
+    document.getElementById('pendingTarget').textContent = pendingOTP.targetTitle || pendingOTP.target;
+    document.getElementById('otpStatusMessage').style.display = 'none';
     
-    // Update status buttons
-    document.querySelectorAll('[data-status]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.status === currentFilters.status);
-    });
-    
-    // Update price inputs
-    document.getElementById('minPrice').value = currentFilters.minPrice;
-    document.getElementById('maxPrice').value = currentFilters.maxPrice;
+    startOTPTimer(pendingOTP.expiresIn - (Date.now() - pendingOTP.timestamp) / 1000, document.getElementById('pendingTimer'));
 }
 
-// Reset all filters
-function resetFilters() {
-    currentFilters = {
-        search: '',
-        category: 'all',
-        type: 'all',
-        status: 'all',
-        sort: 'newest',
-        minPrice: Math.min(...usernames.map(u => u.price)),
-        maxPrice: Math.max(...usernames.map(u => u.price))
-    };
-    
-    document.getElementById('searchInput').value = '';
-    updateFilterUI();
-    applyFilters();
-    toggleFilterPanel();
+function hideOtpModal() {
+    const modal = document.getElementById('otpModal');
+    if (modal) modal.classList.remove('show');
+    if (otpTimer) clearInterval(otpTimer);
 }
 
-// Event Listeners
+// ============= EVENT LISTENERS =============
+
 document.addEventListener('DOMContentLoaded', () => {
-    initTelegramUser();
-    loadData();
+    console.log('Profil.js DOM loaded');
     
-    // Filter toggle
-    document.getElementById('filterToggle').addEventListener('click', toggleFilterPanel);
-    document.getElementById('closeFilter').addEventListener('click', toggleFilterPanel);
-    document.getElementById('filterOverlay').addEventListener('click', toggleFilterPanel);
+    // Tunggu sebentar untuk memastikan main.js sudah selesai
+    setTimeout(() => {
+        // Initialize profile
+        initProfile();
+    }, 500);
     
-    // Search button
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        currentFilters.search = document.getElementById('searchInput').value;
-        applyFilters();
-    });
-    
-    // Search on enter
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            currentFilters.search = e.target.value;
-            applyFilters();
-        }
-    });
-    
-    // Sort options
-    document.querySelectorAll('[data-sort]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilters.sort = btn.dataset.sort;
-        });
-    });
-    
-    // Category options
-    document.querySelectorAll('[data-category]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-category]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilters.category = btn.dataset.category;
-        });
-    });
-    
-    // Type options
-    document.querySelectorAll('[data-type]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilters.type = btn.dataset.type;
-        });
-    });
-    
-    // Status options
-    document.querySelectorAll('[data-status]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-status]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilters.status = btn.dataset.status;
-        });
-    });
-    
-    // Apply filters button
-    document.getElementById('applyFilters').addEventListener('click', () => {
-        currentFilters.minPrice = parseInt(document.getElementById('minPrice').value) || 0;
-        currentFilters.maxPrice = parseInt(document.getElementById('maxPrice').value) || 1000;
-        applyFilters();
-        toggleFilterPanel();
-    });
-    
-    // Reset filters button
-    document.getElementById('resetFilters').addEventListener('click', resetFilters);
-});
-
-// Remove specific filter (called from filter tags)
-window.removeFilter = (filterType) => {
-    switch(filterType) {
-        case 'category':
-            currentFilters.category = 'all';
-            break;
-        case 'type':
-            currentFilters.type = 'all';
-            break;
-        case 'status':
-            currentFilters.status = 'all';
-            break;
-        case 'price':
-            currentFilters.minPrice = Math.min(...usernames.map(u => u.price));
-            currentFilters.maxPrice = Math.max(...usernames.map(u => u.price));
-            break;
-        case 'sort':
-            currentFilters.sort = 'newest';
-            break;
+    // Add username button
+    const addBtn = document.getElementById('addUsernameBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', showAddModal);
     }
     
-    updateFilterUI();
-    applyFilters();
-};
-
-// Export untuk debugging
-window.debug = {
-    getCurrentUser: () => currentUser,
-    getFilters: () => currentFilters,
-    getUsernames: () => usernames
-};
+    // Message button
+    const messageBtn = document.getElementById('messageButton');
+    if (messageBtn) {
+        messageBtn.addEventListener('click', showOtpModal);
+    }
+    
+    // Close modals
+    const closeAddModal = document.getElementById('closeAddModal');
+    const closeOtpModal = document.getElementById('closeOtpModal');
+    const cancelAddBtn = document.getElementById('cancelAddBtn');
+    const cancelOtpBtn = document.getElementById('cancelOtpBtn');
+    
+    if (closeAddModal) closeAddModal.addEventListener('click', hideAddModal);
+    if (closeOtpModal) closeOtpModal.addEventListener('click', hideOtpModal);
+    if (cancelAddBtn) cancelAddBtn.addEventListener('click', hideAddModal);
+    if (cancelOtpBtn) {
+        cancelOtpBtn.addEventListener('click', () => {
+            hideOtpModal();
+            localStorage.removeItem('pendingOTP');
+            pendingOTP = null;
+            showMessageButton(false);
+        });
+    }
+    
+    // Target username input
+    const targetInput = document.getElementById('targetUsername');
+    if (targetInput) {
+        let timeout;
+        targetInput.addEventListener('input', async (e) => {
+            clearTimeout(timeout);
+            
+            const value = e.target.value.trim();
+            if (value.length < 3) {
+                document.getElementById('targetType').textContent = '-';
+                document.getElementById('targetId').textContent = '-';
+                document.getElementById('targetTitle').textContent = '-';
+                return;
+            }
+            
+            timeout = setTimeout(async () => {
+                const username = extractUsername(value);
+                document.getElementById('targetType').textContent = 'Mengecek...';
+                
+                const result = await checkUsernameType(username);
+                
+                if (result.success) {
+                    document.getElementById('targetType').textContent = result.type;
+                    document.getElementById('targetId').textContent = result.id;
+                    document.getElementById('targetTitle').textContent = result.title;
+                    
+                    targetInput.dataset.type = result.type;
+                    targetInput.dataset.id = result.id;
+                    targetInput.dataset.title = result.title;
+                    targetInput.dataset.canSend = result.canSend;
+                }
+            }, 500);
+        });
+    }
+    
+    // Confirm add button
+    const confirmAddBtn = document.getElementById('confirmAddBtn');
+    if (confirmAddBtn) {
+        confirmAddBtn.addEventListener('click', async () => {
+            const target = document.getElementById('targetUsername').value.trim();
+            
+            if (!target) {
+                alert('Masukkan username target');
+                return;
+            }
+            
+            const username = extractUsername(target);
+            const type = document.getElementById('targetType').textContent;
+            const targetId = document.getElementById('targetId').textContent;
+            const targetTitle = document.getElementById('targetTitle').textContent;
+            
+            if (type === '-' || type === 'Mengecek...') {
+                alert('Tunggu hingga pengecekan selesai');
+                return;
+            }
+            
+            confirmAddBtn.disabled = true;
+            confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengirim...';
+            
+            const result = await sendOTP(username, type, targetId, targetTitle);
+            
+            if (result.success) {
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').style.display = 'block';
+                document.getElementById('otpTarget').textContent = targetTitle || username;
+                
+                startOTPTimer(300, document.getElementById('otpTimer'));
+                
+                confirmAddBtn.innerHTML = 'Verifikasi';
+                
+                confirmAddBtn.onclick = () => {
+                    const otp = document.getElementById('otpInput').value;
+                    
+                    if (otp.length !== 6) {
+                        document.getElementById('addStatusMessage').textContent = 'Masukkan 6 digit OTP';
+                        document.getElementById('addStatusMessage').className = 'status-message error';
+                        document.getElementById('addStatusMessage').style.display = 'block';
+                        return;
+                    }
+                    
+                    if (pendingOTP && otp === pendingOTP.code) {
+                        document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
+                        document.getElementById('addStatusMessage').className = 'status-message success';
+                        document.getElementById('addStatusMessage').style.display = 'block';
+                        
+                        localStorage.removeItem('pendingOTP');
+                        pendingOTP = null;
+                        showMessageButton(false);
+                        
+                        setTimeout(() => {
+                            hideAddModal();
+                        }, 2000);
+                    } else {
+                        document.getElementById('addStatusMessage').textContent = '❌ Kode OTP salah';
+                        document.getElementById('addStatusMessage').className = 'status-message error';
+                        document.getElementById('addStatusMessage').style.display = 'block';
+                    }
+                };
+            } else {
+                document.getElementById('addStatusMessage').textContent = result.message;
+                document.getElementById('addStatusMessage').className = 'status-message error';
+                document.getElementById('addStatusMessage').style.display = 'block';
+                
+                confirmAddBtn.disabled = false;
+                confirmAddBtn.innerHTML = 'Lanjutkan';
+            }
+        });
+    }
+    
+    // Verify OTP button
+    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+    if (verifyOtpBtn) {
+        verifyOtpBtn.addEventListener('click', () => {
+            const otp = document.getElementById('pendingOtpInput').value;
+            
+            if (otp.length !== 6) {
+                document.getElementById('otpStatusMessage').textContent = 'Masukkan 6 digit OTP';
+                document.getElementById('otpStatusMessage').className = 'status-message error';
+                document.getElementById('otpStatusMessage').style.display = 'block';
+                return;
+            }
+            
+            if (pendingOTP && otp === pendingOTP.code) {
+                document.getElementById('otpStatusMessage').textContent = '✅ Verifikasi berhasil!';
+                document.getElementById('otpStatusMessage').className = 'status-message success';
+                document.getElementById('otpStatusMessage').style.display = 'block';
+                
+                localStorage.removeItem('pendingOTP');
+                pendingOTP = null;
+                showMessageButton(false);
+                
+                setTimeout(() => {
+                    hideOtpModal();
+                }, 2000);
+            } else {
+                document.getElementById('otpStatusMessage').textContent = '❌ Kode OTP salah';
+                document.getElementById('otpStatusMessage').className = 'status-message error';
+                document.getElementById('otpStatusMessage').style.display = 'block';
+            }
+        });
+    }
+});
