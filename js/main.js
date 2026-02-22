@@ -129,33 +129,62 @@ function updateUserDisplay() {
 // ============= DATA LOADING =============
 
 async function loadUsernames() {
-    // This would load from API, for now use mock data
-    const mockUsernames = [
-        { id: 1, name: 'Jennie', type: 'OP', category: 'idol', price: 250, status: 'available', original: 'Jennie', desc: 'Blackpink' },
-        { id: 2, name: 'LisaS', type: 'SCANON', category: 'idol', price: 180, status: 'available', original: 'Lisa', desc: 'Blackpink + S' },
-        { id: 3, name: 'Gojo', type: 'OP', category: 'anime', price: 320, status: 'available', original: 'Gojo', desc: 'JJK' },
-        { id: 4, name: 'Mikay', type: 'OP', category: 'game', price: 140, status: 'available', original: 'Mikay', desc: 'Mobile Legends' },
-    ];
-    
-    usernames = mockUsernames;
-    applyFilters();
+  showLoading(true);
+
+  try {
+    // Build query parameters
+    const params = new URLSearchParams({
+      category: currentFilters.category,
+      type: currentFilters.type,
+      min_price: currentFilters.minPrice,
+      max_price: currentFilters.maxPrice,
+      search: currentFilters.search
+    });
+
+    const data = await apiRequest(`usernames?${params.toString()}`);
+
+    if (data && Array.isArray(data)) {
+      usernames = data;
+    } else {
+      usernames = [];
+      console.log('No usernames from API, using empty array');
+    }
+  } catch (error) {
+    console.error('Error loading usernames:', error);
+    usernames = [];
+  }
+
+  applyFilters();
+  showLoading(false);
 }
 
 async function loadStats() {
-    stats = {
+  try {
+    const data = await apiRequest('stats');
+
+    if (data) {
+      stats = data;
+    } else {
+      // If no data, calculate from usernames
+      stats = {
         total: usernames.length,
         available: usernames.filter(u => u.status === 'available').length,
         sold: usernames.filter(u => u.status === 'sold').length,
-        min_price: Math.min(...usernames.map(u => u.price)),
-        max_price: Math.max(...usernames.map(u => u.price))
-    };
+        min_price: usernames.length > 0 ? Math.min(...usernames.map(u => u.price)) : 0,
+        max_price: usernames.length > 0 ? Math.max(...usernames.map(u => u.price)) : 0
+      };
+    }
     updateStats();
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
 }
 
 // Load data awal
 async function loadData() {
-    await loadUsernames();
-    await loadStats();
+  await loadUsernames();
+  await loadStats();
+  updatePriceRange();
 }
 
 // ============= FILTER FUNCTIONS =============
@@ -311,19 +340,81 @@ function fuzzySearch(query, username) {
     return false;
 }
 
-// ============= RENDER FUNCTIONS =============
-
 // Render username grid
 function renderUsernames() {
-    const grid = document.getElementById('usernameGrid');
-    if (!grid) return;
-    
-    if (filteredUsernames.length === 0) {
-        grid.innerHTML = '<div class="no-results">Tidak ada username ditemukan</div>';
-        return;
-    }
-    
-    grid.innerHTML = filteredUsernames.map(item => `
+  const grid = document.getElementById('usernameGrid');
+  if (!grid) return;
+
+  if (isLoading) {
+    grid.innerHTML = '<div class="loading">Memuat data...</div>';
+    return;
+  }
+
+  if (filteredUsernames.length === 0) {
+    // Pilih animasi secara random (1-5)
+    const animationNumber = Math.floor(Math.random() * 5) + 1;
+
+    grid.innerHTML = `
+            <div class="empty-state" data-animation="${animationNumber}">
+                <!-- Animation 1: Floating Boxes -->
+                <div class="empty-state-animation-1">
+                    <div class="box"></div>
+                    <div class="box"></div>
+                    <div class="box"></div>
+                </div>
+                
+                <!-- Animation 2: Pulsing Circle -->
+                <div class="empty-state-animation-2">
+                    <div class="circle"></div>
+                </div>
+                
+                <!-- Animation 3: Searching Dots -->
+                <div class="empty-state-animation-3">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                
+                <!-- Animation 4: Rotating Cube -->
+                <div class="empty-state-animation-4">
+                    <div class="cube">
+                        <div class="front"></div>
+                        <div class="back"></div>
+                        <div class="right"></div>
+                        <div class="left"></div>
+                        <div class="top"></div>
+                        <div class="bottom"></div>
+                    </div>
+                </div>
+                
+                <!-- Animation 5: Ghost -->
+                <div class="empty-state-animation-5">
+                    <div class="ghost">
+                        <div class="eyes">
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="mouth"></div>
+                    </div>
+                </div>
+                
+                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+                
+                <h3 class="empty-state-title">Belum Tersedia</h3>
+                <p class="empty-state-description">
+                    ${currentFilters.search ? 
+                        `Tidak ada username yang cocok dengan pencarian "${currentFilters.search}"` : 
+                        'Belum ada username yang tersedia saat ini'}
+                </p>
+            </div>
+        `;
+    return;
+  }
+
+  grid.innerHTML = filteredUsernames.map(item => `
         <div class="username-card ${item.status}">
             <div class="username-name">@${item.name}</div>
             <div class="username-type">${item.type}</div>
