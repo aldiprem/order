@@ -9,6 +9,15 @@ let otpTarget = null;
 async function initProfile() {
     showLoading(true);
 
+    // Pastikan currentUser sudah terisi
+    if (!currentUser || currentUser.id === 'guest') {
+        console.log('Waiting for user data...');
+        // Tunggu sebentar untuk user data
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    console.log('Current User:', currentUser);
+
     // Update profile display
     updateProfileDisplay();
 
@@ -32,6 +41,8 @@ function updateProfileDisplay() {
     const profileUsername = document.getElementById('profileUsername');
     const profileBadge = document.getElementById('profileBadge');
 
+    console.log('Updating profile with:', currentUser);
+
     if (profileName) profileName.textContent = currentUser.firstName || 'Guest User';
     if (profileUsername) profileUsername.textContent = `@${currentUser.username}`;
 
@@ -41,6 +52,10 @@ function updateProfileDisplay() {
             profileBadge.style.background = 'rgba(255, 215, 0, 0.2)';
             profileBadge.style.borderColor = 'rgba(255, 215, 0, 0.3)';
             profileBadge.style.color = '#ffd700';
+        } else {
+            profileBadge.style.background = 'rgba(128, 128, 128, 0.2)';
+            profileBadge.style.borderColor = 'rgba(128, 128, 128, 0.3)';
+            profileBadge.style.color = '#e0e0e0';
         }
     }
 
@@ -57,27 +72,33 @@ function updateProfileDisplay() {
 
 // Load user data from API
 async function loadUserData() {
-    const userData = await apiRequest('user/me');
+    try {
+        const userData = await apiRequest('user/me');
 
-    if (userData) {
-        document.getElementById('infoUserId').textContent = userData.id || '-';
+        if (userData && !userData.error) {
+            document.getElementById('infoUserId').textContent = userData.id || '-';
 
-        if (userData.created_at) {
-            const joinDate = new Date(userData.created_at);
-            document.getElementById('infoJoinDate').textContent = joinDate.toLocaleDateString('id-ID');
+            if (userData.created_at) {
+                const joinDate = new Date(userData.created_at);
+                document.getElementById('infoJoinDate').textContent = joinDate.toLocaleDateString('id-ID');
+            }
+
+            if (userData.last_login) {
+                const lastLogin = new Date(userData.last_login);
+                document.getElementById('infoLastLogin').textContent = lastLogin.toLocaleDateString('id-ID');
+            }
+
+            document.getElementById('infoPremium').textContent = userData.is_premium ? 'Ya' : 'Tidak';
         }
-
-        if (userData.last_login) {
-            const lastLogin = new Date(userData.last_login);
-            document.getElementById('infoLastLogin').textContent = lastLogin.toLocaleDateString('id-ID');
-        }
-
-        document.getElementById('infoPremium').textContent = userData.is_premium ? 'Ya' : 'Tidak';
+    } catch (error) {
+        console.error('Error loading user data:', error);
     }
 }
 
 // Load user's usernames from API
 async function loadUserUsernames() {
+    // This would need an API endpoint to get user's listings and transactions
+    // For now, using mock data
     const mockUserUsernames = [
         { id: 1, name: 'Jennie', type: 'OP', price: 250, status: 'selling', date: '2024-01-15' },
         { id: 2, name: 'LisaS', type: 'SCANON', price: 180, status: 'sold', date: '2024-01-10' },
@@ -152,7 +173,6 @@ function extractUsername(input) {
 // Check username type (user, channel, group)
 async function checkUsernameType(username) {
     // Simulasi API call ke bot
-    // Dalam implementasi nyata, ini akan dipanggil ke backend
     return new Promise((resolve) => {
         setTimeout(() => {
             // Simulasi random type
@@ -290,7 +310,10 @@ function startOTPTimer(expiresIn, timerElement) {
 // ============= MODAL FUNCTIONS =============
 
 function showAddModal() {
-    document.getElementById('addUsernameModal').classList.add('show');
+    const modal = document.getElementById('addUsernameModal');
+    if (!modal) return;
+    
+    modal.classList.add('show');
     document.getElementById('step1').style.display = 'block';
     document.getElementById('step2').style.display = 'none';
     document.getElementById('targetUsername').value = '';
@@ -303,13 +326,17 @@ function showAddModal() {
 }
 
 function hideAddModal() {
-    document.getElementById('addUsernameModal').classList.remove('show');
+    const modal = document.getElementById('addUsernameModal');
+    if (modal) modal.classList.remove('show');
 }
 
 function showOtpModal() {
     if (!pendingOTP) return;
     
-    document.getElementById('otpModal').classList.add('show');
+    const modal = document.getElementById('otpModal');
+    if (!modal) return;
+    
+    modal.classList.add('show');
     document.getElementById('pendingOtpInput').value = '';
     document.getElementById('pendingTarget').textContent = pendingOTP.targetTitle || pendingOTP.target;
     document.getElementById('otpStatusMessage').style.display = 'none';
@@ -318,224 +345,242 @@ function showOtpModal() {
 }
 
 function hideOtpModal() {
-    document.getElementById('otpModal').classList.remove('show');
+    const modal = document.getElementById('otpModal');
+    if (modal) modal.classList.remove('show');
     if (otpTimer) clearInterval(otpTimer);
 }
 
 // ============= EVENT LISTENERS =============
 
 document.addEventListener('DOMContentLoaded', () => {
-    const addBtn = document.getElementById('addUsernameBtn');
-    const messageBtn = document.getElementById('messageButton');
-    const closeAddModal = document.getElementById('closeAddModal');
-    const closeOtpModal = document.getElementById('closeOtpModal');
-    const cancelAddBtn = document.getElementById('cancelAddBtn');
-    const cancelOtpBtn = document.getElementById('cancelOtpBtn');
-    const confirmAddBtn = document.getElementById('confirmAddBtn');
-    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-    const targetInput = document.getElementById('targetUsername');
+    // Tunggu sebentar untuk memastikan main.js sudah load
+    setTimeout(() => {
+        console.log('Profil.js initialized');
+        
+        const addBtn = document.getElementById('addUsernameBtn');
+        const messageBtn = document.getElementById('messageButton');
+        const closeAddModal = document.getElementById('closeAddModal');
+        const closeOtpModal = document.getElementById('closeOtpModal');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+        const cancelOtpBtn = document.getElementById('cancelOtpBtn');
+        const confirmAddBtn = document.getElementById('confirmAddBtn');
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const targetInput = document.getElementById('targetUsername');
 
-    // Add username button
-    if (addBtn) {
-        addBtn.addEventListener('click', () => {
-            if (currentUser.id === 'guest') {
-                alert('Silakan login dengan Telegram terlebih dahulu');
-                return;
-            }
-            showAddModal();
-        });
-    }
-
-    // Message button
-    if (messageBtn) {
-        messageBtn.addEventListener('click', () => {
-            if (pendingOTP) {
-                showOtpModal();
-            }
-        });
-    }
-
-    // Close modals
-    if (closeAddModal) {
-        closeAddModal.addEventListener('click', hideAddModal);
-    }
-    
-    if (closeOtpModal) {
-        closeOtpModal.addEventListener('click', hideOtpModal);
-    }
-    
-    if (cancelAddBtn) {
-        cancelAddBtn.addEventListener('click', hideAddModal);
-    }
-    
-    if (cancelOtpBtn) {
-        cancelOtpBtn.addEventListener('click', () => {
-            hideOtpModal();
-            // Hapus session jika dibatalkan
-            localStorage.removeItem('pendingOTP');
-            pendingOTP = null;
-            showMessageButton(false);
-        });
-    }
-
-    // Target username input
-    if (targetInput) {
-        let timeout;
-        targetInput.addEventListener('input', async (e) => {
-            clearTimeout(timeout);
-            
-            const value = e.target.value.trim();
-            if (value.length < 3) {
-                document.getElementById('targetType').textContent = '-';
-                document.getElementById('targetId').textContent = '-';
-                document.getElementById('targetTitle').textContent = '-';
-                return;
-            }
-            
-            timeout = setTimeout(async () => {
-                const username = extractUsername(value);
-                
-                // Show loading
-                document.getElementById('targetType').textContent = 'Mengecek...';
-                
-                const result = await checkUsernameType(username);
-                
-                if (result.success) {
-                    document.getElementById('targetType').textContent = result.type;
-                    document.getElementById('targetId').textContent = result.id;
-                    document.getElementById('targetTitle').textContent = result.title;
-                    
-                    // Store for later use
-                    targetInput.dataset.type = result.type;
-                    targetInput.dataset.id = result.id;
-                    targetInput.dataset.title = result.title;
-                    targetInput.dataset.canSend = result.canSend;
+        // Add username button
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                if (currentUser.id === 'guest') {
+                    alert('Silakan login dengan Telegram terlebih dahulu');
+                    return;
                 }
-            }, 500);
-        });
-    }
+                showAddModal();
+            });
+        }
 
-    // Confirm add button
-    if (confirmAddBtn) {
-        confirmAddBtn.addEventListener('click', async () => {
-            const target = document.getElementById('targetUsername').value.trim();
-            
-            if (!target) {
-                alert('Masukkan username target');
-                return;
-            }
-            
-            const username = extractUsername(target);
-            const type = document.getElementById('targetType').textContent;
-            const targetId = document.getElementById('targetId').textContent;
-            const targetTitle = document.getElementById('targetTitle').textContent;
-            
-            if (type === '-') {
-                alert('Tunggu hingga pengecekan selesai');
-                return;
-            }
-            
-            // Disable button, show loading
-            confirmAddBtn.disabled = true;
-            confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengirim...';
-            
-            // Send OTP
-            const result = await sendOTP(username, type, targetId, targetTitle);
-            
-            if (result.success) {
-                // Show OTP step
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'block';
-                document.getElementById('otpTarget').textContent = targetTitle || username;
-                
-                // Start timer
-                startOTPTimer(300, document.getElementById('otpTimer'));
-                
-                confirmAddBtn.textContent = 'Verifikasi';
-                
-                // Update click handler for verification
-                confirmAddBtn.onclick = () => {
-                    const otp = document.getElementById('otpInput').value;
-                    
-                    if (otp.length !== 6) {
-                        document.getElementById('addStatusMessage').textContent = 'Masukkan 6 digit OTP';
-                        document.getElementById('addStatusMessage').className = 'status-message error';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                        return;
-                    }
-                    
-                    if (pendingOTP && otp === pendingOTP.code) {
-                        // OTP benar
-                        document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
-                        document.getElementById('addStatusMessage').className = 'status-message success';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                        
-                        // Hapus session
-                        localStorage.removeItem('pendingOTP');
-                        pendingOTP = null;
-                        showMessageButton(false);
-                        
-                        // Tutup modal setelah 2 detik
-                        setTimeout(() => {
-                            hideAddModal();
-                        }, 2000);
-                    } else {
-                        document.getElementById('addStatusMessage').textContent = '❌ Kode OTP salah';
-                        document.getElementById('addStatusMessage').className = 'status-message error';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                    }
-                };
-            } else {
-                // Show error
-                document.getElementById('addStatusMessage').textContent = result.message;
-                document.getElementById('addStatusMessage').className = 'status-message error';
-                document.getElementById('addStatusMessage').style.display = 'block';
-                
-                confirmAddBtn.disabled = false;
-                confirmAddBtn.textContent = 'Lanjutkan';
-            }
-        });
-    }
+        // Message button
+        if (messageBtn) {
+            messageBtn.addEventListener('click', () => {
+                if (pendingOTP) {
+                    showOtpModal();
+                }
+            });
+        }
 
-    // Verify OTP button in OTP modal
-    if (verifyOtpBtn) {
-        verifyOtpBtn.addEventListener('click', () => {
-            const otp = document.getElementById('pendingOtpInput').value;
-            
-            if (otp.length !== 6) {
-                document.getElementById('otpStatusMessage').textContent = 'Masukkan 6 digit OTP';
-                document.getElementById('otpStatusMessage').className = 'status-message error';
-                document.getElementById('otpStatusMessage').style.display = 'block';
-                return;
-            }
-            
-            if (pendingOTP && otp === pendingOTP.code) {
-                document.getElementById('otpStatusMessage').textContent = '✅ Verifikasi berhasil!';
-                document.getElementById('otpStatusMessage').className = 'status-message success';
-                document.getElementById('otpStatusMessage').style.display = 'block';
-                
-                // Hapus session
+        // Close modals
+        if (closeAddModal) {
+            closeAddModal.addEventListener('click', hideAddModal);
+        }
+        
+        if (closeOtpModal) {
+            closeOtpModal.addEventListener('click', hideOtpModal);
+        }
+        
+        if (cancelAddBtn) {
+            cancelAddBtn.addEventListener('click', hideAddModal);
+        }
+        
+        if (cancelOtpBtn) {
+            cancelOtpBtn.addEventListener('click', () => {
+                hideOtpModal();
+                // Hapus session jika dibatalkan
                 localStorage.removeItem('pendingOTP');
                 pendingOTP = null;
                 showMessageButton(false);
+            });
+        }
+
+        // Target username input
+        if (targetInput) {
+            let timeout;
+            targetInput.addEventListener('input', async (e) => {
+                clearTimeout(timeout);
                 
-                // Tutup modal setelah 2 detik
-                setTimeout(() => {
-                    hideOtpModal();
-                }, 2000);
-            } else {
-                document.getElementById('otpStatusMessage').textContent = '❌ Kode OTP salah';
-                document.getElementById('otpStatusMessage').className = 'status-message error';
-                document.getElementById('otpStatusMessage').style.display = 'block';
-            }
-        });
-    }
+                const value = e.target.value.trim();
+                if (value.length < 3) {
+                    document.getElementById('targetType').textContent = '-';
+                    document.getElementById('targetId').textContent = '-';
+                    document.getElementById('targetTitle').textContent = '-';
+                    return;
+                }
+                
+                timeout = setTimeout(async () => {
+                    const username = extractUsername(value);
+                    
+                    // Show loading
+                    document.getElementById('targetType').textContent = 'Mengecek...';
+                    
+                    const result = await checkUsernameType(username);
+                    
+                    if (result.success) {
+                        document.getElementById('targetType').textContent = result.type;
+                        document.getElementById('targetId').textContent = result.id;
+                        document.getElementById('targetTitle').textContent = result.title;
+                        
+                        // Store for later use
+                        targetInput.dataset.type = result.type;
+                        targetInput.dataset.id = result.id;
+                        targetInput.dataset.title = result.title;
+                        targetInput.dataset.canSend = result.canSend;
+                    }
+                }, 500);
+            });
+        }
+
+        // Confirm add button
+        if (confirmAddBtn) {
+            confirmAddBtn.addEventListener('click', async () => {
+                const target = document.getElementById('targetUsername').value.trim();
+                
+                if (!target) {
+                    alert('Masukkan username target');
+                    return;
+                }
+                
+                const username = extractUsername(target);
+                const type = document.getElementById('targetType').textContent;
+                const targetId = document.getElementById('targetId').textContent;
+                const targetTitle = document.getElementById('targetTitle').textContent;
+                
+                if (type === '-' || type === 'Mengecek...') {
+                    alert('Tunggu hingga pengecekan selesai');
+                    return;
+                }
+                
+                // Disable button, show loading
+                confirmAddBtn.disabled = true;
+                confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengirim...';
+                
+                // Send OTP
+                const result = await sendOTP(username, type, targetId, targetTitle);
+                
+                if (result.success) {
+                    // Show OTP step
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'block';
+                    document.getElementById('otpTarget').textContent = targetTitle || username;
+                    
+                    // Start timer
+                    startOTPTimer(300, document.getElementById('otpTimer'));
+                    
+                    confirmAddBtn.innerHTML = 'Verifikasi';
+                    
+                    // Update click handler for verification
+                    confirmAddBtn.onclick = () => {
+                        const otp = document.getElementById('otpInput').value;
+                        
+                        if (otp.length !== 6) {
+                            document.getElementById('addStatusMessage').textContent = 'Masukkan 6 digit OTP';
+                            document.getElementById('addStatusMessage').className = 'status-message error';
+                            document.getElementById('addStatusMessage').style.display = 'block';
+                            return;
+                        }
+                        
+                        if (pendingOTP && otp === pendingOTP.code) {
+                            // OTP benar
+                            document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
+                            document.getElementById('addStatusMessage').className = 'status-message success';
+                            document.getElementById('addStatusMessage').style.display = 'block';
+                            
+                            // Hapus session
+                            localStorage.removeItem('pendingOTP');
+                            pendingOTP = null;
+                            showMessageButton(false);
+                            
+                            // Tutup modal setelah 2 detik
+                            setTimeout(() => {
+                                hideAddModal();
+                            }, 2000);
+                        } else {
+                            document.getElementById('addStatusMessage').textContent = '❌ Kode OTP salah';
+                            document.getElementById('addStatusMessage').className = 'status-message error';
+                            document.getElementById('addStatusMessage').style.display = 'block';
+                        }
+                    };
+                } else {
+                    // Show error
+                    document.getElementById('addStatusMessage').textContent = result.message;
+                    document.getElementById('addStatusMessage').className = 'status-message error';
+                    document.getElementById('addStatusMessage').style.display = 'block';
+                    
+                    confirmAddBtn.disabled = false;
+                    confirmAddBtn.innerHTML = 'Lanjutkan';
+                }
+            });
+        }
+
+        // Verify OTP button in OTP modal
+        if (verifyOtpBtn) {
+            verifyOtpBtn.addEventListener('click', () => {
+                const otp = document.getElementById('pendingOtpInput').value;
+                
+                if (otp.length !== 6) {
+                    document.getElementById('otpStatusMessage').textContent = 'Masukkan 6 digit OTP';
+                    document.getElementById('otpStatusMessage').className = 'status-message error';
+                    document.getElementById('otpStatusMessage').style.display = 'block';
+                    return;
+                }
+                
+                if (pendingOTP && otp === pendingOTP.code) {
+                    document.getElementById('otpStatusMessage').textContent = '✅ Verifikasi berhasil!';
+                    document.getElementById('otpStatusMessage').className = 'status-message success';
+                    document.getElementById('otpStatusMessage').style.display = 'block';
+                    
+                    // Hapus session
+                    localStorage.removeItem('pendingOTP');
+                    pendingOTP = null;
+                    showMessageButton(false);
+                    
+                    // Tutup modal setelah 2 detik
+                    setTimeout(() => {
+                        hideOtpModal();
+                    }, 2000);
+                } else {
+                    document.getElementById('otpStatusMessage').textContent = '❌ Kode OTP salah';
+                    document.getElementById('otpStatusMessage').className = 'status-message error';
+                    document.getElementById('otpStatusMessage').style.display = 'block';
+                }
+            });
+        }
+    }, 500); // Delay 500ms untuk memastikan main.js sudah load
 });
 
 // Initialize profile when DOM is loaded
-if (window.location.pathname.includes('profil.html')) {
+if (window.location.pathname.includes('profil.html') || window.location.pathname.includes('/profil.html')) {
     document.addEventListener('DOMContentLoaded', async () => {
-        await initTelegramUser();
+        console.log('Initializing profile...');
+        
+        // Tunggu sampai currentUser terisi dari main.js
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while ((!currentUser || currentUser.id === 'guest') && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+            console.log(`Waiting for user data... attempt ${attempts}`);
+        }
+        
+        console.log('Current user after wait:', currentUser);
         await initProfile();
     });
 }
