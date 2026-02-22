@@ -287,8 +287,155 @@ body {
     -webkit-overflow-scrolling: touch;
 }
 
+/* Filter Group dengan Accordion */
 .filter-group {
-    margin-bottom: 24px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.filter-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.3s;
+  border-bottom: 1px solid transparent;
+}
+
+.filter-group-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-group-header.active {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.filter-group-header .filter-label {
+  margin-bottom: 0;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.filter-group-header .arrow {
+  color: #808080;
+  font-size: 16px;
+  transition: transform 0.3s;
+}
+
+.filter-group-header.active .arrow {
+  transform: rotate(180deg);
+}
+
+.filter-group-content {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.filter-group-content.show {
+  max-height: 500px;
+  opacity: 1;
+  padding: 20px;
+}
+
+/* Hapus margin-bottom dari filter-group yang lama */
+.filter-group {
+  margin-bottom: 12px;
+}
+
+/* Sesuaikan padding untuk filter-options di dalam accordion */
+.filter-group-content .filter-options {
+  margin-bottom: 0;
+}
+
+/* Search Input Wrapper */
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #e0e0e0;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.search-input-wrapper input:focus {
+  border-color: #808080;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
+}
+
+.clear-search {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #808080;
+  font-size: 20px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.clear-search:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Tombol Cari */
+.search-box button {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #808080, #404040);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.search-box button:hover {
+  background: linear-gradient(135deg, #909090, #505050);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .search-box {
+    flex-direction: row;
+  }
+
+  .search-box button {
+    width: auto;
+    padding: 12px 16px;
+  }
 }
 
 .filter-label {
@@ -718,7 +865,95 @@ body {
   color: #ffffff;
 }
 
-/* Position relative untuk search box */
+/* Perbaikan untuk search box dan tombol */
 .search-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input-wrapper {
   position: relative;
+  flex: 1;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #e0e0e0;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.search-input-wrapper input:focus {
+  border-color: #808080;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
+}
+
+.clear-search {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #808080;
+  font-size: 20px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.clear-search:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Tombol Cari berbentuk persegi panjang */
+#searchBtn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #808080, #404040);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: 80px;
+  height: 46px;
+}
+
+#searchBtn:hover {
+  background: linear-gradient(135deg, #909090, #505050);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .search-box {
+    flex-direction: row;
+  }
+
+  #searchBtn {
+    width: auto;
+    padding: 12px 16px;
+    min-width: 70px;
+  }
 }
