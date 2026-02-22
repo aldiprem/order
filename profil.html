@@ -93,6 +93,104 @@
             </div>
         </div>
 
+        <!-- Message Button -->
+        <button class="message-button" id="messageButton" style="display: none;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span class="notification-badge" id="messageBadge" style="display: none;">1</span>
+        </button>
+        
+        <!-- Add Username Modal -->
+        <div class="modal-overlay" id="addUsernameModal">
+          <div class="modal-container">
+            <div class="modal-header">
+              <h3>Tambah Username</h3>
+              <button class="modal-close" id="closeAddModal">×</button>
+            </div>
+            <div class="modal-content">
+              <div class="status-message info" id="addStatusMessage" style="display: none;"></div>
+        
+              <!-- Step 1: Input Username -->
+              <div id="step1">
+                <div class="form-group">
+                  <label>Username / Channel / Group</label>
+                  <input type="text" id="targetUsername" placeholder="Contoh: @username atau https://t.me/..." />
+                </div>
+                <div class="info-box">
+                  <div class="info-item">
+                    <span class="info-label">Tipe</span>
+                    <span class="info-value" id="targetType">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">ID</span>
+                    <span class="info-value" id="targetId">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Title</span>
+                    <span class="info-value" id="targetTitle">-</span>
+                  </div>
+                </div>
+              </div>
+        
+              <!-- Step 2: OTP Verification -->
+              <div id="step2" style="display: none;">
+                <div class="form-group">
+                  <label>Masukkan Kode OTP 6 Digit</label>
+                  <input type="text" class="otp-input" id="otpInput" placeholder="••••••" maxlength="6" />
+                </div>
+                <div class="info-box">
+                  <div class="info-item">
+                    <span class="info-label">Kode OTP telah dikirim ke</span>
+                    <span class="info-value" id="otpTarget">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Sisa waktu</span>
+                    <span class="info-value" id="otpTimer">5:00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" id="cancelAddBtn">Batal</button>
+              <button class="btn-primary" id="confirmAddBtn">Lanjutkan</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- OTP Modal -->
+        <div class="modal-overlay" id="otpModal">
+          <div class="modal-container">
+            <div class="modal-header">
+              <h3>Verifikasi OTP</h3>
+              <button class="modal-close" id="closeOtpModal">×</button>
+            </div>
+            <div class="modal-content">
+              <div class="status-message info" id="otpStatusMessage" style="display: none;"></div>
+        
+              <div class="form-group">
+                <label>Masukkan Kode OTP</label>
+                <input type="text" class="otp-input" id="pendingOtpInput" placeholder="••••••" maxlength="6" />
+              </div>
+        
+              <div class="info-box">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value" id="pendingTarget">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Sisa waktu</span>
+                  <span class="info-value" id="pendingTimer">5:00</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" id="cancelOtpBtn">Batal</button>
+              <button class="btn-primary" id="verifyOtpBtn">Verifikasi</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Bottom Navigation -->
         <nav class="bottom-nav">
           <a href="/order/games.html" class="nav-item">
