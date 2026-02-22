@@ -603,6 +603,3 @@ class Database:
 
 # Singleton instance
 db = Database()
-
-b.py : 
-  
