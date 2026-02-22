@@ -86,115 +86,28 @@ async function loadUserData() {
 
 // Load user's usernames from API
 async function loadUserUsernames() {
-    try {
-        // Ganti dengan endpoint yang sesuai untuk mendapatkan username milik user
-        // Ini contoh endpoint, sesuaikan dengan yang ada di backend
-        const response = await apiRequest('user/usernames');
-        
-        if (response && Array.isArray(response)) {
-            userListings = response;
-        } else {
-            // Jika endpoint belum ada, gunakan mock data sebagai fallback
-            console.log('Using mock data for usernames');
-            const mockUserUsernames = [
-                { 
-                    id: 1, 
-                    name: 'Jennie', 
-                    type: 'OP', 
-                    category: 'idol', 
-                    price: 250, 
-                    status: 'selling', 
-                    original: 'Jennie', 
-                    desc: 'Blackpink',
-                    date: '2024-01-15',
-                    verified: true,
-                    target_type: 'user'
-                },
-                { 
-                    id: 2, 
-                    name: 'LisaS', 
-                    type: 'SCANON', 
-                    category: 'idol', 
-                    price: 180, 
-                    status: 'sold', 
-                    original: 'Lisa', 
-                    desc: 'Blackpink + S',
-                    date: '2024-01-10',
-                    verified: true,
-                    target_type: 'user'
-                },
-                { 
-                    id: 3, 
-                    name: 'Gojo', 
-                    type: 'OP', 
-                    category: 'anime', 
-                    price: 320, 
-                    status: 'selling', 
-                    original: 'Gojo', 
-                    desc: 'JJK',
-                    date: '2024-01-05',
-                    verified: true,
-                    target_type: 'user'
-                },
-                { 
-                    id: 4, 
-                    name: 'Mikay', 
-                    type: 'OP', 
-                    category: 'game', 
-                    price: 140, 
-                    status: 'bought', 
-                    original: 'Mikay', 
-                    desc: 'Mobile Legends',
-                    date: '2024-01-01',
-                    verified: true,
-                    target_type: 'user'
-                },
-                { 
-                    id: 5, 
-                    name: 'KpopChannel', 
-                    type: 'CHANNEL', 
-                    category: 'idol', 
-                    price: 0, 
-                    status: 'selling', 
-                    original: 'KpopChannel', 
-                    desc: 'Channel K-Pop',
-                    date: '2024-01-20',
-                    verified: true,
-                    target_type: 'channel',
-                    owner: '@channel_owner'
-                },
-                { 
-                    id: 6, 
-                    name: 'GameGroup', 
-                    type: 'GROUP', 
-                    category: 'game', 
-                    price: 0, 
-                    status: 'selling', 
-                    original: 'GameGroup', 
-                    desc: 'Grup Diskusi Game',
-                    date: '2024-01-18',
-                    verified: true,
-                    target_type: 'group',
-                    owner: '@group_owner'
-                },
-            ];
-            userListings = mockUserUsernames;
-        }
-        
-        // Update asset stats based on real data
-        updateAssetStats(userListings);
-        
-        // Render usernames in grid
-        renderUsernamesGrid(userListings);
-        
-    } catch (error) {
-        console.error('Error loading user usernames:', error);
-        // Show error in grid
-        const grid = document.getElementById('myUsernamesGrid');
-        if (grid) {
-            grid.innerHTML = '<div class="no-results">Gagal memuat data username</div>';
-        }
+  try {
+    // Coba ambil dari API
+    const response = await apiRequest('user/usernames');
+
+    if (response && Array.isArray(response)) {
+      userListings = response;
+    } else {
+      // Jika API mengembalikan array kosong atau error
+      userListings = [];
+      console.log('No usernames from API');
     }
+
+  } catch (error) {
+    console.error('Error loading user usernames:', error);
+    userListings = [];
+  }
+
+  // Update asset stats based on data
+  updateAssetStats(userListings);
+
+  // Render usernames in grid
+  renderUsernamesGrid(userListings);
 }
 
 // Update asset statistics based on user's usernames
@@ -217,59 +130,116 @@ function updateAssetStats(usernames) {
 
 // Render usernames in 2-column grid (like MARKET page)
 function renderUsernamesGrid(usernames) {
-    const grid = document.getElementById('myUsernamesGrid');
-    if (!grid) return;
-    
-    if (usernames.length === 0) {
-        grid.innerHTML = '<div class="no-results">Belum ada username</div>';
-        return;
+  const grid = document.getElementById('myUsernamesGrid');
+  if (!grid) return;
+
+  if (usernames.length === 0) {
+    // Pilih animasi secara random (1-5)
+    const animationNumber = Math.floor(Math.random() * 5) + 1;
+
+    grid.innerHTML = `
+            <div class="empty-state" data-animation="${animationNumber}" style="grid-column: 1 / -1;">
+                <!-- Animation 1: Floating Boxes -->
+                <div class="empty-state-animation-1">
+                    <div class="box"></div>
+                    <div class="box"></div>
+                    <div class="box"></div>
+                </div>
+                
+                <!-- Animation 2: Pulsing Circle -->
+                <div class="empty-state-animation-2">
+                    <div class="circle"></div>
+                </div>
+                
+                <!-- Animation 3: Searching Dots -->
+                <div class="empty-state-animation-3">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                
+                <!-- Animation 4: Rotating Cube -->
+                <div class="empty-state-animation-4">
+                    <div class="cube">
+                        <div class="front"></div>
+                        <div class="back"></div>
+                        <div class="right"></div>
+                        <div class="left"></div>
+                        <div class="top"></div>
+                        <div class="bottom"></div>
+                    </div>
+                </div>
+                
+                <!-- Animation 5: Ghost -->
+                <div class="empty-state-animation-5">
+                    <div class="ghost">
+                        <div class="eyes">
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="mouth"></div>
+                    </div>
+                </div>
+                
+                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+                
+                <h3 class="empty-state-title">Belum Ada Username</h3>
+                <p class="empty-state-description">
+                    Anda belum memiliki username. Klik tombol ADD USERNAME untuk menambahkan.
+                </p>
+            </div>
+        `;
+    return;
+  }
+
+  // Sort by date (newest first)
+  const sorted = [...usernames].sort((a, b) => {
+    if (a.date && b.date) {
+      return new Date(b.date) - new Date(a.date);
     }
-    
-    // Sort by date (newest first)
-    const sorted = [...usernames].sort((a, b) => {
-        if (a.date && b.date) {
-            return new Date(b.date) - new Date(a.date);
-        }
-        return 0;
-    });
-    
-    // Render grid with 2 columns
-    grid.innerHTML = sorted.map(item => {
-        // Determine status text and class
-        let statusText = '';
-        let statusClass = '';
-        
-        if (item.status === 'selling') {
-            statusText = 'Dijual';
-            statusClass = 'status-selling';
-        } else if (item.status === 'sold') {
-            statusText = 'Terjual';
-            statusClass = 'status-sold';
-        } else if (item.status === 'bought') {
-            statusText = 'Dibeli';
-            statusClass = 'status-bought';
-        } else {
-            statusText = item.status || 'Tersedia';
-            statusClass = 'status-available';
-        }
-        
-        // Determine type display
-        let typeDisplay = item.type || 'CUSTOM';
-        let categoryDisplay = item.category ? getCategoryName(item.category) : 'Lainnya';
-        
-        // Add target type indicator
-        if (item.target_type) {
-            if (item.target_type === 'channel') {
-                typeDisplay = '📢 ' + typeDisplay;
-            } else if (item.target_type === 'group') {
-                typeDisplay = '👥 ' + typeDisplay;
-            }
-        }
-        
-        // Format price
-        const priceDisplay = item.price ? `$${item.price}` : '-';
-        
-        return `
+    return 0;
+  });
+
+  // Render grid with 2 columns
+  grid.innerHTML = sorted.map(item => {
+    // Determine status text and class
+    let statusText = '';
+    let statusClass = '';
+
+    if (item.status === 'selling') {
+      statusText = 'Dijual';
+      statusClass = 'status-selling';
+    } else if (item.status === 'sold') {
+      statusText = 'Terjual';
+      statusClass = 'status-sold';
+    } else if (item.status === 'bought') {
+      statusText = 'Dibeli';
+      statusClass = 'status-bought';
+    } else {
+      statusText = item.status || 'Tersedia';
+      statusClass = 'status-available';
+    }
+
+    // Determine type display
+    let typeDisplay = item.type || 'CUSTOM';
+    let categoryDisplay = item.category ? getCategoryName(item.category) : 'Lainnya';
+
+    // Add target type indicator
+    if (item.target_type) {
+      if (item.target_type === 'channel') {
+        typeDisplay = '📢 ' + typeDisplay;
+      } else if (item.target_type === 'group') {
+        typeDisplay = '👥 ' + typeDisplay;
+      }
+    }
+
+    // Format price
+    const priceDisplay = item.price ? `$${item.price}` : '-';
+
+    return `
             <div class="username-card profile-username-card">
                 <div class="username-name">@${item.name}</div>
                 <div class="username-type">${typeDisplay}</div>
@@ -281,7 +251,7 @@ function renderUsernamesGrid(usernames) {
                 </div>
             </div>
         `;
-    }).join('');
+  }).join('');
 }
 
 // Get category name
