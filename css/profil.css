@@ -720,3 +720,169 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Tambahkan di akhir file profil.css */
+
+/* Username Grid - 2 Cards per row like MARKET page */
+.my-usernames-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+    width: 100%;
+}
+
+/* Profile Username Card - Styling to match MARKET page */
+.profile-username-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 16px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+.profile-username-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #808080, #404040);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.profile-username-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(128, 128, 128, 0.3);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.profile-username-card:hover::before {
+    opacity: 1;
+}
+
+.profile-username-card .username-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+    word-break: break-word;
+}
+
+.profile-username-card .username-type {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(128, 128, 128, 0.2);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    border-radius: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #a0a0a0;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.profile-username-card .username-category {
+    font-size: 12px;
+    color: #808080;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.profile-username-card .username-owner {
+    font-size: 11px;
+    color: #ffd700;
+    margin-bottom: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.profile-username-card .username-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-username-card .username-price {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.profile-username-card .username-price::before {
+    content: '$';
+    font-size: 12px;
+    color: #808080;
+    margin-right: 2px;
+}
+
+.profile-username-card .username-price:empty::before,
+.profile-username-card .username-price:contains('-')::before {
+    content: '';
+}
+
+.profile-username-card .username-status {
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.profile-username-card .status-selling {
+    background: rgba(64, 128, 64, 0.2);
+    border: 1px solid rgba(64, 128, 64, 0.3);
+    color: #90ee90;
+}
+
+.profile-username-card .status-sold {
+    background: rgba(128, 64, 64, 0.2);
+    border: 1px solid rgba(128, 64, 64, 0.3);
+    color: #ff6b6b;
+}
+
+.profile-username-card .status-bought {
+    background: rgba(64, 64, 128, 0.2);
+    border: 1px solid rgba(64, 64, 128, 0.3);
+    color: #6b8cff;
+}
+
+.profile-username-card .status-available {
+    background: rgba(64, 128, 64, 0.2);
+    border: 1px solid rgba(64, 128, 64, 0.3);
+    color: #90ee90;
+}
+
+/* Responsive for mobile */
+@media (max-width: 600px) {
+    .my-usernames-grid {
+        gap: 12px;
+    }
+    
+    .profile-username-card {
+        padding: 14px;
+    }
+    
+    .profile-username-card .username-name {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .my-usernames-grid {
+        grid-template-columns: 1fr; /* 1 column on very small screens */
+    }
+}
