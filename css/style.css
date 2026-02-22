@@ -22,9 +22,9 @@ body {
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 20px 20px 80px 20px;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     overflow-y: auto;
 }
 
@@ -81,6 +81,13 @@ body {
     text-transform: uppercase;
     border: 2px solid rgba(255,255,255,0.2);
     font-size: 14px;
+    overflow: hidden;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .username {
@@ -101,35 +108,65 @@ body {
 
 .search-box {
     display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 8px;
+    align-items: center;
     width: 100%;
 }
 
-.search-box input {
+.search-input-wrapper {
+    position: relative;
     flex: 1;
-    padding: 12px 16px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     font-size: 14px;
     color: #e0e0e0;
     outline: none;
     transition: all 0.3s;
-    min-width: 0;
 }
 
-.search-box input:focus {
+.search-input-wrapper input:focus {
     border-color: #808080;
-    background: rgba(255,255,255,0.08);
-    box-shadow: 0 0 0 2px rgba(128,128,128,0.2);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
 }
 
-.search-box input::placeholder {
+.search-input-wrapper input::placeholder {
     color: #808080;
 }
 
-.search-box button {
+.clear-search {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #808080;
+    font-size: 20px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.clear-search:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Tombol Cari */
+#searchBtn {
     padding: 12px 24px;
     background: linear-gradient(135deg, #808080, #404040);
     color: white;
@@ -142,12 +179,14 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
+    min-width: 80px;
+    height: 46px;
 }
 
-.search-box button:hover {
+#searchBtn:hover {
     background: linear-gradient(135deg, #909090, #505050);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 /* Filter Bar */
@@ -155,7 +194,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-top: 12px;
     width: 100%;
 }
 
@@ -289,153 +328,64 @@ body {
 
 /* Filter Group dengan Accordion */
 .filter-group {
-  margin-bottom: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 .filter-group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
-  transition: all 0.3s;
-  border-bottom: 1px solid transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: all 0.3s;
+    border-bottom: 1px solid transparent;
 }
 
 .filter-group-header:hover {
-  background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .filter-group-header.active {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .filter-group-header .filter-label {
-  margin-bottom: 0;
-  font-size: 14px;
-  color: #ffffff;
+    margin-bottom: 0;
+    font-size: 14px;
+    color: #ffffff;
 }
 
 .filter-group-header .arrow {
-  color: #808080;
-  font-size: 16px;
-  transition: transform 0.3s;
+    color: #808080;
+    font-size: 16px;
+    transition: transform 0.3s;
 }
 
 .filter-group-header.active .arrow {
-  transform: rotate(180deg);
+    transform: rotate(180deg);
 }
 
 .filter-group-content {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-  padding: 0 20px;
-  background: rgba(255, 255, 255, 0.02);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    padding: 0 20px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .filter-group-content.show {
-  max-height: 500px;
-  opacity: 1;
-  padding: 20px;
+    max-height: 500px;
+    opacity: 1;
+    padding: 20px;
 }
 
-/* Hapus margin-bottom dari filter-group yang lama */
-.filter-group {
-  margin-bottom: 12px;
-}
-
-/* Sesuaikan padding untuk filter-options di dalam accordion */
 .filter-group-content .filter-options {
-  margin-bottom: 0;
-}
-
-/* Search Input Wrapper */
-.search-input-wrapper {
-  position: relative;
-  flex: 1;
-}
-
-.search-input-wrapper input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  font-size: 14px;
-  color: #e0e0e0;
-  outline: none;
-  transition: all 0.3s;
-}
-
-.search-input-wrapper input:focus {
-  border-color: #808080;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
-}
-
-.clear-search {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #808080;
-  font-size: 20px;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-
-.clear-search:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-/* Tombol Cari */
-.search-box button {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #808080, #404040);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  min-width: 80px;
-}
-
-.search-box button:hover {
-  background: linear-gradient(135deg, #909090, #505050);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .search-box {
-    flex-direction: row;
-  }
-
-  .search-box button {
-    width: auto;
-    padding: 12px 16px;
-  }
+    margin-bottom: 0;
 }
 
 .filter-label {
@@ -619,6 +569,7 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     margin-top: 16px;
+    margin-bottom: 20px;
     width: 100%;
 }
 
@@ -736,6 +687,15 @@ body {
     color: #ff6b6b;
 }
 
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #808080;
+    font-size: 14px;
+    grid-column: 1 / -1;
+}
+
 /* No Results */
 .no-results {
     grid-column: 1 / -1;
@@ -748,10 +708,44 @@ body {
     border: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Search Suggestion */
+.search-suggestion {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #2d2d2d;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin-top: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #e0e0e0;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: rgba(128, 128, 128, 0.2);
+    color: #ffffff;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .container {
-        padding: 16px;
+        padding: 16px 16px 80px 16px;
     }
     
     .stats-bar {
@@ -783,6 +777,15 @@ body {
     .filter-options.grid-3 {
         grid-template-columns: repeat(2, 1fr);
     }
+    
+    .nav-item {
+        padding: 6px 12px;
+    }
+    
+    .nav-item svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -810,11 +813,13 @@ body {
     }
     
     .search-box {
-        flex-direction: column;
+        flex-direction: row;
     }
     
-    .search-box button {
-        width: 100%;
+    #searchBtn {
+        width: auto;
+        padding: 12px 16px;
+        min-width: 70px;
     }
     
     .filter-bar {
@@ -829,131 +834,18 @@ body {
     .active-filters {
         width: 100%;
     }
-}
-
-/* Search Suggestion */
-.search-suggestion {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: #2d2d2d;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  margin-top: 5px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 100;
-  display: none;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-}
-
-.suggestion-item {
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
-}
-
-.suggestion-item:last-child {
-  border-bottom: none;
-}
-
-.suggestion-item:hover {
-  background: rgba(128, 128, 128, 0.2);
-  color: #ffffff;
-}
-
-/* Perbaikan untuk search box dan tombol */
-.search-box {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-}
-
-.search-input-wrapper {
-  position: relative;
-  flex: 1;
-}
-
-.search-input-wrapper input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  font-size: 14px;
-  color: #e0e0e0;
-  outline: none;
-  transition: all 0.3s;
-}
-
-.search-input-wrapper input:focus {
-  border-color: #808080;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
-}
-
-.clear-search {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #808080;
-  font-size: 20px;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s;
-  padding: 0;
-}
-
-.clear-search:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-/* Tombol Cari berbentuk persegi panjang */
-#searchBtn {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #808080, #404040);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  min-width: 80px;
-  height: 46px;
-}
-
-#searchBtn:hover {
-  background: linear-gradient(135deg, #909090, #505050);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .search-box {
-    flex-direction: row;
-  }
-
-  #searchBtn {
-    width: auto;
-    padding: 12px 16px;
-    min-width: 70px;
-  }
+    
+    .bottom-nav {
+        padding: 5px 0 10px 0;
+    }
+    
+    .nav-item {
+        font-size: 10px;
+        padding: 6px 10px;
+    }
+    
+    .nav-item svg {
+        width: 18px;
+        height: 18px;
+    }
 }
