@@ -1,86 +1,152 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login / Daftar - Telegram App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IndoTag Marketplace</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Telegram Web App Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Kartu Telegram User (akan muncul otomatis) -->
-        <div id="telegramCard" class="telegram-card" style="display: none;">
-            <div class="telegram-header">
-                <div class="telegram-avatar" id="telegramAvatar"></div>
-                <div class="telegram-info">
-                    <h3 id="telegramName">Loading...</h3>
-                    <p id="telegramUsername">@loading</p>
-                    <span id="premiumBadge" class="premium-badge">PREMIUM</span>
-                </div>
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>INDOTAG<span>•MARKET</span></h1>
+            </div>
+            <div class="user-profile" id="userProfile">
+                <div class="user-avatar" id="userAvatar">G</div>
+                <span class="username" id="displayName">guest_user</span>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Cari username...">
+                <button id="searchBtn">Cari</button>
+            </div>
+            
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <button class="filter-toggle" id="filterToggle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3"/>
+                    </svg>
+                    FILTERS
+                </button>
+                <div class="active-filters" id="activeFilters"></div>
             </div>
         </div>
 
-        <!-- Kartu Login/Register -->
-        <div class="auth-card">
-            <div class="auth-header">
-                <h1 id="formTitle">Login</h1>
-                <p id="formSubtitle">Masuk ke akun Anda</p>
+        <!-- Filter Panel (Hidden by default) -->
+        <div class="filter-panel" id="filterPanel">
+            <div class="filter-panel-header">
+                <h3>Filter Username</h3>
+                <button class="close-filter" id="closeFilter">×</button>
             </div>
-
-            <!-- Loading Spinner -->
-            <div id="loadingSpinner" class="loading-spinner" style="display: none;">
-                <div class="spinner"></div>
-                <p>Memproses...</p>
-            </div>
-
-            <!-- Form Login/Register -->
-            <form id="authForm" class="auth-form">
-                <!-- Username field (selalu tampil) -->
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="Masukkan username" required>
+            
+            <div class="filter-panel-content">
+                <!-- Sort By -->
+                <div class="filter-group">
+                    <label class="filter-label">Sort By</label>
+                    <div class="filter-options">
+                        <button class="filter-option" data-sort="newest">Terbaru</button>
+                        <button class="filter-option" data-sort="price_asc">Harga Terendah</button>
+                        <button class="filter-option" data-sort="price_desc">Harga Tertinggi</button>
+                        <button class="filter-option" data-sort="name_asc">Nama A-Z</button>
+                    </div>
                 </div>
 
-                <!-- Email field (selalu tampil) -->
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Masukkan email" required>
+                <!-- Price Range -->
+                <div class="filter-group">
+                    <label class="filter-label">Price Range ($)</label>
+                    <div class="price-range">
+                        <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
+                        <span>to</span>
+                        <input type="number" id="maxPrice" placeholder="Max" min="0" value="1000">
+                    </div>
                 </div>
 
-                <!-- Password field -->
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Masukkan password" required>
+                <!-- Type Based On (Categories) -->
+                <div class="filter-group">
+                    <label class="filter-label">Type Based On</label>
+                    <div class="filter-options grid-2">
+                        <button class="filter-option category-option active" data-category="all">Semua</button>
+                        <button class="filter-option category-option" data-category="idol">Idol K-Pop</button>
+                        <button class="filter-option category-option" data-category="mulchar">Multichar</button>
+                        <button class="filter-option category-option" data-category="anime">Anime</button>
+                        <button class="filter-option category-option" data-category="game">Game</button>
+                        <button class="filter-option category-option" data-category="common">Common</button>
+                        <button class="filter-option category-option" data-category="uncommon">Uncommon</button>
+                    </div>
                 </div>
 
-                <!-- Tombol submit -->
-                <button type="submit" id="submitBtn" class="btn btn-primary">Login</button>
-            </form>
+                <!-- Style Username (Types) -->
+                <div class="filter-group">
+                    <label class="filter-label">Style Username</label>
+                    <div class="filter-options grid-3">
+                        <button class="filter-option type-option active" data-type="all">Semua</button>
+                        <button class="filter-option type-option" data-type="OP">OP</button>
+                        <button class="filter-option type-option" data-type="SOP">SOP</button>
+                        <button class="filter-option type-option" data-type="CANON">Canon</button>
+                        <button class="filter-option type-option" data-type="SCANON">Scanon</button>
+                        <button class="filter-option type-option" data-type="TAMPING">Tamping</button>
+                        <button class="filter-option type-option" data-type="TAMDAL">Tamdal</button>
+                        <button class="filter-option type-option" data-type="GANHUR">Ganhur</button>
+                        <button class="filter-option type-option" data-type="SWITCH">Switch</button>
+                        <button class="filter-option type-option" data-type="KURHUF">Kurhuf</button>
+                    </div>
+                </div>
 
-            <!-- Toggle antara Login dan Register -->
-            <div class="toggle-auth">
-                <span id="toggleText">Belum punya akun?</span>
-                <button id="toggleBtn" class="btn-link">Daftar</button>
+                <!-- Status -->
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <div class="filter-options">
+                        <button class="filter-option status-option active" data-status="all">Semua</button>
+                        <button class="filter-option status-option" data-status="available">Tersedia</button>
+                        <button class="filter-option status-option" data-status="sold">Terjual</button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Divider -->
-            <div class="divider">
-                <span>atau</span>
+            <div class="filter-panel-footer">
+                <button class="btn-reset" id="resetFilters">Reset</button>
+                <button class="btn-apply" id="applyFilters">Terapkan Filter</button>
             </div>
-
-            <!-- Tombol Telegram (tetap ada) -->
-            <button id="telegramBtn" class="btn btn-telegram">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.04-.48-.82-.27-1.47-.42-1.42-.89.03-.24.27-.48.74-.74 2.02-1.01 5.03-2.15 5.57-2.38 2.66-1.1 3.21-1.29 3.57-1.29.08 0 .26.02.38.12.1.08.13.19.14.27-.01.07-.02.23-.04.36z"/>
-                </svg>
-                Lanjutkan dengan Telegram
-            </button>
         </div>
 
-        <!-- Hidden input untuk menyimpan data Telegram -->
-        <input type="hidden" id="telegramData" value="">
+        <!-- Overlay -->
+        <div class="filter-overlay" id="filterOverlay"></div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Total</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Available</span>
+                <span class="stat-value" id="availableCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Sold</span>
+                <span class="stat-value" id="soldCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Min Price</span>
+                <span class="stat-value" id="minPriceStat">$0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Max Price</span>
+                <span class="stat-value" id="maxPriceStat">$0</span>
+            </div>
+        </div>
+
+        <!-- Username Grid -->
+        <div class="username-grid" id="usernameGrid">
+            <!-- Data akan diisi oleh JavaScript -->
+        </div>
     </div>
 
     <script src="js/main.js"></script>
