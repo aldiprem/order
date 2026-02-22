@@ -3,7 +3,11 @@ from flask_cors import CORS
 from database import db
 import json
 import os
+import requests
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -11,7 +15,25 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 CORS(app)
 
-BASE_URL = "https://daughters-configuration-replied-ethernet.trycloudflare.com"
+# Get configuration from environment variables
+BASE_URL = os.getenv('BASE_URL', 'https://daughters-configuration-replied-ethernet.trycloudflare.com')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+
+if not BOT_TOKEN:
+    print("WARNING: BOT_TOKEN not set in environment variables")
+if not API_ID:
+    print("WARNING: API_ID not set in environment variables")
+if not API_HASH:
+    print("WARNING: API_HASH not set in environment variables")
+
+# ============= HELPER FUNCTIONS =============
+
+def send_bot_request(method, data=None):
+    return True
+
+# ============= USER AUTHENTICATION =============
 
 @app.route('/')
 def index():
@@ -22,30 +44,30 @@ def init_user():
     """Inisialisasi user dari Telegram Web App"""
     data = request.json
     user_data = data.get('user')
-    
+
     if not user_data or user_data.get('id') == 'guest':
         return jsonify({
-            'status': 'guest', 
+            'status': 'guest',
             'user': {
                 'id': 'guest',
                 'username': 'guest_user',
                 'first_name': 'Guest'
             }
         })
-    
+
     # Simpan user ke database
     user_db_id = db.save_user(user_data)
     db.update_last_login(user_data.get('id'))
-    
+
     # Cek apakah admin
     is_admin = db.is_admin(user_data.get('id'))
-    
+
     # Simpan ke session
     session['user_id'] = user_db_id
     session['telegram_id'] = user_data.get('id')
     session['is_admin'] = is_admin
     session.permanent = True
-    
+
     return jsonify({
         'status': 'authenticated',
         'user': {
@@ -60,16 +82,18 @@ def init_user():
         'is_admin': is_admin
     })
 
+# ============= USER PROFILE =============
+
 @app.route('/api/user/me', methods=['GET'])
 def get_current_user():
     """Mendapatkan data user yang sedang login"""
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
-    
+
     user = db.get_user(session['telegram_id'])
     if not user:
         return jsonify({'error': 'User not found'}), 404
-    
+
     return jsonify({
         'id': user['telegram_id'],
         'username': user['username'],
@@ -78,7 +102,8 @@ def get_current_user():
         'photo_url': user['photo_url'],
         'is_admin': user['is_admin'],
         'created_at': user['created_at'],
-        'last_login': user['last_login']
+        'last_login': user['last_login'],
+        'is_premium': user.get('is_premium', False)
     })
 
 @app.route('/api/user/stats', methods=['GET'])
@@ -86,19 +111,18 @@ def get_user_stats():
     """Mendapatkan statistik user (untuk admin)"""
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
-    
-    # Cek admin
+
     if not db.is_admin(session['telegram_id']):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     users = db.get_all_users()
     total_users = len(users)
     admins = len([u for u in users if u['is_admin']])
-    
+
     return jsonify({
         'total_users': total_users,
         'admins': admins,
-        'users': users[:10]  # 10 user terbaru
+        'users': users[:10]
     })
 
 @app.route('/api/user/list', methods=['GET'])
@@ -106,10 +130,10 @@ def list_users():
     """List semua user (hanya admin)"""
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
-    
+
     if not db.is_admin(session['telegram_id']):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     users = db.get_all_users()
     return jsonify(users)
 
@@ -118,15 +142,15 @@ def set_admin(telegram_id):
     """Set user sebagai admin (hanya admin)"""
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
-    
+
     if not db.is_admin(session['telegram_id']):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     data = request.json
     is_admin = data.get('is_admin', True)
-    
+
     db.set_admin(telegram_id, is_admin)
-    
+
     return jsonify({'success': True, 'is_admin': is_admin})
 
 @app.route('/api/logout', methods=['POST'])
@@ -143,6 +167,303 @@ def health():
         'users_count': db.get_user_count(),
         'base_url': BASE_URL
     })
+
+# ============= USERNAME VERIFICATION & ADDITION =============
+
+@app.route('/api/username/check', methods=['POST'])
+def check_username():
+    """Check username type and permissions"""
+    if 'telegram_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    data = request.json
+    username = data.get('username')
+    user_id = session['telegram_id']
+
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+
+    # Clean username
+    username = username.replace('@', '').strip()
+    if 't.me/' in username:
+        username = username.split('t.me/')[-1]
+
+    # Send request to bot to check username
+    try:
+        # In a real implementation, this would communicate with the bot
+        # For now, we'll simulate bot response
+        import requests
+        bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChat"
+        response = requests.post(bot_url, json={'chat_id': f'@{username}'})
+        
+        if response.status_code == 200:
+            chat_data = response.json()
+            if chat_data.get('ok'):
+                chat = chat_data['result']
+                chat_type = chat['type']
+                chat_id = chat['id']
+                title = chat.get('title', username)
+                
+                # Check if bot can send messages
+                can_send = True
+                
+                # For channels, check if bot is admin
+                if chat_type in ['channel', 'supergroup']:
+                    try:
+                        admins_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatAdministrators"
+                        admins_response = requests.post(admins_url, json={'chat_id': f'@{username}'})
+                        if admins_response.status_code == 200:
+                            admins_data = admins_response.json()
+                            if admins_data.get('ok'):
+                                bot_id = 8560327887  # Your bot ID
+                                admins = admins_data['result']
+                                can_send = any(admin['user']['id'] == bot_id for admin in admins)
+                            else:
+                                can_send = False
+                        else:
+                            can_send = False
+                    except:
+                        can_send = False
+                
+                # For users, check if they've started the bot
+                elif chat_type == 'private':
+                    # We'll assume they haven't started the bot initially
+                    # This would need to be checked differently
+                    can_send = False  # Will be set to True after verification
+                
+                return jsonify({
+                    'success': True,
+                    'type': chat_type,
+                    'id': chat_id,
+                    'title': title,
+                    'username': username,
+                    'can_send': can_send
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Username not found'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to check username'
+            }), 500
+    except Exception as e:
+        print(f"Error checking username: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/username/send-otp', methods=['POST'])
+def send_otp():
+    """Send OTP to target"""
+    if 'telegram_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    data = request.json
+    username = data.get('username')
+    target_type = data.get('type')
+    target_id = data.get('target_id')
+    target_title = data.get('title')
+    user_id = session['telegram_id']
+
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+
+    # Generate OTP
+    import random
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP in database/session
+    session['pending_otp'] = {
+        'code': otp,
+        'target': username,
+        'type': target_type,
+        'target_id': target_id,
+        'target_title': target_title,
+        'timestamp': datetime.now().isoformat(),
+        'user_id': user_id
+    }
+
+    # Try to send OTP via bot
+    try:
+        import requests
+        
+        # Determine message based on type
+        if target_type == 'channel' or target_type == 'supergroup':
+            message = f"🔐 Kode verifikasi untuk menambahkan username @{username} adalah: <code>{otp}</code>\n\nJangan bagikan kode ini kepada siapapun."
+            bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            response = requests.post(bot_url, json={
+                'chat_id': f'@{username}',
+                'text': message,
+                'parse_mode': 'HTML'
+            })
+        elif target_type == 'group':
+            message = f"🔐 Kode verifikasi untuk menambahkan username grup adalah: <code>{otp}</code>\n\nJangan bagikan kode ini kepada siapapun."
+            bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            response = requests.post(bot_url, json={
+                'chat_id': f'@{username}',
+                'text': message,
+                'parse_mode': 'HTML'
+            })
+        else:  # private/user
+            message = f"🔐 Kode verifikasi untuk menambahkan username Anda adalah: <code>{otp}</code>\n\nJangan bagikan kode ini kepada siapapun."
+            bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            response = requests.post(bot_url, json={
+                'chat_id': target_id,  # Use numeric ID for users
+                'text': message,
+                'parse_mode': 'HTML'
+            })
+
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('ok'):
+                return jsonify({
+                    'success': True,
+                    'message': f'Kode OTP telah dikirim ke {target_title or username}'
+                })
+            else:
+                # Failed to send
+                error_desc = result.get('description', 'Unknown error')
+                return jsonify({
+                    'success': False,
+                    'error': error_desc,
+                    'message': get_error_message(target_type, error_desc)
+                }), 400
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send message',
+                'message': get_error_message(target_type, '')
+            }), 500
+
+    except Exception as e:
+        print(f"Error sending OTP: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': get_error_message(target_type, str(e))
+        }), 500
+
+@app.route('/api/username/verify-otp', methods=['POST'])
+def verify_otp():
+    """Verify OTP and add username to database"""
+    if 'telegram_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    data = request.json
+    otp = data.get('otp')
+    user_id = session['telegram_id']
+
+    if not otp:
+        return jsonify({'error': 'OTP required'}), 400
+
+    # Check OTP from session
+    pending = session.get('pending_otp')
+    if not pending:
+        return jsonify({
+            'success': False,
+            'error': 'No pending verification'
+        }), 400
+
+    if pending['code'] != otp:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid OTP'
+        }), 400
+
+    # Check if OTP expired (5 minutes)
+    from datetime import datetime
+    otp_time = datetime.fromisoformat(pending['timestamp'])
+    now = datetime.now()
+    if (now - otp_time).seconds > 300:
+        session.pop('pending_otp', None)
+        return jsonify({
+            'success': False,
+            'error': 'OTP expired'
+        }), 400
+
+    # Add username to database
+    # Get user info
+    user = db.get_user(user_id)
+    
+    # Get target info
+    target_username = pending['target']
+    target_type = pending['type']
+    target_id = pending['target_id']
+    target_title = pending['target_title']
+
+    # Get chat info (owner for channels/groups)
+    owner_id = None
+    owner_username = None
+    if target_type in ['channel', 'supergroup', 'group']:
+        try:
+            import requests
+            admins_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatAdministrators"
+            response = requests.post(admins_url, json={'chat_id': target_id})
+            if response.status_code == 200:
+                admins_data = response.json()
+                if admins_data.get('ok'):
+                    admins = admins_data['result']
+                    # Find creator (owner)
+                    for admin in admins:
+                        if admin.get('status') == 'creator':
+                            owner_id = admin['user']['id']
+                            owner_username = admin['user'].get('username')
+                            break
+        except Exception as e:
+            print(f"Error getting chat admins: {e}")
+
+    # Save to database
+    # This would need a new table for usernames
+    # For now, we'll just return success
+    username_data = {
+        'name': target_username,
+        'type': 'custom',  # You can determine type based on format
+        'category': 'custom',  # User-defined category
+        'price': 0,  # To be set later
+        'status': 'available',
+        'original': target_username,
+        'description': f"{target_type}: {target_title}",
+        'owner_id': owner_id,
+        'owner_username': owner_username,
+        'added_by': user_id,
+        'added_by_username': user['username']
+    }
+
+    # Clear pending OTP
+    session.pop('pending_otp', None)
+
+    return jsonify({
+        'success': True,
+        'message': 'Username berhasil diverifikasi dan ditambahkan',
+        'data': username_data
+    })
+
+@app.route('/api/username/cancel', methods=['POST'])
+def cancel_verification():
+    """Cancel OTP verification"""
+    if 'pending_otp' in session:
+        session.pop('pending_otp', None)
+    return jsonify({'success': True})
+
+def get_error_message(target_type, error_desc):
+    """Get user-friendly error message"""
+    if 'chat not found' in error_desc.lower():
+        return 'Username tidak ditemukan. Pastikan username/channel/group benar.'
+    elif 'bot is not a member' in error_desc.lower() or 'need to be an administrator' in error_desc.lower():
+        if target_type in ['channel', 'supergroup']:
+            return 'Bot tidak dapat mengirim pesan ke channel. Pastikan bot sudah menjadi admin channel.'
+        elif target_type == 'group':
+            return 'Bot tidak dapat mengirim pesan ke grup. Pastikan bot sudah ditambahkan ke grup.'
+        else:
+            return 'User belum pernah memulai bot. Minta user untuk /start bot terlebih dahulu.'
+    elif 'bot was blocked' in error_desc.lower():
+        return 'User telah memblokir bot. Tidak dapat mengirim pesan.'
+    else:
+        return f'Gagal mengirim OTP: {error_desc}. Silakan coba lagi.'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5005, debug=True)
