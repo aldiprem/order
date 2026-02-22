@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IndoTag - Games</title>
+    <title>IndoTag - Profil</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/profil.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -13,79 +13,201 @@
         <!-- Header -->
         <header class="header">
             <div class="logo">
-                <h1>INDOTAG<span>GAMES</span></h1>
+                <h1>INDOTAG<span>PROFIL</span></h1>
             </div>
-            <div class="user-profile" id="userProfile">
-                <div class="user-avatar" id="userAvatar">G</div>
-                <span class="username" id="displayName">guest_user</span>
+            <div class="user-profile" id="userProfile" style="display: none;">
+                <!-- Hidden karena profil ditampilkan di bawah -->
             </div>
         </header>
 
-        <!-- Games Content -->
-        <div class="games-container">
-            <h2 class="section-title">🎮 Games Zone</h2>
-            
-            <!-- Featured Games -->
-            <div class="featured-games">
-                <div class="featured-card">
-                    <h3>Username Game</h3>
-                    <p>Tersedia berbagai username game populer</p>
+        <!-- Profile Content -->
+        <div class="profile-container">
+            <!-- Profile Header -->
+            <div class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">
+                    <img src="" alt="avatar" id="profileAvatarImg" style="display: none;">
+                    <span id="profileAvatarText">G</span>
+                </div>
+                <div class="profile-info">
+                    <h2 id="profileName">Guest User</h2>
+                    <div class="profile-username" id="profileUsername">@guest_user</div>
+                    <div class="profile-badge" id="profileBadge">👤 User</div>
                 </div>
             </div>
 
-            <!-- Game Categories -->
-            <div class="game-categories">
-                <div class="category-card">
-                    <h4>Mobile Legends</h4>
-                    <p>125 username</p>
+            <!-- Add Username Button -->
+            <div class="add-username-container">
+                <button class="add-username-btn" id="addUsernameBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    ADD USERNAME
+                </button>
+            </div>
+
+            <!-- Asset Stats Card -->
+            <div class="asset-stats-card">
+                <div class="asset-stat-item left">
+                    <span class="asset-stat-label">Aset profil</span>
+                    <span class="asset-stat-value" id="assetCount">0</span>
                 </div>
-                <div class="category-card">
-                    <h4>Free Fire</h4>
-                    <p>89 username</p>
+                <div class="asset-stat-item center">
+                    <span class="asset-stat-label">Dibeli/Terjual</span>
+                    <span class="asset-stat-value" id="boughtSoldCount">12/5</span>
                 </div>
-                <div class="category-card">
-                    <h4>PUBG</h4>
-                    <p>67 username</p>
-                </div>
-                <div class="category-card">
-                    <h4>Valorant</h4>
-                    <p>45 username</p>
-                </div>
-                <div class="category-card">
-                    <h4>Genshin Impact</h4>
-                    <p>34 username</p>
-                </div>
-                <div class="category-card">
-                    <h4>Dota 2</h4>
-                    <p>28 username</p>
+                <div class="asset-stat-item right">
+                    <span class="asset-stat-label">Total Volume</span>
+                    <span class="asset-stat-value" id="totalVolume">Rp100.000</span>
                 </div>
             </div>
 
-            <!-- Coming Soon -->
-            <div class="coming-soon">
-                <h3>🚧 Games Market Coming Soon</h3>
-                <p>Fitur khusus untuk jual beli username game sedang dalam pengembangan</p>
-                <a href="/order/index.html" class="back-to-market">Kembali ke Market</a>
+            <!-- User Info Details -->
+            <div class="info-section">
+                <h3>Informasi Akun</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">User ID</span>
+                        <span class="info-value" id="infoUserId">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Bergabung</span>
+                        <span class="info-value" id="infoJoinDate">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Terakhir Login</span>
+                        <span class="info-value" id="infoLastLogin">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Status Premium</span>
+                        <span class="info-value" id="infoPremium">Tidak</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- My Usernames Section -->
+            <div class="my-usernames-section">
+                <h3>Username Saya</h3>
+                <div class="my-usernames-grid" id="myUsernamesGrid">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Button -->
+        <button class="message-button" id="messageButton" style="display: none;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span class="notification-badge" id="messageBadge" style="display: none;">1</span>
+        </button>
+        
+        <!-- Add Username Modal -->
+        <div class="modal-overlay" id="addUsernameModal">
+          <div class="modal-container">
+            <div class="modal-header">
+              <h3>Tambah Username</h3>
+              <button class="modal-close" id="closeAddModal">×</button>
+            </div>
+            <div class="modal-content">
+              <div class="status-message info" id="addStatusMessage" style="display: none;"></div>
+        
+              <!-- Step 1: Input Username -->
+              <div id="step1">
+                <div class="form-group">
+                  <label>Username / Channel / Group</label>
+                  <input type="text" id="targetUsername" placeholder="Contoh: @username atau https://t.me/..." />
+                </div>
+                <div class="info-box">
+                  <div class="info-item">
+                    <span class="info-label">Tipe</span>
+                    <span class="info-value" id="targetType">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">ID</span>
+                    <span class="info-value" id="targetId">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Title</span>
+                    <span class="info-value" id="targetTitle">-</span>
+                  </div>
+                </div>
+              </div>
+        
+              <!-- Step 2: OTP Verification -->
+              <div id="step2" style="display: none;">
+                <div class="form-group">
+                  <label>Masukkan Kode OTP 6 Digit</label>
+                  <input type="text" class="otp-input" id="otpInput" placeholder="••••••" maxlength="6" />
+                </div>
+                <div class="info-box">
+                  <div class="info-item">
+                    <span class="info-label">Kode OTP telah dikirim ke</span>
+                    <span class="info-value" id="otpTarget">-</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Sisa waktu</span>
+                    <span class="info-value" id="otpTimer">5:00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" id="cancelAddBtn">Batal</button>
+              <button class="btn-primary" id="confirmAddBtn">Lanjutkan</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- OTP Modal -->
+        <div class="modal-overlay" id="otpModal">
+          <div class="modal-container">
+            <div class="modal-header">
+              <h3>Verifikasi OTP</h3>
+              <button class="modal-close" id="closeOtpModal">×</button>
+            </div>
+            <div class="modal-content">
+              <div class="status-message info" id="otpStatusMessage" style="display: none;"></div>
+        
+              <div class="form-group">
+                <label>Masukkan Kode OTP</label>
+                <input type="text" class="otp-input" id="pendingOtpInput" placeholder="••••••" maxlength="6" />
+              </div>
+        
+              <div class="info-box">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value" id="pendingTarget">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Sisa waktu</span>
+                  <span class="info-value" id="pendingTimer">5:00</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" id="cancelOtpBtn">Batal</button>
+              <button class="btn-primary" id="verifyOtpBtn">Verifikasi</button>
+            </div>
+          </div>
         </div>
 
         <!-- Bottom Navigation -->
         <nav class="bottom-nav">
-          <a href="/order/games.html" class="nav-item active">
+          <a href="games.html" class="nav-item">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="6" width="20" height="12" rx="2" />
               <path d="M6 12h4M14 12h4M8 10v4M16 10v4" />
             </svg>
             <span>GAMES</span>
           </a>
-          <a href="/order/index.html" class="nav-item">
+          <a href="index.html" class="nav-item">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
             <span>MARKET</span>
           </a>
-          <a href="/order/profil.html" class="nav-item">
+          <a href="profil.html" class="nav-item active">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
@@ -95,5 +217,6 @@
         </nav>
 
     <script src="js/main.js"></script>
+    <script src="js/profil.js"></script>
 </body>
 </html>
