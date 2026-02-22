@@ -3,12 +3,16 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.ready();
 
+// Konfigurasi BASE URL - Ganti dengan tunnel URL Anda
+const BASE_URL = "https://daughters-configuration-replied-ethernet.trycloudflare.com";
+
 // State Management
 let currentUser = {
     id: 'guest',
     username: 'guest_user',
     firstName: 'Guest',
-    photo: null
+    photo: null,
+    isAdmin: false
 };
 
 let usernames = [];
@@ -23,65 +27,75 @@ let currentFilters = {
     maxPrice: 1000
 };
 
-// Data dummy usernames
-const dummyUsernames = [
-    // IDOL K-POP
-    { id: 1, name: 'Jennie', type: 'OP', category: 'idol', price: 250, status: 'available', original: 'Jennie', desc: 'Blackpink' },
-    { id: 2, name: 'Jennies', type: 'SCANON', category: 'idol', price: 180, status: 'available', original: 'Jennie', desc: 'Blackpink + S' },
-    { id: 3, name: 'Jenie', type: 'KURHUF', category: 'idol', price: 150, status: 'available', original: 'Jennie', desc: 'Kurang 1 huruf' },
-    { id: 4, name: 'Jeenie', type: 'GANHUR', category: 'idol', price: 170, status: 'available', original: 'Jennie', desc: 'Ganti huruf' },
-    { id: 5, name: 'Jjenie', type: 'TAMPING', category: 'idol', price: 160, status: 'available', original: 'Jennie', desc: 'Tambah J' },
-    { id: 6, name: 'Lisa', type: 'OP', category: 'idol', price: 230, status: 'available', original: 'Lisa', desc: 'Blackpink' },
-    { id: 7, name: 'Lisas', type: 'SCANON', category: 'idol', price: 180, status: 'available', original: 'Lisa', desc: 'Blackpink + S' },
-    { id: 8, name: 'Lisia', type: 'GANHUR', category: 'idol', price: 160, status: 'available', original: 'Lisa', desc: 'Ganti huruf' },
-    { id: 9, name: 'Lissa', type: 'SOP', category: 'idol', price: 170, status: 'available', original: 'Lisa', desc: 'Double S' },
-    { id: 10, name: 'Jiso', type: 'KURHUF', category: 'idol', price: 140, status: 'available', original: 'Jisoo', desc: 'Kurang 1 huruf' },
-    { id: 11, name: 'Jisoo', type: 'OP', category: 'idol', price: 240, status: 'available', original: 'Jisoo', desc: 'Blackpink' },
-    { id: 12, name: 'Jisoos', type: 'SCANON', category: 'idol', price: 190, status: 'available', original: 'Jisoo', desc: 'Blackpink + S' },
-    // MULTICHAR
-    { id: 13, name: 'StrayKids', type: 'OP', category: 'mulchar', price: 400, status: 'available', original: 'Stray Kids', desc: 'Original' },
-    { id: 14, name: 'StrayKidz', type: 'TAMPING', category: 'mulchar', price: 300, status: 'available', original: 'Stray Kids', desc: 'Tambahan z' },
-    { id: 15, name: 'StrayKid', type: 'KURHUF', category: 'mulchar', price: 280, status: 'available', original: 'Stray Kids', desc: 'Kurang s' },
-    // ANIME
-    { id: 16, name: 'Gojo', type: 'OP', category: 'anime', price: 320, status: 'available', original: 'Gojo', desc: 'JJK' },
-    { id: 17, name: 'Gojos', type: 'SCANON', category: 'anime', price: 280, status: 'available', original: 'Gojo', desc: 'JJK + S' },
-    { id: 18, name: 'Gojoo', type: 'SOP', category: 'anime', price: 290, status: 'available', original: 'Gojo', desc: 'Double o' },
-    { id: 19, name: 'Naruto', type: 'OP', category: 'anime', price: 450, status: 'available', original: 'Naruto', desc: 'Naruto' },
-    { id: 20, name: 'Narutos', type: 'SCANON', category: 'anime', price: 380, status: 'available', original: 'Naruto', desc: 'Naruto + S' },
-    { id: 21, name: 'Narutoo', type: 'SOP', category: 'anime', price: 400, status: 'available', original: 'Naruto', desc: 'Double o' },
-    // GAME
-    { id: 22, name: 'Mikay', type: 'OP', category: 'game', price: 140, status: 'available', original: 'Mikay', desc: 'Mobile Legends' },
-    { id: 23, name: 'Mikayy', type: 'SOP', category: 'game', price: 150, status: 'available', original: 'Mikay', desc: 'Double y' },
-    { id: 24, name: 'Mikays', type: 'SCANON', category: 'game', price: 130, status: 'available', original: 'Mikay', desc: '+ S' },
-    { id: 25, name: 'Claude', type: 'OP', category: 'game', price: 280, status: 'available', original: 'Claude', desc: 'MLBB' },
-    { id: 26, name: 'Claudes', type: 'SCANON', category: 'game', price: 240, status: 'available', original: 'Claude', desc: '+ S' },
-    // COMMON - Testing untuk kata "ayam"
-    { id: 27, name: 'bayam', type: 'TAMPING', category: 'common', price: 50, status: 'available', original: 'ayam', desc: 'Tambah b di depan' },
-    { id: 28, name: 'aykam', type: 'GANHUR', category: 'common', price: 45, status: 'available', original: 'ayam', desc: 'Ganti a ke k' },
-    { id: 29, name: 'ayyam', type: 'SOP', category: 'common', price: 55, status: 'available', original: 'ayam', desc: 'Double y' },
-    { id: 30, name: 'ayam', type: 'OP', category: 'common', price: 60, status: 'available', original: 'ayam', desc: 'Original' },
-    { id: 31, name: 'ayams', type: 'SCANON', category: 'common', price: 48, status: 'available', original: 'ayam', desc: '+ S' },
-    // COMMON - Testing untuk kata "babi"
-    { id: 32, name: 'bkabi', type: 'GANHUR', category: 'common', price: 45, status: 'available', original: 'babi', desc: 'Ganti a ke k' },
-    { id: 33, name: 'bbabi', type: 'TAMPING', category: 'common', price: 50, status: 'available', original: 'babi', desc: 'Tambah b di depan' },
-    { id: 34, name: 'ababi', type: 'TAMPING', category: 'common', price: 48, status: 'available', original: 'babi', desc: 'Tambah a di depan' },
-    { id: 35, name: 'babi', type: 'OP', category: 'common', price: 60, status: 'available', original: 'babi', desc: 'Original' },
-    { id: 36, name: 'babis', type: 'SCANON', category: 'common', price: 52, status: 'available', original: 'babi', desc: '+ S' },
-    { id: 37, name: 'baabi', type: 'SOP', category: 'common', price: 55, status: 'available', original: 'babi', desc: 'Double a' },
-];
+let isLoading = false;
+let stats = {
+    total: 0,
+    available: 0,
+    sold: 0,
+    min_price: 0,
+    max_price: 0
+};
 
-// Inisialisasi Telegram User
-function initTelegramUser() {
+// ============= API FUNCTIONS =============
+
+async function apiRequest(endpoint, method = 'GET', data = null) {
+    const url = `${BASE_URL}/api/${endpoint}`;
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+    };
+
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+
+    try {
+        const response = await fetch(url, options);
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error(`API Error (${endpoint}):`, error);
+        return null;
+    }
+}
+
+// ============= USER AUTHENTICATION =============
+
+async function initTelegramUser() {
+    showLoading(true);
+    
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const user = tg.initDataUnsafe.user;
-        currentUser = {
-            id: user.id || 'guest',
-            username: user.username || `user_${user.id}`,
-            firstName: user.first_name || 'User',
-            photo: user.photo_url || null
-        };
+        
+        // Kirim ke server untuk penyimpanan
+        const result = await apiRequest('init', 'POST', {
+            user: {
+                id: user.id,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                photo_url: user.photo_url,
+                language_code: user.language_code,
+                is_premium: user.is_premium || false
+            }
+        });
+        
+        if (result && result.status === 'authenticated') {
+            currentUser = {
+                id: result.user.id,
+                username: result.user.username || `user_${result.user.id}`,
+                firstName: result.user.first_name || 'User',
+                photo: result.user.photo_url,
+                isAdmin: result.is_admin || false
+            };
+        }
     }
+    
     updateUserDisplay();
+    showLoading(false);
 }
 
 // Update tampilan user
@@ -98,6 +112,157 @@ function updateUserDisplay() {
         userAvatar.textContent = currentUser.firstName.charAt(0).toUpperCase();
     }
 }
+
+// ============= DATA LOADING =============
+
+async function loadUsernames() {
+    showLoading(true);
+    
+    // Build query parameters
+    const params = new URLSearchParams({
+        category: currentFilters.category,
+        type: currentFilters.type,
+        min_price: currentFilters.minPrice,
+        max_price: currentFilters.maxPrice,
+        search: currentFilters.search
+    });
+    
+    const data = await apiRequest(`usernames?${params.toString()}`);
+    
+    if (data && Array.isArray(data)) {
+        usernames = data;
+    } else {
+        usernames = [];
+        showNotification('Gagal memuat data username', 'error');
+    }
+    
+    applyFilters();
+    showLoading(false);
+}
+
+async function loadStats() {
+    const data = await apiRequest('stats');
+    
+    if (data) {
+        stats = data;
+        updateStats();
+    }
+}
+
+// Load data awal
+async function loadData() {
+    await Promise.all([
+        loadUsernames(),
+        loadStats()
+    ]);
+}
+
+// ============= FILTER FUNCTIONS =============
+
+// Apply filters
+function applyFilters() {
+    filteredUsernames = usernames.filter(item => {
+        // Search filter dengan fuzzy search
+        if (currentFilters.search && currentFilters.search.trim() !== '') {
+            const searchTerm = currentFilters.search.trim();
+            if (!fuzzySearch(searchTerm, item.name) && !fuzzySearch(searchTerm, item.original || '')) {
+                return false;
+            }
+        }
+        
+        // Category filter
+        if (currentFilters.category !== 'all' && item.category !== currentFilters.category) return false;
+        
+        // Type filter
+        if (currentFilters.type !== 'all' && item.type !== currentFilters.type) return false;
+        
+        // Status filter
+        if (currentFilters.status !== 'all' && item.status !== currentFilters.status) return false;
+        
+        // Price filter
+        if (item.price < currentFilters.minPrice || item.price > currentFilters.maxPrice) return false;
+        
+        return true;
+    });
+    
+    applySort();
+    updateActiveFilters();
+}
+
+// Apply sorting
+function applySort() {
+    switch(currentFilters.sort) {
+        case 'price_asc':
+            filteredUsernames.sort((a, b) => a.price - b.price);
+            break;
+        case 'price_desc':
+            filteredUsernames.sort((a, b) => b.price - a.price);
+            break;
+        case 'name_asc':
+            filteredUsernames.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        default: // newest (by id)
+            filteredUsernames.sort((a, b) => b.id - a.id);
+    }
+    renderUsernames();
+}
+
+// Update price range dari data
+function updatePriceRange() {
+    if (usernames.length === 0) return;
+    
+    const prices = usernames.map(u => u.price);
+    currentFilters.minPrice = stats.min_price || Math.min(...prices);
+    currentFilters.maxPrice = stats.max_price || Math.max(...prices);
+    
+    const minPriceInput = document.getElementById('minPrice');
+    const maxPriceInput = document.getElementById('maxPrice');
+    if (minPriceInput) minPriceInput.value = currentFilters.minPrice;
+    if (maxPriceInput) maxPriceInput.value = currentFilters.maxPrice;
+}
+
+// Update active filters display
+function updateActiveFilters() {
+    const container = document.getElementById('activeFilters');
+    if (!container) return;
+    
+    const filters = [];
+    
+    if (currentFilters.category !== 'all') {
+        filters.push(`Category: ${getCategoryName(currentFilters.category)}`);
+    }
+    if (currentFilters.type !== 'all') {
+        filters.push(`Type: ${currentFilters.type}`);
+    }
+    if (currentFilters.status !== 'all') {
+        filters.push(`Status: ${currentFilters.status === 'available' ? 'Tersedia' : 'Terjual'}`);
+    }
+    if (currentFilters.minPrice > 0 || currentFilters.maxPrice < 1000) {
+        filters.push(`Price: $${currentFilters.minPrice}-$${currentFilters.maxPrice}`);
+    }
+    if (currentFilters.sort !== 'newest') {
+        const sortLabels = { 
+            'price_asc': 'Harga Terendah', 
+            'price_desc': 'Harga Tertinggi', 
+            'name_asc': 'A-Z' 
+        };
+        filters.push(`Sort: ${sortLabels[currentFilters.sort]}`);
+    }
+    
+    if (filters.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    container.innerHTML = filters.map(filter => `
+        <span class="filter-tag">
+            ${filter}
+            <button onclick="removeFilter('${filter.split(':')[0].toLowerCase().trim()}')">×</button>
+        </span>
+    `).join('');
+}
+
+// ============= FUZZY SEARCH FUNCTIONS =============
 
 // Fungsi Levenshtein Distance
 function levenshteinDistance(a, b) {
@@ -148,61 +313,17 @@ function fuzzySearch(query, username) {
     return false;
 }
 
-// Load data
-function loadData() {
-    usernames = dummyUsernames;
-    updatePriceRange();
-    applyFilters();
-    updateStats();
-}
-
-// Update price range
-function updatePriceRange() {
-    const prices = usernames.map(u => u.price);
-    currentFilters.minPrice = Math.min(...prices);
-    currentFilters.maxPrice = Math.max(...prices);
-    
-    const minPriceInput = document.getElementById('minPrice');
-    const maxPriceInput = document.getElementById('maxPrice');
-    if (minPriceInput) minPriceInput.value = currentFilters.minPrice;
-    if (maxPriceInput) maxPriceInput.value = currentFilters.maxPrice;
-}
-
-// Apply filters
-function applyFilters() {
-    filteredUsernames = usernames.filter(item => {
-        if (currentFilters.search && currentFilters.search.trim() !== '') {
-            const searchTerm = currentFilters.search.trim();
-            if (!fuzzySearch(searchTerm, item.name) && !fuzzySearch(searchTerm, item.original || '')) {
-                return false;
-            }
-        }
-        if (currentFilters.category !== 'all' && item.category !== currentFilters.category) return false;
-        if (currentFilters.type !== 'all' && item.type !== currentFilters.type) return false;
-        if (currentFilters.status !== 'all' && item.status !== currentFilters.status) return false;
-        if (item.price < currentFilters.minPrice || item.price > currentFilters.maxPrice) return false;
-        return true;
-    });
-    
-    applySort();
-    updateActiveFilters();
-}
-
-// Apply sorting
-function applySort() {
-    switch(currentFilters.sort) {
-        case 'price_asc': filteredUsernames.sort((a, b) => a.price - b.price); break;
-        case 'price_desc': filteredUsernames.sort((a, b) => b.price - a.price); break;
-        case 'name_asc': filteredUsernames.sort((a, b) => a.name.localeCompare(b.name)); break;
-        default: filteredUsernames.sort((a, b) => b.id - a.id);
-    }
-    renderUsernames();
-}
+// ============= RENDER FUNCTIONS =============
 
 // Render username grid
 function renderUsernames() {
     const grid = document.getElementById('usernameGrid');
     if (!grid) return;
+    
+    if (isLoading) {
+        grid.innerHTML = '<div class="loading">Memuat data...</div>';
+        return;
+    }
     
     if (filteredUsernames.length === 0) {
         grid.innerHTML = '<div class="no-results">Tidak ada username ditemukan</div>';
@@ -213,7 +334,7 @@ function renderUsernames() {
         <div class="username-card ${item.status}">
             <div class="username-name">@${item.name}</div>
             <div class="username-type">${item.type}</div>
-            <div class="username-category">${getCategoryName(item.category)} • ${item.desc}</div>
+            <div class="username-category">${getCategoryName(item.category)} • ${item.desc || item.description || ''}</div>
             <div class="username-details">
                 <span class="username-price">${item.price}</span>
                 <span class="username-status status-${item.status}">${item.status === 'available' ? 'Tersedia' : 'Terjual'}</span>
@@ -225,13 +346,17 @@ function renderUsernames() {
 // Get category name
 function getCategoryName(category) {
     const categories = {
-        'idol': 'Idol K-Pop', 'mulchar': 'Multichar', 'anime': 'Anime',
-        'game': 'Game', 'common': 'Common', 'uncommon': 'Uncommon'
+        'idol': 'Idol K-Pop', 
+        'mulchar': 'Multichar', 
+        'anime': 'Anime',
+        'game': 'Game', 
+        'common': 'Common', 
+        'uncommon': 'Uncommon'
     };
     return categories[category] || category;
 }
 
-// Update stats
+// Update stats display
 function updateStats() {
     const totalCount = document.getElementById('totalCount');
     const availableCount = document.getElementById('availableCount');
@@ -239,41 +364,29 @@ function updateStats() {
     const minPriceStat = document.getElementById('minPriceStat');
     const maxPriceStat = document.getElementById('maxPriceStat');
     
-    if (totalCount) totalCount.textContent = usernames.length;
-    if (availableCount) availableCount.textContent = usernames.filter(u => u.status === 'available').length;
-    if (soldCount) soldCount.textContent = usernames.filter(u => u.status === 'sold').length;
+    if (totalCount) totalCount.textContent = stats.total || usernames.length;
+    if (availableCount) availableCount.textContent = stats.available || usernames.filter(u => u.status === 'available').length;
+    if (soldCount) soldCount.textContent = stats.sold || usernames.filter(u => u.status === 'sold').length;
     
-    const prices = usernames.map(u => u.price);
-    if (minPriceStat) minPriceStat.textContent = `$${Math.min(...prices)}`;
-    if (maxPriceStat) maxPriceStat.textContent = `$${Math.max(...prices)}`;
+    if (minPriceStat) minPriceStat.textContent = `$${stats.min_price || 0}`;
+    if (maxPriceStat) maxPriceStat.textContent = `$${stats.max_price || 0}`;
 }
 
-// Update active filters
-function updateActiveFilters() {
-    const container = document.getElementById('activeFilters');
-    if (!container) return;
-    
-    const filters = [];
-    if (currentFilters.category !== 'all') filters.push(`Category: ${getCategoryName(currentFilters.category)}`);
-    if (currentFilters.type !== 'all') filters.push(`Type: ${currentFilters.type}`);
-    if (currentFilters.status !== 'all') filters.push(`Status: ${currentFilters.status === 'available' ? 'Tersedia' : 'Terjual'}`);
-    if (currentFilters.minPrice > 0 || currentFilters.maxPrice < 1000) filters.push(`Price: $${currentFilters.minPrice}-$${currentFilters.maxPrice}`);
-    if (currentFilters.sort !== 'newest') {
-        const sortLabels = { 'price_asc': 'Harga Terendah', 'price_desc': 'Harga Tertinggi', 'name_asc': 'A-Z' };
-        filters.push(`Sort: ${sortLabels[currentFilters.sort]}`);
+// ============= UI FUNCTIONS =============
+
+// Show/hide loading
+function showLoading(show) {
+    isLoading = show;
+    const grid = document.getElementById('usernameGrid');
+    if (grid && show) {
+        grid.innerHTML = '<div class="loading">Memuat data...</div>';
     }
-    
-    if (filters.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
-    
-    container.innerHTML = filters.map(filter => `
-        <span class="filter-tag">
-            ${filter}
-            <button onclick="removeFilter('${filter.split(':')[0].toLowerCase().trim()}')">×</button>
-        </span>
-    `).join('');
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    // Bisa diimplementasikan sesuai kebutuhan
+    console.log(`[${type}] ${message}`);
 }
 
 // Toggle filter panel
@@ -287,7 +400,7 @@ function toggleFilterPanel() {
     document.body.style.overflow = panel.classList.contains('show') ? 'hidden' : 'auto';
 }
 
-// Update filter UI
+// Update filter UI active states
 function updateFilterUI() {
     document.querySelectorAll('[data-sort]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.sort === currentFilters.sort);
@@ -311,19 +424,24 @@ function updateFilterUI() {
 // Reset filters
 function resetFilters() {
     currentFilters = {
-        search: '', category: 'all', type: 'all', status: 'all',
+        search: '', 
+        category: 'all', 
+        type: 'all', 
+        status: 'all',
         sort: 'newest',
-        minPrice: Math.min(...usernames.map(u => u.price)),
-        maxPrice: Math.max(...usernames.map(u => u.price))
+        minPrice: stats.min_price || 0,
+        maxPrice: stats.max_price || 1000
     };
     
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
     
     updateFilterUI();
-    applyFilters();
+    loadUsernames(); // Reload data dengan filter baru
     toggleFilterPanel();
 }
+
+// ============= SEARCH SUGGESTIONS =============
 
 // Update search suggestion
 function updateSearchSuggestion() {
@@ -367,7 +485,7 @@ window.selectSuggestion = (suggestion) => {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = suggestion;
     currentFilters.search = suggestion;
-    applyFilters();
+    loadUsernames(); // Reload dengan pencarian baru
     const box = document.getElementById('searchSuggestion');
     if (box) box.style.display = 'none';
 };
@@ -375,18 +493,28 @@ window.selectSuggestion = (suggestion) => {
 // Remove filter
 window.removeFilter = (filterType) => {
     switch(filterType) {
-        case 'category': currentFilters.category = 'all'; break;
-        case 'type': currentFilters.type = 'all'; break;
-        case 'status': currentFilters.status = 'all'; break;
-        case 'price':
-            currentFilters.minPrice = Math.min(...usernames.map(u => u.price));
-            currentFilters.maxPrice = Math.max(...usernames.map(u => u.price));
+        case 'category': 
+            currentFilters.category = 'all'; 
             break;
-        case 'sort': currentFilters.sort = 'newest'; break;
+        case 'type': 
+            currentFilters.type = 'all'; 
+            break;
+        case 'status': 
+            currentFilters.status = 'all'; 
+            break;
+        case 'price':
+            currentFilters.minPrice = stats.min_price || 0;
+            currentFilters.maxPrice = stats.max_price || 1000;
+            break;
+        case 'sort': 
+            currentFilters.sort = 'newest'; 
+            break;
     }
     updateFilterUI();
-    applyFilters();
+    loadUsernames(); // Reload dengan filter baru
 };
+
+// ============= ACCORDION INITIALIZATION =============
 
 // Inisialisasi Accordion
 function initFilterAccordion() {
@@ -423,7 +551,6 @@ function initFilterAccordion() {
         
         header.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isActive = header.classList.contains('active');
             header.classList.toggle('active');
             content.classList.toggle('show');
         });
@@ -446,7 +573,7 @@ function initClearSearchButton() {
             searchInput.value = '';
             clearButton.style.display = 'none';
             currentFilters.search = '';
-            applyFilters();
+            loadUsernames(); // Reload tanpa pencarian
             searchInput.focus();
             const box = document.getElementById('searchSuggestion');
             if (box) box.style.display = 'none';
@@ -454,11 +581,17 @@ function initClearSearchButton() {
     }
 }
 
+// ============= EVENT LISTENERS =============
+
 // Main initialization
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM loaded');
-    initTelegramUser();
-    loadData();
+    
+    // Inisialisasi user
+    await initTelegramUser();
+    
+    // Load data awal
+    await loadData();
     
     // Filter toggle
     const filterToggle = document.getElementById('filterToggle');
@@ -477,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 currentFilters.search = e.target.value;
-                applyFilters();
+                loadUsernames(); // Reload dengan pencarian
                 updateSearchSuggestion();
             }, 300);
         });
@@ -485,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 currentFilters.search = e.target.value;
-                applyFilters();
+                loadUsernames(); // Reload dengan pencarian
                 const box = document.getElementById('searchSuggestion');
                 if (box) box.style.display = 'none';
             }
@@ -499,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('searchInput');
             if (input) {
                 currentFilters.search = input.value;
-                applyFilters();
+                loadUsernames(); // Reload dengan pencarian
                 const box = document.getElementById('searchSuggestion');
                 if (box) box.style.display = 'none';
             }
@@ -521,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentFilters.sort = btn.dataset.sort;
+            applySort(); // Apply sorting without reload
         });
     });
     
@@ -551,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Apply filters
+    // Apply filters button
     const applyBtn = document.getElementById('applyFilters');
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
@@ -559,25 +693,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const maxPrice = document.getElementById('maxPrice');
             currentFilters.minPrice = parseInt(minPrice?.value) || 0;
             currentFilters.maxPrice = parseInt(maxPrice?.value) || 1000;
-            applyFilters();
+            loadUsernames(); // Reload dengan filter baru
             toggleFilterPanel();
         });
     }
     
-    // Reset filters
+    // Reset filters button
     const resetBtn = document.getElementById('resetFilters');
     if (resetBtn) resetBtn.addEventListener('click', resetFilters);
     
-    // Inisialisasi komponen
+    // Inisialisasi komponen UI
     setTimeout(() => {
         initFilterAccordion();
         initClearSearchButton();
     }, 100);
 });
 
-// Debug
+// ============= DEBUG =============
+
 window.debug = {
     getCurrentUser: () => currentUser,
     getFilters: () => currentFilters,
-    getUsernames: () => usernames
+    getUsernames: () => usernames,
+    getStats: () => stats,
+    reloadData: () => loadData(),
+    apiRequest
 };
