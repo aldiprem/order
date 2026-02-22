@@ -1,323 +1,284 @@
 import sqlite3
-import json
 from datetime import datetime
-import os
 
 class Database:
-    def __init__(self, db_name='telegram_users.db'):
+    def __init__(self, db_name='indotag.db'):
         self.db_name = db_name
         self.init_db()
     
     def get_connection(self):
-        """Mendapatkan koneksi database"""
-        conn = sqlite3.connect(self.db_name)
-        conn.row_factory = sqlite3.Row  # Mengembalikan hasil sebagai dictionary
-        return conn
+        return sqlite3.connect(self.db_name)
     
     def init_db(self):
-        """Inisialisasi tabel database"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Tabel users - menyimpan data user Telegram + akun yang dibuat
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 telegram_id INTEGER UNIQUE,
-                telegram_username TEXT,
+                username TEXT,
                 first_name TEXT,
                 last_name TEXT,
-                language_code TEXT,
-                is_premium BOOLEAN DEFAULT 0,
                 photo_url TEXT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                language_code TEXT,
+                is_bot BOOLEAN DEFAULT 0,
+                is_premium BOOLEAN DEFAULT 0,
+                added_to_attachment_menu BOOLEAN DEFAULT 0,
+                allows_write_to_pm BOOLEAN DEFAULT 1,
+                is_admin INTEGER DEFAULT 0,
                 last_login TIMESTAMP,
-                is_active BOOLEAN DEFAULT 1
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Tabel sessions - untuk menyimpan session login
+        # Tabel sessions untuk menyimpan state user di bot
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS sessions (
+            CREATE TABLE IF NOT EXISTS user_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
-                session_token TEXT UNIQUE,
-                telegram_data TEXT,
-                ip_address TEXT,
-                user_agent TEXT,
+                chat_id INTEGER,
+                state TEXT,
+                data TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Tabel login_history - riwayat login
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS login_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                login_type TEXT,  -- 'telegram', 'manual', 'register'
-                ip_address TEXT,
-                user_agent TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (telegram_id),
+                UNIQUE(user_id, chat_id)
             )
         ''')
         
         conn.commit()
         conn.close()
-        print("✅ Database initialized successfully")
+        print("Database initialized successfully!")
     
-    # ==================== USER OPERATIONS ====================
+    # ============= USER METHODS =============
     
-    def create_user(self, telegram_data, form_data):
+    def save_user(self, telegram_user):
         """
-        Membuat user baru dengan menggabungkan data Telegram dan form
-        telegram_data: data dari Telegram WebApp (bisa kosong)
-        form_data: username, email, password dari form
+        Menyimpan atau mengupdate data user Telegram
+        telegram_user: dict dari Telegram API
         """
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        try:
-            # Ekstrak data Telegram (dengan default value)
-            telegram_id = telegram_data.get('id') if telegram_data else None
-            telegram_username = telegram_data.get('username') if telegram_data else None
-            first_name = telegram_data.get('first_name') if telegram_data else form_data.get('username', '')
-            last_name = telegram_data.get('last_name') if telegram_data else ''
-            language_code = telegram_data.get('language_code') if telegram_data else 'id'
-            is_premium = 1 if telegram_data and telegram_data.get('is_premium') else 0
-            photo_url = telegram_data.get('photo_url') if telegram_data else None
-            
-            # Data dari form (wajib ada)
-            username = form_data.get('username')
-            email = form_data.get('email')
-            password = form_data.get('password')
-            
-            # Insert ke database
-            cursor.execute('''
-                INSERT INTO users (
-                    telegram_id, telegram_username, first_name, last_name, 
-                    language_code, is_premium, photo_url, username, email, password
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                telegram_id, telegram_username, first_name, last_name,
-                language_code, is_premium, photo_url, username, email, password
-            ))
-            
-            conn.commit()
-            user_id = cursor.lastrowid
-            
-            # Catat history registrasi
-            self.add_login_history(user_id, 'register', form_data.get('ip'), form_data.get('user_agent'))
-            
-            return {'success': True, 'user_id': user_id, 'message': 'User created successfully'}
-            
-        except sqlite3.IntegrityError as e:
-            if 'UNIQUE constraint failed' in str(e):
-                error_msg = str(e)
-                if 'username' in error_msg:
-                    return {'success': False, 'message': 'Username sudah digunakan'}
-                elif 'email' in error_msg:
-                    return {'success': False, 'message': 'Email sudah terdaftar'}
-                elif 'telegram_id' in error_msg:
-                    return {'success': False, 'message': 'Akun Telegram sudah terdaftar'}
-            return {'success': False, 'message': f'Database error: {str(e)}'}
-        except Exception as e:
-            return {'success': False, 'message': str(e)}
-        finally:
-            conn.close()
+        # Extract data dari telegram_user
+        user_data = {
+            'telegram_id': telegram_user.get('id'),
+            'username': telegram_user.get('username', ''),
+            'first_name': telegram_user.get('first_name', ''),
+            'last_name': telegram_user.get('last_name', ''),
+            'photo_url': telegram_user.get('photo_url', ''),
+            'language_code': telegram_user.get('language_code', ''),
+            'is_bot': telegram_user.get('is_bot', False),
+            'is_premium': telegram_user.get('is_premium', False),
+            'added_to_attachment_menu': telegram_user.get('added_to_attachment_menu', False),
+            'allows_write_to_pm': telegram_user.get('allows_write_to_pm', True)
+        }
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO users 
+            (telegram_id, username, first_name, last_name, photo_url, 
+             language_code, is_bot, is_premium, added_to_attachment_menu, 
+             allows_write_to_pm, last_login, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ''', (
+            user_data['telegram_id'],
+            user_data['username'],
+            user_data['first_name'],
+            user_data['last_name'],
+            user_data['photo_url'],
+            user_data['language_code'],
+            user_data['is_bot'],
+            user_data['is_premium'],
+            user_data['added_to_attachment_menu'],
+            user_data['allows_write_to_pm']
+        ))
+        
+        conn.commit()
+        
+        # Ambil user_id yang baru saja di-insert
+        cursor.execute('SELECT id FROM users WHERE telegram_id = ?', (user_data['telegram_id'],))
+        user_db_id = cursor.fetchone()[0]
+        
+        conn.close()
+        return user_db_id
     
-    def get_user_by_telegram_id(self, telegram_id):
-        """Mendapatkan user berdasarkan Telegram ID"""
+    def get_user(self, telegram_id):
+        """Mendapatkan data user berdasarkan telegram_id"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
         cursor.execute('SELECT * FROM users WHERE telegram_id = ?', (telegram_id,))
         user = cursor.fetchone()
-        
         conn.close()
-        return dict(user) if user else None
+        
+        if user:
+            return {
+                'id': user[0],
+                'telegram_id': user[1],
+                'username': user[2],
+                'first_name': user[3],
+                'last_name': user[4],
+                'photo_url': user[5],
+                'language_code': user[6],
+                'is_bot': user[7],
+                'is_premium': user[8],
+                'added_to_attachment_menu': user[9],
+                'allows_write_to_pm': user[10],
+                'is_admin': user[11],
+                'last_login': user[12],
+                'created_at': user[13],
+                'updated_at': user[14]
+            }
+        return None
     
-    def get_user_by_username(self, username):
-        """Mendapatkan user berdasarkan username"""
+    def get_user_by_db_id(self, user_id):
+        """Mendapatkan data user berdasarkan ID database"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-        user = cursor.fetchone()
-        
-        conn.close()
-        return dict(user) if user else None
-    
-    def get_user_by_email(self, email):
-        """Mendapatkan user berdasarkan email"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
-        user = cursor.fetchone()
-        
-        conn.close()
-        return dict(user) if user else None
-    
-    def verify_login(self, username_or_email, password):
-        """Verifikasi login manual (tanpa Telegram)"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Cek berdasarkan username atau email
-        cursor.execute('''
-            SELECT * FROM users 
-            WHERE (username = ? OR email = ?) AND password = ? AND is_active = 1
-        ''', (username_or_email, username_or_email, password))
-        
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
         user = cursor.fetchone()
         conn.close()
         
-        return dict(user) if user else None
+        if user:
+            return {
+                'id': user[0],
+                'telegram_id': user[1],
+                'username': user[2],
+                'first_name': user[3],
+                'last_name': user[4],
+                'photo_url': user[5],
+                'language_code': user[6],
+                'is_bot': user[7],
+                'is_premium': user[8],
+                'added_to_attachment_menu': user[9],
+                'allows_write_to_pm': user[10],
+                'is_admin': user[11],
+                'last_login': user[12],
+                'created_at': user[13],
+                'updated_at': user[14]
+            }
+        return None
     
-    def update_last_login(self, user_id, ip=None, user_agent=None):
-        """Update last login dan catat history"""
+    def update_last_login(self, telegram_id):
+        """Update last login user"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
         cursor.execute('''
-            UPDATE users SET last_login = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        ''', (user_id,))
-        
+            UPDATE users 
+            SET last_login = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+            WHERE telegram_id = ?
+        ''', (telegram_id,))
         conn.commit()
         conn.close()
-        
-        # Catat history login
-        self.add_login_history(user_id, 'login', ip, user_agent)
-    
-    # ==================== SESSION OPERATIONS ====================
-    
-    def create_session(self, user_id, telegram_data, session_token, ip=None, user_agent=None, expires_in_days=7):
-        """Membuat session baru untuk user"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        # Hapus session lama
-        cursor.execute('DELETE FROM sessions WHERE user_id = ?', (user_id,))
-        
-        # Buat session baru
-        import datetime
-        expires_at = (datetime.datetime.now() + datetime.timedelta(days=expires_in_days)).strftime('%Y-%m-%d %H:%M:%S')
-        
-        cursor.execute('''
-            INSERT INTO sessions (user_id, session_token, telegram_data, ip_address, user_agent, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, session_token, json.dumps(telegram_data), ip, user_agent, expires_at))
-        
-        conn.commit()
-        session_id = cursor.lastrowid
-        conn.close()
-        
-        return session_id
-    
-    def get_session(self, session_token):
-        """Mendapatkan session berdasarkan token"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT s.*, u.* FROM sessions s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.session_token = ? AND s.expires_at > CURRENT_TIMESTAMP
-        ''', (session_token,))
-        
-        session = cursor.fetchone()
-        conn.close()
-        
-        return dict(session) if session else None
-    
-    def delete_session(self, session_token):
-        """Menghapus session (logout)"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM sessions WHERE session_token = ?', (session_token,))
-        conn.commit()
-        conn.close()
-    
-    # ==================== LOGIN HISTORY ====================
-    
-    def add_login_history(self, user_id, login_type, ip=None, user_agent=None):
-        """Mencatat history login"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO login_history (user_id, login_type, ip_address, user_agent)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, login_type, ip, user_agent))
-        
-        conn.commit()
-        conn.close()
-    
-    def get_login_history(self, user_id, limit=10):
-        """Mendapatkan history login user"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM login_history 
-            WHERE user_id = ? 
-            ORDER BY created_at DESC 
-            LIMIT ?
-        ''', (user_id, limit))
-        
-        history = cursor.fetchall()
-        conn.close()
-        
-        return [dict(h) for h in history]
-    
-    # ==================== UTILITY ====================
     
     def get_all_users(self):
         """Mendapatkan semua user (untuk admin)"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
         cursor.execute('SELECT * FROM users ORDER BY created_at DESC')
         users = cursor.fetchall()
-        
         conn.close()
-        return [dict(u) for u in users]
+        
+        result = []
+        for user in users:
+            result.append({
+                'id': user[0],
+                'telegram_id': user[1],
+                'username': user[2],
+                'first_name': user[3],
+                'last_name': user[4],
+                'is_admin': user[11],
+                'created_at': user[13],
+                'last_login': user[12]
+            })
+        return result
     
-    def delete_user(self, user_id):
-        """Menghapus user (soft delete dengan is_active = 0)"""
+    def set_admin(self, telegram_id, is_admin=True):
+        """Set user sebagai admin"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
-        cursor.execute('UPDATE users SET is_active = 0 WHERE id = ?', (user_id,))
+        cursor.execute('UPDATE users SET is_admin = ? WHERE telegram_id = ?', (1 if is_admin else 0, telegram_id))
         conn.commit()
         conn.close()
-        
-        return True
-
-    def get_user_by_id(self, user_id):
-        """Mendapatkan user berdasarkan ID"""
+    
+    def is_admin(self, telegram_id):
+        """Cek apakah user adalah admin"""
+        user = self.get_user(telegram_id)
+        return user and user['is_admin'] == 1
+    
+    def get_user_count(self):
+        """Mendapatkan jumlah total user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM users')
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+    
+    # ============= SESSION METHODS =============
+    
+    def save_session(self, user_id, chat_id, state, data=None):
+        """Menyimpan session user untuk bot"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
-        user = cursor.fetchone()
+        import json
+        data_json = json.dumps(data) if data else '{}'
         
+        cursor.execute('''
+            INSERT OR REPLACE INTO user_sessions (user_id, chat_id, state, data, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (user_id, chat_id, state, data_json))
+        
+        conn.commit()
         conn.close()
-        return dict(user) if user else None
+    
+    def get_session(self, user_id, chat_id):
+        """Mendapatkan session user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM user_sessions WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        session = cursor.fetchone()
+        conn.close()
+        
+        if session:
+            import json
+            return {
+                'id': session[0],
+                'user_id': session[1],
+                'chat_id': session[2],
+                'state': session[3],
+                'data': json.loads(session[4]) if session[4] else {},
+                'created_at': session[5],
+                'updated_at': session[6]
+            }
+        return None
+    
+    def clear_session(self, user_id, chat_id):
+        """Menghapus session user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_sessions WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+        conn.commit()
+        conn.close()
+    
+    def update_session_data(self, user_id, chat_id, data):
+        """Update data session"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        import json
+        data_json = json.dumps(data)
+        
+        cursor.execute('''
+            UPDATE user_sessions 
+            SET data = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE user_id = ? AND chat_id = ?
+        ''', (data_json, user_id, chat_id))
+        
+        conn.commit()
+        conn.close()
 
-# Buat instance database global
+# Singleton instance
 db = Database()
-
-if __name__ == '__main__':
-    # Test koneksi database
-    print("Testing database connection...")
-    test_db = Database()
-    print("✅ Database ready")
