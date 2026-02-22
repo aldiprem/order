@@ -5,6 +5,7 @@ import json
 import os
 import requests
 import asyncio
+import aiohttp
 from datetime import timedelta, datetime
 from dotenv import load_dotenv
 
@@ -21,6 +22,35 @@ BASE_URL = os.getenv('BASE_URL', 'https://daughters-configuration-replied-ethern
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
+
+# Store bot instance (will be set from b.py)
+bot_instance = None
+
+def set_bot_instance(bot):
+    global bot_instance
+    bot_instance = bot
+
+# ============= ASYNC HELPER FUNCTIONS =============
+
+async def async_check_username(username):
+    """Async function to check username via bot"""
+    global bot_instance
+    if bot_instance and hasattr(bot_instance, 'sync_channel_data'):
+        return await bot_instance.sync_channel_data(username)
+    return {
+        'success': False,
+        'error': 'Bot not available',
+        'message': 'Bot sedang tidak tersedia'
+    }
+
+def run_async_check(username):
+    """Run async check in sync context"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(async_check_username(username))
+    finally:
+        loop.close()
 
 # ============= USER AUTHENTICATION =============
 
@@ -158,26 +188,30 @@ def check_username():
     if 't.me/' in username:
         username = username.split('t.me/')[-1]
 
-    # Forward to bot via internal API
+    # Call bot to check username
     try:
-        # In a real implementation, you'd communicate with the running bot
-        # For now, we'll simulate a successful response
-        # This should be replaced with actual inter-process communication
+        result = run_async_check(username)
         
-        # Simulate bot response
-        import random
-        chat_types = ['private', 'group', 'supergroup', 'channel']
-        chat_type = random.choice(chat_types)
-        
-        return jsonify({
-            'success': True,
-            'type': chat_type,
-            'id': random.randint(100000, 999999),
-            'title': f"Chat {username}",
-            'username': username,
-            'can_send': random.choice([True, False])
-        })
-        
+        if result and result.get('success'):
+            # Format response for frontend
+            return jsonify({
+                'success': True,
+                'type': result.get('chat_type', 'unknown'),
+                'id': result.get('chat_id'),
+                'title': result.get('chat_title', username),
+                'username': username,
+                'can_send': result.get('can_send', False),
+                'admin_count': result.get('admin_count', 0),
+                'participants_count': result.get('participants_count', 0)
+            })
+        else:
+            error_msg = result.get('error', 'Username tidak ditemukan') if result else 'Gagal mengecek username'
+            return jsonify({
+                'success': False,
+                'error': error_msg,
+                'message': error_msg
+            }), 404
+            
     except Exception as e:
         print(f"Error checking username: {e}")
         return jsonify({
@@ -344,28 +378,38 @@ def verify_otp():
         except Exception as e:
             print(f"Error getting chat owner: {e}")
 
-    # Save to database (you'll need to implement this)
-    username_data = {
-        'name': target_username,
-        'type': 'custom',
-        'category': 'custom',
-        'price': 0,
-        'status': 'available',
-        'original': target_username,
-        'description': f"{target_type}: {target_title}",
-        'owner_id': owner_id,
-        'owner_username': owner_username,
-        'added_by': user_id,
-        'added_by_username': user['username']
-    }
+    # Save to database
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO verified_usernames 
+            (username, target_type, target_id, title, owner_id, owner_username, added_by, added_by_username)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            target_username,
+            target_type,
+            target_id,
+            target_title,
+            owner_id,
+            owner_username,
+            user_id,
+            user['username']
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error saving to database: {e}")
 
     # Clear pending OTP
     session.pop('pending_otp', None)
 
     return jsonify({
         'success': True,
-        'message': 'Username berhasil diverifikasi dan ditambahkan',
-        'data': username_data
+        'message': 'Username berhasil diverifikasi dan ditambahkan'
     })
 
 @app.route('/api/username/cancel', methods=['POST'])
@@ -374,6 +418,52 @@ def cancel_verification():
     if 'pending_otp' in session:
         session.pop('pending_otp', None)
     return jsonify({'success': True})
+
+@app.route('/api/user/usernames', methods=['GET'])
+def get_user_usernames():
+    """Get all usernames added by the current user"""
+    if 'telegram_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+
+    user_id = session['telegram_id']
+    
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM verified_usernames 
+            WHERE added_by = ? 
+            ORDER BY verified_at DESC
+        ''', (user_id,))
+        
+        usernames = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for row in usernames:
+            result.append({
+                'id': row[0],
+                'name': row[1],
+                'target_type': row[2],
+                'target_id': row[3],
+                'title': row[4],
+                'owner_id': row[5],
+                'owner': f"@{row[6]}" if row[6] else None,
+                'added_by': row[7],
+                'added_by_username': row[8],
+                'verified_at': row[9],
+                'status': row[10],
+                'type': 'verified',
+                'category': 'custom',
+                'desc': f"{row[2]}: {row[4]}"
+            })
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error getting user usernames: {e}")
+        return jsonify([])
 
 def get_error_message(target_type, error_desc):
     """Get user-friendly error message"""
