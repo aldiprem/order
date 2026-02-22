@@ -12,7 +12,7 @@
         <!-- Header -->
         <header class="header">
             <div class="logo">
-                <h1>INDOTAG<span>•MARKET</span></h1>
+                <h1>INDOTAG<span>MARKET</span></h1>
             </div>
             <div class="user-profile" id="userProfile">
                 <div class="user-avatar" id="userAvatar">G</div>
@@ -23,7 +23,10 @@
         <!-- Search Section -->
         <div class="search-section">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Cari username...">
+                <div class="search-input-wrapper">
+                    <input type="text" id="searchInput" placeholder="Cari username...">
+                    <button class="clear-search" id="clearSearch" style="display: none;">×</button>
+                </div>
                 <button id="searchBtn">Cari</button>
             </div>
             
@@ -31,7 +34,7 @@
             <div class="filter-bar">
                 <button class="filter-toggle" id="filterToggle">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3"/>
+                        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
                     </svg>
                     FILTERS
                 </button>
