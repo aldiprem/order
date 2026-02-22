@@ -539,118 +539,137 @@ document.addEventListener('DOMContentLoaded', () => {
     // Confirm add button
     const confirmAddBtn = document.getElementById('confirmAddBtn');
     if (confirmAddBtn) {
-        confirmAddBtn.addEventListener('click', async () => {
-            const target = document.getElementById('targetUsername').value.trim();
-            
-            if (!target) {
-                alert('Masukkan username target');
-                return;
-            }
-            
-            const username = extractUsername(target);
-            const type = document.getElementById('targetType').textContent;
-            const targetId = document.getElementById('targetId').textContent;
-            const targetTitle = document.getElementById('targetTitle').textContent;
-            
-            if (type === '-' || type === 'Mengecek...' || type === 'error') {
-                alert('Tunggu hingga pengecekan selesai');
-                return;
-            }
-            
-            confirmAddBtn.disabled = true;
-            confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengirim...';
-            
-            const result = await sendOTP(username, type, targetId, targetTitle);
-            
-            if (result.success) {
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'block';
-                document.getElementById('otpTarget').textContent = targetTitle || username;
-                
-                startOTPTimer(300, document.getElementById('otpTimer'));
-                
-                confirmAddBtn.innerHTML = 'Verifikasi';
-                
-                // Update click handler for verification
-                confirmAddBtn.onclick = async () => {
-                    const otp = document.getElementById('otpInput').value;
-                    
-                    if (otp.length !== 6) {
-                        document.getElementById('addStatusMessage').textContent = 'Masukkan 6 digit OTP';
-                        document.getElementById('addStatusMessage').className = 'status-message error';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                        return;
-                    }
-                    
-                    const verifyResult = await verifyOTP(otp);
-                    
-                    if (verifyResult.success) {
-                        document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
-                        document.getElementById('addStatusMessage').className = 'status-message success';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                        
-                        localStorage.removeItem('pendingOTP');
-                        pendingOTP = null;
-                        showMessageButton(false);
-                        
-                        // Refresh username list
-                        await loadUserUsernames();
-                        
-                        setTimeout(() => {
-                            hideAddModal();
-                        }, 2000);
-                    } else {
-                        document.getElementById('addStatusMessage').textContent = verifyResult.message || '❌ Kode OTP salah';
-                        document.getElementById('addStatusMessage').className = 'status-message error';
-                        document.getElementById('addStatusMessage').style.display = 'block';
-                    }
-                };
-            } else {
-                document.getElementById('addStatusMessage').textContent = result.message || 'Gagal mengirim OTP';
-                document.getElementById('addStatusMessage').className = 'status-message error';
-                document.getElementById('addStatusMessage').style.display = 'block';
-                
-                confirmAddBtn.disabled = false;
-                confirmAddBtn.innerHTML = 'Lanjutkan';
-            }
-        });
-    }
+      confirmAddBtn.addEventListener('click', async () => {
+        const target = document.getElementById('targetUsername').value.trim();
     
-    // Verify OTP button in OTP modal
-    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-    if (verifyOtpBtn) {
-        verifyOtpBtn.addEventListener('click', async () => {
-            const otp = document.getElementById('pendingOtpInput').value;
-            
-            if (otp.length !== 6) {
-                document.getElementById('otpStatusMessage').textContent = 'Masukkan 6 digit OTP';
-                document.getElementById('otpStatusMessage').className = 'status-message error';
-                document.getElementById('otpStatusMessage').style.display = 'block';
-                return;
-            }
-            
-            const result = await verifyOTP(otp);
-            
-            if (result.success) {
-                document.getElementById('otpStatusMessage').textContent = '✅ Verifikasi berhasil!';
-                document.getElementById('otpStatusMessage').className = 'status-message success';
-                document.getElementById('otpStatusMessage').style.display = 'block';
-                
-                localStorage.removeItem('pendingOTP');
-                pendingOTP = null;
-                showMessageButton(false);
-                
-                // Refresh username list
-                await loadUserUsernames();
-                
-                setTimeout(() => {
-                    hideOtpModal();
-                }, 2000);
+        if (!target) {
+          alert('Masukkan username target');
+          return;
+        }
+    
+        const username = extractUsername(target);
+    
+        // Disable button, show loading
+        confirmAddBtn.disabled = true;
+        confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengecek...';
+    
+        // Clear previous info
+        document.getElementById('targetType').textContent = '-';
+        document.getElementById('targetId').textContent = '-';
+        document.getElementById('targetTitle').textContent = '-';
+        document.getElementById('addStatusMessage').style.display = 'none';
+    
+        // Check username via API
+        const result = await checkUsernameType(username);
+    
+        if (result && result.success) {
+          // Show info
+          document.getElementById('targetType').textContent = result.type || 'unknown';
+          document.getElementById('targetId').textContent = result.id || '-';
+          document.getElementById('targetTitle').textContent = result.title || username;
+    
+          // Store data
+          const targetInput = document.getElementById('targetUsername');
+          targetInput.dataset.type = result.type || 'unknown';
+          targetInput.dataset.id = result.id || '';
+          targetInput.dataset.title = result.title || username;
+          targetInput.dataset.canSend = result.can_send || false;
+    
+          // Check if bot can send messages
+          if (!result.can_send) {
+            let errorMsg = '';
+            if (result.type === 'channel' || result.type === 'supergroup') {
+              errorMsg = 'Bot tidak dapat mengirim pesan ke channel. Pastikan bot sudah menjadi admin channel.';
+            } else if (result.type === 'group') {
+              errorMsg = 'Bot tidak dapat mengirim pesan ke grup. Pastikan bot sudah ditambahkan ke grup.';
             } else {
-                document.getElementById('otpStatusMessage').textContent = result.message || '❌ Kode OTP salah';
-                document.getElementById('otpStatusMessage').className = 'status-message error';
-                document.getElementById('otpStatusMessage').style.display = 'block';
+              errorMsg = 'User belum pernah memulai bot. Minta user untuk /start bot terlebih dahulu.';
             }
-        });
+    
+            document.getElementById('addStatusMessage').textContent = errorMsg;
+            document.getElementById('addStatusMessage').className = 'status-message error';
+            document.getElementById('addStatusMessage').style.display = 'block';
+    
+            confirmAddBtn.disabled = false;
+            confirmAddBtn.innerHTML = 'Lanjutkan';
+            return;
+          }
+    
+          // Change button to request OTP
+          confirmAddBtn.innerHTML = 'Minta Kode OTP';
+    
+          // Update click handler for OTP request
+          confirmAddBtn.onclick = async () => {
+            confirmAddBtn.disabled = true;
+            confirmAddBtn.innerHTML = '<span class="loading-spinner"></span> Mengirim OTP...';
+    
+            const sendResult = await sendOTP(
+              username,
+              result.type,
+              result.id,
+              result.title
+            );
+    
+            if (sendResult.success) {
+              document.getElementById('step1').style.display = 'none';
+              document.getElementById('step2').style.display = 'block';
+              document.getElementById('otpTarget').textContent = result.title || username;
+    
+              startOTPTimer(300, document.getElementById('otpTimer'));
+    
+              confirmAddBtn.innerHTML = 'Verifikasi';
+    
+              // Update click handler for verification
+              confirmAddBtn.onclick = async () => {
+                const otp = document.getElementById('otpInput').value;
+    
+                if (otp.length !== 6) {
+                  document.getElementById('addStatusMessage').textContent = 'Masukkan 6 digit OTP';
+                  document.getElementById('addStatusMessage').className = 'status-message error';
+                  document.getElementById('addStatusMessage').style.display = 'block';
+                  return;
+                }
+    
+                const verifyResult = await verifyOTP(otp);
+    
+                if (verifyResult.success) {
+                  document.getElementById('addStatusMessage').textContent = '✅ Verifikasi berhasil! Username ditambahkan.';
+                  document.getElementById('addStatusMessage').className = 'status-message success';
+                  document.getElementById('addStatusMessage').style.display = 'block';
+    
+                  localStorage.removeItem('pendingOTP');
+                  pendingOTP = null;
+                  showMessageButton(false);
+    
+                  // Refresh username list
+                  await loadUserUsernames();
+    
+                  setTimeout(() => {
+                    hideAddModal();
+                  }, 2000);
+                } else {
+                  document.getElementById('addStatusMessage').textContent = verifyResult.message || '❌ Kode OTP salah';
+                  document.getElementById('addStatusMessage').className = 'status-message error';
+                  document.getElementById('addStatusMessage').style.display = 'block';
+                }
+              };
+            } else {
+              document.getElementById('addStatusMessage').textContent = sendResult.message || 'Gagal mengirim OTP';
+              document.getElementById('addStatusMessage').className = 'status-message error';
+              document.getElementById('addStatusMessage').style.display = 'block';
+    
+              confirmAddBtn.disabled = false;
+              confirmAddBtn.innerHTML = 'Minta Kode OTP';
+            }
+          };
+        } else {
+          document.getElementById('addStatusMessage').textContent = result?.message || 'Username tidak ditemukan';
+          document.getElementById('addStatusMessage').className = 'status-message error';
+          document.getElementById('addStatusMessage').style.display = 'block';
+    
+          confirmAddBtn.disabled = false;
+          confirmAddBtn.innerHTML = 'Lanjutkan';
+        }
+      });
     }
 });
