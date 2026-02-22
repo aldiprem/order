@@ -849,3 +849,297 @@ body {
         height: 18px;
     }
 }
+
+/* ============= EMPTY STATE ANIMATIONS ============= */
+
+/* Empty State Container */
+.empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 20px 0;
+}
+
+/* Animation 1: Floating Boxes */
+.empty-state-animation-1 {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 24px;
+}
+
+.empty-state-animation-1 .box {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #808080, #404040);
+    border-radius: 8px;
+    opacity: 0.6;
+}
+
+.empty-state-animation-1 .box:nth-child(1) {
+    top: 0;
+    left: 0;
+    animation: floatBox1 3s ease-in-out infinite;
+}
+
+.empty-state-animation-1 .box:nth-child(2) {
+    top: 40px;
+    left: 40px;
+    animation: floatBox2 3s ease-in-out infinite;
+}
+
+.empty-state-animation-1 .box:nth-child(3) {
+    top: 80px;
+    left: 80px;
+    animation: floatBox3 3s ease-in-out infinite;
+}
+
+@keyframes floatBox1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(10px, -10px) rotate(10deg); }
+}
+
+@keyframes floatBox2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-10px, 0) rotate(-5deg); }
+}
+
+@keyframes floatBox3 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(0, -10px) rotate(5deg); }
+}
+
+/* Animation 2: Pulsing Circle */
+.empty-state-animation-2 {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin-bottom: 24px;
+}
+
+.empty-state-animation-2 .circle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 3px solid #808080;
+    border-radius: 50%;
+    animation: pulse 2s ease-out infinite;
+}
+
+.empty-state-animation-2 .circle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    background: #808080;
+    border-radius: 50%;
+    animation: pulseInner 2s ease-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+@keyframes pulseInner {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+    }
+}
+
+/* Animation 3: Searching Dots */
+.empty-state-animation-3 {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.empty-state-animation-3 .dot {
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #808080, #404040);
+    border-radius: 50%;
+    animation: bounce 1.4s ease-in-out infinite;
+}
+
+.empty-state-animation-3 .dot:nth-child(1) { animation-delay: -0.32s; }
+.empty-state-animation-3 .dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* Animation 4: Rotating Cube */
+.empty-state-animation-4 {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 24px;
+    perspective: 500px;
+}
+
+.empty-state-animation-4 .cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rotate 4s linear infinite;
+}
+
+.empty-state-animation-4 .cube div {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, rgba(128, 128, 128, 0.3), rgba(64, 64, 64, 0.3));
+    border: 2px solid #808080;
+    border-radius: 8px;
+}
+
+.empty-state-animation-4 .front  { transform: translateZ(40px); }
+.empty-state-animation-4 .back   { transform: rotateY(180deg) translateZ(40px); }
+.empty-state-animation-4 .right  { transform: rotateY(90deg) translateZ(40px); }
+.empty-state-animation-4 .left   { transform: rotateY(-90deg) translateZ(40px); }
+.empty-state-animation-4 .top    { transform: rotateX(90deg) translateZ(40px); }
+.empty-state-animation-4 .bottom { transform: rotateX(-90deg) translateZ(40px); }
+
+@keyframes rotate {
+    0% { transform: rotateX(0deg) rotateY(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+/* Animation 5: Ghost */
+.empty-state-animation-5 {
+    position: relative;
+    width: 100px;
+    height: 120px;
+    margin-bottom: 24px;
+}
+
+.empty-state-animation-5 .ghost {
+    position: relative;
+    width: 80px;
+    height: 100px;
+    background: linear-gradient(135deg, rgba(128, 128, 128, 0.2), rgba(64, 64, 64, 0.2));
+    border-radius: 40px 40px 20px 20px;
+    animation: float 3s ease-in-out infinite;
+}
+
+.empty-state-animation-5 .ghost::before,
+.empty-state-animation-5 .ghost::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    width: 20px;
+    height: 20px;
+    background: inherit;
+    border-radius: 50%;
+}
+
+.empty-state-animation-5 .ghost::before {
+    left: 10px;
+}
+
+.empty-state-animation-5 .ghost::after {
+    right: 10px;
+}
+
+.empty-state-animation-5 .eyes {
+    position: absolute;
+    top: 30px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.empty-state-animation-5 .eyes span {
+    width: 15px;
+    height: 15px;
+    background: #ffffff;
+    border-radius: 50%;
+}
+
+.empty-state-animation-5 .mouth {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 5px;
+    background: #ffffff;
+    border-radius: 5px;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+
+/* Empty State Text */
+.empty-state-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #ffffff, #a0a0a0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.empty-state-description {
+    font-size: 14px;
+    color: #808080;
+    max-width: 300px;
+    line-height: 1.5;
+}
+
+.empty-state-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    stroke: #808080;
+    animation: subtleFloat 3s ease-in-out infinite;
+}
+
+@keyframes subtleFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* Random animation selector (akan digunakan oleh JavaScript) */
+.empty-state[data-animation="1"] .empty-state-animation-1 { display: block; }
+.empty-state[data-animation="2"] .empty-state-animation-2 { display: block; }
+.empty-state[data-animation="3"] .empty-state-animation-3 { display: flex; }
+.empty-state[data-animation="4"] .empty-state-animation-4 { display: block; }
+.empty-state[data-animation="5"] .empty-state-animation-5 { display: block; }
+
+.empty-state-animation-1,
+.empty-state-animation-2,
+.empty-state-animation-3,
+.empty-state-animation-4,
+.empty-state-animation-5 {
+    display: none;
+}
