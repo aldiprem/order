@@ -18,7 +18,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 CORS(app)
 
 # Get configuration from environment variables
-BASE_URL = os.getenv('BASE_URL', 'https://daughters-configuration-replied-ethernet.trycloudflare.com')
+BASE_URL = os.getenv('BASE_URL', 'https://alfred-tex-fighters-chose.trycloudflare.com')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
