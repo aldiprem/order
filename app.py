@@ -15,7 +15,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-CORS(app)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+CORS(app, supports_credentials=True)
 
 # Get configuration from environment variables
 BASE_URL = os.getenv('BASE_URL', 'https://alfred-tex-fighters-chose.trycloudflare.com')
@@ -58,9 +60,12 @@ def run_async_check(username):
 def index():
     return render_template('index.html')
 
-@app.route('/api/init', methods=['POST'])
+@app.route('/api/init', methods=['POST', 'OPTIONS'])
 def init_user():
     """Inisialisasi user dari Telegram Web App"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     data = request.json
     user_data = data.get('user')
 
@@ -82,10 +87,14 @@ def init_user():
     is_admin = db.is_admin(user_data.get('id'))
 
     # Simpan ke session
+    session.clear()
     session['user_id'] = user_db_id
     session['telegram_id'] = user_data.get('id')
     session['is_admin'] = is_admin
     session.permanent = True
+    session.modified = True
+    
+    print(f"✅ Session created for user {user_data.get('id')}")
 
     return jsonify({
         'status': 'authenticated',
@@ -103,9 +112,12 @@ def init_user():
 
 # ============= USER PROFILE =============
 
-@app.route('/api/user/me', methods=['GET'])
+@app.route('/api/user/me', methods=['GET', 'OPTIONS'])
 def get_current_user():
     """Mendapatkan data user yang sedang login"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -125,9 +137,12 @@ def get_current_user():
         'is_premium': user.get('is_premium', False)
     })
 
-@app.route('/api/user/list', methods=['GET'])
+@app.route('/api/user/list', methods=['GET', 'OPTIONS'])
 def list_users():
     """List semua user (hanya admin)"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -137,9 +152,12 @@ def list_users():
     users = db.get_all_users()
     return jsonify(users)
 
-@app.route('/api/user/<int:telegram_id>/set-admin', methods=['POST'])
+@app.route('/api/user/<int:telegram_id>/set-admin', methods=['POST', 'OPTIONS'])
 def set_admin(telegram_id):
     """Set user sebagai admin (hanya admin)"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -153,26 +171,36 @@ def set_admin(telegram_id):
 
     return jsonify({'success': True, 'is_admin': is_admin})
 
-@app.route('/api/logout', methods=['POST'])
+@app.route('/api/logout', methods=['POST', 'OPTIONS'])
 def logout():
     """Logout user"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     session.clear()
     return jsonify({'success': True})
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health():
     """Health check endpoint"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     return jsonify({
         'status': 'ok',
         'users_count': db.get_user_count(),
-        'base_url': BASE_URL
+        'base_url': BASE_URL,
+        'session_exists': 'telegram_id' in session
     })
 
 # ============= USERNAME VERIFICATION & ADDITION =============
 
-@app.route('/api/username/check', methods=['POST'])
+@app.route('/api/username/check', methods=['POST', 'OPTIONS'])
 def check_username():
     """Check username using bot's sync_channel_data"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -188,11 +216,14 @@ def check_username():
     if 't.me/' in username:
         username = username.split('t.me/')[-1]
 
+    print(f"🔍 Checking username: @{username} for user {user_id}")
+
     # Call bot to check username
     try:
         result = run_async_check(username)
         
         if result and result.get('success'):
+            print(f"✅ Username check successful for @{username}")
             # Format response for frontend
             return jsonify({
                 'success': True,
@@ -206,6 +237,7 @@ def check_username():
             })
         else:
             error_msg = result.get('error', 'Username tidak ditemukan') if result else 'Gagal mengecek username'
+            print(f"❌ Username check failed for @{username}: {error_msg}")
             return jsonify({
                 'success': False,
                 'error': error_msg,
@@ -213,16 +245,19 @@ def check_username():
             }), 404
             
     except Exception as e:
-        print(f"Error checking username: {e}")
+        print(f"❌ Error checking username: {e}")
         return jsonify({
             'success': False,
             'error': str(e),
             'message': 'Gagal mengecek username'
         }), 500
 
-@app.route('/api/username/send-otp', methods=['POST'])
+@app.route('/api/username/send-otp', methods=['POST', 'OPTIONS'])
 def send_otp():
     """Send OTP to target"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -250,6 +285,9 @@ def send_otp():
         'timestamp': datetime.now().isoformat(),
         'user_id': user_id
     }
+    session.modified = True
+    
+    print(f"📤 Sending OTP {otp} to @{username} ({target_type})")
 
     # Try to send OTP via bot
     try:
@@ -282,6 +320,7 @@ def send_otp():
         if response.status_code == 200:
             result = response.json()
             if result.get('ok'):
+                print(f"✅ OTP sent successfully to @{username}")
                 return jsonify({
                     'success': True,
                     'message': f'Kode OTP telah dikirim ke {target_title or username}'
@@ -290,6 +329,7 @@ def send_otp():
                 # Failed to send
                 error_desc = result.get('description', 'Unknown error')
                 session.pop('pending_otp', None)
+                print(f"❌ Failed to send OTP: {error_desc}")
                 return jsonify({
                     'success': False,
                     'error': error_desc,
@@ -297,6 +337,7 @@ def send_otp():
                 }), 400
         else:
             session.pop('pending_otp', None)
+            print(f"❌ HTTP error sending OTP: {response.status_code}")
             return jsonify({
                 'success': False,
                 'error': 'Failed to send message',
@@ -304,7 +345,7 @@ def send_otp():
             }), 500
 
     except Exception as e:
-        print(f"Error sending OTP: {e}")
+        print(f"❌ Error sending OTP: {e}")
         session.pop('pending_otp', None)
         return jsonify({
             'success': False,
@@ -312,9 +353,12 @@ def send_otp():
             'message': get_error_message(target_type, str(e))
         }), 500
 
-@app.route('/api/username/verify-otp', methods=['POST'])
+@app.route('/api/username/verify-otp', methods=['POST', 'OPTIONS'])
 def verify_otp():
     """Verify OTP and add username to database"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
@@ -334,6 +378,7 @@ def verify_otp():
         }), 400
 
     if pending['code'] != otp:
+        print(f"❌ Invalid OTP: {otp} != {pending['code']}")
         return jsonify({
             'success': False,
             'error': 'Invalid OTP'
@@ -344,6 +389,7 @@ def verify_otp():
     now = datetime.now()
     if (now - otp_time).seconds > 300:
         session.pop('pending_otp', None)
+        print(f"❌ OTP expired")
         return jsonify({
             'success': False,
             'error': 'OTP expired'
@@ -401,6 +447,8 @@ def verify_otp():
         conn.commit()
         conn.close()
         
+        print(f"✅ Username @{target_username} saved to database")
+        
     except Exception as e:
         print(f"Error saving to database: {e}")
 
@@ -412,16 +460,22 @@ def verify_otp():
         'message': 'Username berhasil diverifikasi dan ditambahkan'
     })
 
-@app.route('/api/username/cancel', methods=['POST'])
+@app.route('/api/username/cancel', methods=['POST', 'OPTIONS'])
 def cancel_verification():
     """Cancel OTP verification"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'pending_otp' in session:
         session.pop('pending_otp', None)
     return jsonify({'success': True})
 
-@app.route('/api/user/usernames', methods=['GET'])
+@app.route('/api/user/usernames', methods=['GET', 'OPTIONS'])
 def get_user_usernames():
     """Get all usernames added by the current user"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     if 'telegram_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
 
