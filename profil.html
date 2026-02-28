@@ -110,14 +110,15 @@
             </div>
             <div class="modal-content">
               <div class="status-message info" id="addStatusMessage" style="display: none;"></div>
-        
+            
               <!-- Step 1: Input Username -->
               <div id="step1">
                 <div class="form-group">
                   <label>Username / Channel / Group</label>
                   <input type="text" id="targetUsername" placeholder="Contoh: @username atau https://t.me/..." />
                 </div>
-                <div class="info-box">
+                <!-- Info Box - Tersembunyi secara default, akan muncul setelah pengecekan -->
+                <div class="info-box" style="display: none;">
                   <div class="info-item">
                     <span class="info-label">Tipe</span>
                     <span class="info-value" id="targetType">-</span>
@@ -132,7 +133,7 @@
                   </div>
                 </div>
               </div>
-        
+            
               <!-- Step 2: OTP Verification -->
               <div id="step2" style="display: none;">
                 <div class="form-group">
