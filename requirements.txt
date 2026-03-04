@@ -1,0 +1,11 @@
+Flask
+Flask-CORS
+python-dotenv
+Telethon
+cryptg
+python-telegram-bot
+requests
+aiohttp
+python-socketio
+eventlet
+gunicorn
