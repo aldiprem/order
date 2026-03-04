@@ -94,7 +94,36 @@ class Database:
             return True
         except:
             return False
+
+    def get_user_added_usernames(self, user_id):
+        """Get all usernames added by a specific user"""
+        try:
+            self.cur.execute("""
+            SELECT * FROM added_usernames 
+            WHERE added_by = ? AND status = 'verified'
+            ORDER BY verified_at DESC
+            """, (user_id,))
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting user added usernames: {e}")
+            return []
     
+    def get_username_detail(self, username):
+        """Get detailed info about a specific username"""
+        try:
+            # Clean username if needed
+            if username.startswith('@'):
+                username = username[1:]
+                
+            self.cur.execute("""
+            SELECT * FROM added_usernames 
+            WHERE username = ?
+            """, (username,))
+            return self.cur.fetchone()
+        except Exception as e:
+            print(f"Error getting username detail: {e}")
+            return None
+
     def create_verification_session(self, session_id, username, type_, requester_id, owner_id=None, otp_code=None):
         now = datetime.datetime.now()
         self.cur.execute("""
