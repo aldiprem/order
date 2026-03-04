@@ -2,6 +2,14 @@ import sqlite3
 import datetime
 import random
 import string
+import pytz
+
+# Set timezone Asia/Jakarta (WIB)
+JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
+
+def get_jakarta_time():
+    """Get current time in Asia/Jakarta timezone"""
+    return datetime.datetime.now(JAKARTA_TZ).replace(tzinfo=None)
 
 class Database:
     def __init__(self, db_path="database/indotag.db"):
@@ -61,7 +69,7 @@ class Database:
         self.conn.commit()
     
     def add_user(self, user_id, fullname, username=None):
-        now = datetime.datetime.now()
+        now = get_jakarta_time()
         self.cur.execute("""
         INSERT OR REPLACE INTO users (user_id, fullname, username, joined_at, first_start, last_start, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -69,7 +77,7 @@ class Database:
         self.conn.commit()
     
     def update_user_last_start(self, user_id):
-        now = datetime.datetime.now()
+        now = get_jakarta_time()
         self.cur.execute("""
         UPDATE users SET last_start = ?, updated_at = ? WHERE user_id = ?
         """, (now, now, user_id))
@@ -80,11 +88,13 @@ class Database:
         return self.cur.fetchone()
     
     def get_user_by_username(self, username):
+        if username.startswith('@'):
+            username = username[1:]
         self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
         return self.cur.fetchone()
     
     def add_username_request(self, username, type_, owner_id, owner_username, added_by):
-        now = datetime.datetime.now()
+        now = get_jakarta_time()
         try:
             self.cur.execute("""
             INSERT INTO added_usernames (username, type, owner_id, owner_username, added_by, verified_at, status, updated_at)
@@ -92,7 +102,8 @@ class Database:
             """, (username, type_, owner_id, owner_username, added_by, now, 'verified', now))
             self.conn.commit()
             return True
-        except:
+        except Exception as e:
+            print(f"Error adding username request: {e}")
             return False
 
     def get_user_added_usernames(self, user_id):
@@ -125,13 +136,17 @@ class Database:
             return None
 
     def create_verification_session(self, session_id, username, type_, requester_id, owner_id=None, otp_code=None):
-        now = datetime.datetime.now()
-        self.cur.execute("""
-        INSERT INTO verification_sessions (session_id, username, type, requester_id, owner_id, otp_code, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (session_id, username, type_, requester_id, owner_id, otp_code, now, now))
-        self.conn.commit()
-        return session_id
+        now = get_jakarta_time()
+        try:
+            self.cur.execute("""
+            INSERT INTO verification_sessions (session_id, username, type, requester_id, owner_id, otp_code, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (session_id, username, type_, requester_id, owner_id, otp_code, now, now))
+            self.conn.commit()
+            return session_id
+        except Exception as e:
+            print(f"Error creating verification session: {e}")
+            return None
     
     def get_verification_session(self, session_id):
         self.cur.execute("SELECT * FROM verification_sessions WHERE session_id = ?", (session_id,))
@@ -145,13 +160,18 @@ class Database:
             values.append(value)
         
         values.append(session_id)
-        now = datetime.datetime.now()
+        now = get_jakarta_time()
         updates.append("updated_at = ?")
         values.append(now)
         
         query = f"UPDATE verification_sessions SET {', '.join(updates)} WHERE session_id = ?"
-        self.cur.execute(query, values)
-        self.conn.commit()
+        try:
+            self.cur.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating session: {e}")
+            return False
     
     def generate_verification_id(self, length=25):
         chars = string.ascii_letters + string.digits
