@@ -26,7 +26,6 @@ case $SERVICE in
         ;;
     bot)
         echo -e "${YELLOW}Restarting Telegram bot...${NC}"
-        pkill -f "python b.py"
         sleep 2
         cd "$PROJECT_DIR"
         source "$PROJECT_DIR/venv/bin/activate"
