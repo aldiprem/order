@@ -1,7 +1,49 @@
+# Environment files
 .env
-*.pyc
+*.env
+config.local.js
+
+# Python
 __pycache__/
-myenv/
-myenv310/
-bot.session
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Database
 *.db
+*.sqlite
+*.sqlite3
+database/*.db
+database/*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Tunnel
+cloudflared*
+!cloudflared.exe
+
+# Flask
+instance/
+.webassets-cache
