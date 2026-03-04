@@ -2,180 +2,119 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IndoTag Marketplace</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/profil.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MiniApp Telegram</title>
+    
+    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Config -->
+    <script src="config.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <h1>INDOTAG<span>MARKET</span></h1>
-            </div>
-            <div class="user-profile" id="userProfile">
-                <div class="user-avatar" id="userAvatar">G</div>
-                <span class="username" id="displayName">guest_user</span>
-            </div>
-        </header>
-
-        <!-- Search Section -->
-        <div class="search-section">
-            <div class="search-box">
-                <div class="search-input-wrapper">
-                    <input type="text" id="searchInput" placeholder="Cari username...">
-                    <button class="clear-search" id="clearSearch" style="display: none;">×</button>
-                </div>
-                <button id="searchBtn">Cari</button>
-            </div>
-            
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <button class="filter-toggle" id="filterToggle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
-                    </svg>
-                    FILTERS
-                </button>
-                <div class="active-filters" id="activeFilters"></div>
-            </div>
-        </div>
-
-        <!-- Filter Panel (Hidden by default) -->
-        <div class="filter-panel" id="filterPanel">
-            <div class="filter-panel-header">
-                <h3>Filter Username</h3>
-                <button class="close-filter" id="closeFilter">×</button>
-            </div>
-            
-            <div class="filter-panel-content">
-                <!-- Sort By -->
-                <div class="filter-group">
-                    <label class="filter-label">Sort By</label>
-                    <div class="filter-options">
-                        <button class="filter-option" data-sort="newest">Terbaru</button>
-                        <button class="filter-option" data-sort="price_asc">Harga Terendah</button>
-                        <button class="filter-option" data-sort="price_desc">Harga Tertinggi</button>
-                        <button class="filter-option" data-sort="name_asc">Nama A-Z</button>
-                    </div>
-                </div>
-
-                <!-- Price Range -->
-                <div class="filter-group">
-                    <label class="filter-label">Price Range ($)</label>
-                    <div class="price-range">
-                        <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
-                        <span>to</span>
-                        <input type="number" id="maxPrice" placeholder="Max" min="0" value="1000">
-                    </div>
-                </div>
-
-                <!-- Type Based On (Categories) -->
-                <div class="filter-group">
-                    <label class="filter-label">Type Based On</label>
-                    <div class="filter-options grid-2">
-                        <button class="filter-option category-option active" data-category="all">Semua</button>
-                        <button class="filter-option category-option" data-category="idol">Idol K-Pop</button>
-                        <button class="filter-option category-option" data-category="mulchar">Multichar</button>
-                        <button class="filter-option category-option" data-category="anime">Anime</button>
-                        <button class="filter-option category-option" data-category="game">Game</button>
-                        <button class="filter-option category-option" data-category="common">Common</button>
-                        <button class="filter-option category-option" data-category="uncommon">Uncommon</button>
-                    </div>
-                </div>
-
-                <!-- Style Username (Types) -->
-                <div class="filter-group">
-                    <label class="filter-label">Style Username</label>
-                    <div class="filter-options grid-3">
-                        <button class="filter-option type-option active" data-type="all">Semua</button>
-                        <button class="filter-option type-option" data-type="OP">OP</button>
-                        <button class="filter-option type-option" data-type="SOP">SOP</button>
-                        <button class="filter-option type-option" data-type="CANON">Canon</button>
-                        <button class="filter-option type-option" data-type="SCANON">Scanon</button>
-                        <button class="filter-option type-option" data-type="TAMPING">Tamping</button>
-                        <button class="filter-option type-option" data-type="TAMDAL">Tamdal</button>
-                        <button class="filter-option type-option" data-type="GANHUR">Ganhur</button>
-                        <button class="filter-option type-option" data-type="SWITCH">Switch</button>
-                        <button class="filter-option type-option" data-type="KURHUF">Kurhuf</button>
-                    </div>
-                </div>
-
-                <!-- Status -->
-                <div class="filter-group">
-                    <label class="filter-label">Status</label>
-                    <div class="filter-options">
-                        <button class="filter-option status-option active" data-status="all">Semua</button>
-                        <button class="filter-option status-option" data-status="available">Tersedia</button>
-                        <button class="filter-option status-option" data-status="sold">Terjual</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="filter-panel-footer">
-                <button class="btn-reset" id="resetFilters">Reset</button>
-                <button class="btn-apply" id="applyFilters">Terapkan Filter</button>
-            </div>
-        </div>
-
-        <!-- Overlay -->
-        <div class="filter-overlay" id="filterOverlay"></div>
-
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-label">Total</span>
-                <span class="stat-value" id="totalCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Available</span>
-                <span class="stat-value" id="availableCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Sold</span>
-                <span class="stat-value" id="soldCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Min Price</span>
-                <span class="stat-value" id="minPriceStat">$0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Max Price</span>
-                <span class="stat-value" id="maxPriceStat">$0</span>
-            </div>
-        </div>
-
-        <!-- Username Grid -->
-        <div class="username-grid" id="usernameGrid">
-        </div>
-
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-          <a href="games.html" class="nav-item">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="6" width="20" height="12" rx="2" />
-              <path d="M6 12h4M14 12h4M8 10v4M16 10v4" />
+    <!-- Pull to refresh indicator -->
+    <div class="pull-to-refresh">
+        <div class="refresh-indicator">
+            <svg class="refresh-arrow" viewBox="0 0 24 24">
+                <path d="M20 12H4M4 12L8 8M4 12L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            <span>GAMES</span>
-          </a>
-          <a href="index.html" class="nav-item active">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
+            <span>Pull to refresh</span>
+        </div>
+        <div class="refreshing-indicator">
+            <div class="spinner"></div>
+            <span>Refreshing...</span>
+        </div>
+    </div>
+
+    <!-- User Profile Card -->
+    <div class="user-profile-card glass-effect">
+        <div class="user-profile-content">
+            <div class="app-title">
+                <h1 id="appTitle">MiniApp</h1>
+            </div>
+            <div class="user-info" id="userInfo">
+                <div class="profile-loading">
+                    <div class="spinner small"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- MARKET Page -->
+        <div class="page active" id="marketPage">
+            <div class="content-card glass-effect">
+                <h2>Market</h2>
+                <div class="market-items" id="marketItems">
+                    <!-- Loading state will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- GAMES Page -->
+        <div class="page" id="gamesPage">
+            <div class="content-card glass-effect">
+                <h2>Games</h2>
+                <div class="games-items" id="gamesItems">
+                    <!-- Loading state will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTIVITY Page -->
+        <div class="page" id="activityPage">
+            <div class="content-card glass-effect">
+                <h2>Activity</h2>
+                <div class="activity-items" id="activityItems">
+                    <!-- Loading state will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFIL Page -->
+        <div class="page" id="profilePage">
+            <div class="content-card glass-effect">
+                <h2>Profile</h2>
+                <div class="profile-details" id="profileDetails">
+                    <!-- Loading state will be shown here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Navigation -->
+    <nav class="floating-nav glass-effect">
+        <button class="nav-item active" data-page="market">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path d="M3 9h18v10H3V9zm3 2v6h12v-6H6zM7 3h10v4H7V3z" fill="currentColor"/>
             </svg>
             <span>MARKET</span>
-          </a>
-          <a href="profil.html" class="nav-item">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+        </button>
+        <button class="nav-item" data-page="games">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-10H6v2h4v-2zm6 0h-4v2h4v-2z" fill="currentColor"/>
+            </svg>
+            <span>GAMES</span>
+        </button>
+        <button class="nav-item" data-page="activity">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill="currentColor"/>
+            </svg>
+            <span>ACTIVITY</span>
+        </button>
+        <button class="nav-item" data-page="profile">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
             </svg>
             <span>PROFIL</span>
-          </a>
-        </nav>
+        </button>
+    </nav>
 
-    <script src="js/main.js"></script>
+    <!-- JavaScript -->
+    <script src="js/script.js"></script>
 </body>
 </html>
