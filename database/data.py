@@ -149,12 +149,27 @@ class Database:
             # Clean username if needed
             if username.startswith('@'):
                 username = username[1:]
-                
+            
+            # Ambil semua kolom dengan urutan yang pasti
             self.cur.execute("""
-            SELECT * FROM added_usernames 
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, updated_at 
+            FROM added_usernames 
             WHERE username = ?
             """, (username,))
-            return self.cur.fetchone()
+            
+            result = self.cur.fetchone()
+            
+            # Debug: tampilkan hasil
+            if result:
+                print(f"get_username_detail for {username}:")
+                print(f"  listed_status = {result[10]} (index 10)")
+                print(f"  price = {result[11]} (index 11)")
+                print(f"  updated_at = {result[12]} (index 12)")
+            
+            return result
         except Exception as e:
             print(f"Error getting username detail: {e}")
             return None
