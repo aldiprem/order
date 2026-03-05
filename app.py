@@ -3,7 +3,7 @@ from flask_cors import CORS
 from database.data import Database
 import os
 
-app = Flask(__name__, static_folder='.')
+app = Flask(__name__, static_folder='.')  # static_folder = current directory
 CORS(app)  # Enable CORS for all routes
 
 # Initialize database
@@ -14,8 +14,17 @@ db = Database()
 def serve_index():
     return send_from_directory('.', 'index.html')
 
+@app.route('/css/<path:path>')
+def serve_css(path):
+    return send_from_directory('css', path)
+
+@app.route('/js/<path:path>')
+def serve_js(path):
+    return send_from_directory('js', path)
+
 @app.route('/<path:path>')
 def serve_static(path):
+    # Untuk file seperti config.js di root
     return send_from_directory('.', path)
 
 # API Routes
@@ -60,6 +69,9 @@ def get_market():
         # Filter by price range
         usernames = [u for u in usernames if min_price <= (u[11] or 0) <= max_price]
         
+        # Convert tuples to lists to allow modification
+        usernames = [list(u) for u in usernames]
+        
         # Determine username type based on rules
         for u in usernames:
             u_type = determine_username_type(u[1], u[9])
@@ -67,10 +79,7 @@ def get_market():
         
         # Filter by type if specified
         if type_filter:
-            if type_filter in ['UNCOMMON', 'COMMON']:
-                usernames = [u for u in usernames if u[13] == type_filter]
-            else:
-                usernames = [u for u in usernames if u[13] == type_filter]
+            usernames = [u for u in usernames if u[13] == type_filter]
         
         # Sort results
         if sort_by == 'price_low':
@@ -95,13 +104,15 @@ def get_market():
                 'owner_username': u[4],
                 'based_on': u[9],
                 'price': u[11] or 0,
-                'updated_at': u[12],
-                'username_type': u[13]  # Added username type classification
+                'updated_at': str(u[12]) if u[12] else None,
+                'username_type': u[13] if len(u) > 13 else 'UNCOMMON'
             })
         
         return jsonify(result)
     except Exception as e:
         print(f"Error in /api/market: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify([])
 
 @app.route('/api/based-on-list')
@@ -145,7 +156,7 @@ def get_user_activity(user_id):
                 'id': log[0],
                 'action': log[3],
                 'details': log[4],
-                'created_at': log[5]
+                'created_at': str(log[5]) if log[5] else None
             })
         return jsonify(result)
     except Exception as e:
@@ -155,25 +166,35 @@ def get_user_activity(user_id):
 def determine_username_type(username, based_on):
     """Determine username type based on rules"""
     if not based_on:
-        return "UNCOMMON"  # Default
+        return "UNCOMMON"
     
     username_lower = username.lower()
     based_on_lower = based_on.lower()
     
-    # Check for CANON (i to L, L to i)
-    if ('i' in based_on_lower and 'l' in username_lower) or ('l' in based_on_lower and 'i' in username_lower):
-        if len(username_lower) == len(based_on_lower):
-            return "CANON"
+    # Check for OP (exact match)
+    if username_lower == based_on_lower:
+        return "OP"
     
-    # Check for SCANON (ends with S, no surname)
-    if username_lower.endswith('s') and len(username_lower) == len(based_on_lower) + 1:
+    # Check for SCANON (adds 's' at end)
+    if username_lower == based_on_lower + 's':
         return "SCANON"
     
     # Check for SOP (double letters)
-    for i in range(len(username_lower)-1):
-        if username_lower[i] == username_lower[i+1]:
-            if len(username_lower) == len(based_on_lower) + 1:
+    for i in range(len(based_on_lower)-1):
+        if based_on_lower[i] == based_on_lower[i+1]:
+            if username_lower == based_on_lower[:i+1] + based_on_lower[i+1:]:
                 return "SOP"
+    
+    # Check for CANON (i to l or l to i)
+    canon_possible = False
+    for a, b in zip(username_lower, based_on_lower):
+        if (a == 'l' and b == 'i') or (a == 'i' and b == 'l'):
+            canon_possible = True
+        elif a != b:
+            canon_possible = False
+            break
+    if canon_possible and len(username_lower) == len(based_on_lower):
+        return "CANON"
     
     # Check for TAMPING (add letter at beginning or end)
     if len(username_lower) == len(based_on_lower) + 1:
@@ -182,7 +203,6 @@ def determine_username_type(username, based_on):
     
     # Check for TAMDAL (add letter in middle)
     if len(username_lower) == len(based_on_lower) + 1:
-        # Find if one extra letter inserted in middle
         for i in range(len(based_on_lower)):
             if username_lower.startswith(based_on_lower[:i]) and username_lower[i+1:].startswith(based_on_lower[i:]):
                 return "TAMDAL"
@@ -205,10 +225,6 @@ def determine_username_type(username, based_on):
         for i in range(len(based_on_lower)):
             if username_lower == based_on_lower[:i] + based_on_lower[i+1:]:
                 return "KURHUF"
-    
-    # Check for OP (exact match)
-    if username_lower == based_on_lower:
-        return "OP"
     
     return "UNCOMMON"
 
