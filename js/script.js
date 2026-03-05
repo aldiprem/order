@@ -3,7 +3,9 @@
 // Initialize Telegram Web App
 const tg = window.Telegram.WebApp;
 tg.expand(); // Expand to full height
-tg.disableVerticalSwipes(); // Disable vertical swipes to prevent refresh
+if (tg.disableVerticalSwipes) {
+    tg.disableVerticalSwipes(); // Disable vertical swipes to prevent refresh
+}
 
 // State management
 let appState = {
@@ -80,8 +82,9 @@ async function detectTelegramUser() {
             appState.user = user;
             renderUserInfo(user);
             
-            // Verify with backend
-            await verifyUserWithBackend(user);
+            // Verify with backend - HAPUS INI karena endpoint tidak ada
+            // await verifyUserWithBackend(user);
+            console.log('User detected:', user);
         } else {
             renderUserInfo(null);
         }
@@ -91,25 +94,8 @@ async function detectTelegramUser() {
     }
 }
 
-// Verify user with backend
-async function verifyUserWithBackend(user) {
-    try {
-        const response = await fetch(`${window.CONFIG?.API_BASE_URL}/api/verify-user`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(user)
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('User verified:', data);
-        }
-    } catch (error) {
-        console.error('Backend verification failed:', error);
-    }
-}
+// HAPUS fungsi ini karena tidak digunakan
+// async function verifyUserWithBackend(user) { ... }
 
 // Render user info
 function renderUserInfo(user) {
@@ -200,45 +186,52 @@ async function loadPageData(page) {
             if (appState.filters.sort_by) params.append('sort_by', appState.filters.sort_by);
             
             url += `market?${params.toString()}`;
+            
+            console.log('Fetching market data from:', url);
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Market data received:', data);
+                appState.data[page] = data;
+                appState.loadingStates[page] = false;
+                renderPageData(page, data);
+            } else {
+                console.error('Failed to fetch market data, status:', response.status);
+                throw new Error('Failed to fetch data');
+            }
         } else if (page === 'games' && appState.user) {
             url += `user-usernames/${appState.user.id}`;
+            console.log('Fetching user usernames from:', url);
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('User usernames received:', data);
+                appState.data[page] = data;
+                appState.loadingStates[page] = false;
+                renderPageData(page, data);
+            } else {
+                throw new Error('Failed to fetch data');
+            }
         } else if (page === 'activity' && appState.user) {
             url += `activity/${appState.user.id}`;
-        } else {
-            // Use mock data for now
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log('Fetching activity from:', url);
+            const response = await fetch(url);
             
-            let data;
-            switch(page) {
-                case 'market':
-                    data = [];
-                    break;
-                case 'games':
-                    data = [];
-                    break;
-                case 'activity':
-                    data = [];
-                    break;
-                case 'profile':
-                    data = { balance: '0', joined: '2024' };
-                    break;
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Activity received:', data);
+                appState.data[page] = data;
+                appState.loadingStates[page] = false;
+                renderPageData(page, data);
+            } else {
+                throw new Error('Failed to fetch data');
             }
-            
-            appState.data[page] = data;
+        } else if (page === 'profile') {
+            // Profile data is handled in renderProfileData
             appState.loadingStates[page] = false;
-            renderPageData(page, data);
-            return;
-        }
-        
-        const response = await fetch(url);
-        
-        if (response.ok) {
-            const data = await response.json();
-            appState.data[page] = data;
-            appState.loadingStates[page] = false;
-            renderPageData(page, data);
-        } else {
-            throw new Error('Failed to fetch data');
+            renderPageData(page, {});
         }
     } catch (error) {
         console.error(`Error loading ${page} data:`, error);
@@ -252,7 +245,13 @@ async function loadBasedOnOptions() {
         const response = await fetch(`${window.CONFIG?.API_BASE_URL}/api/based-on-list`);
         if (response.ok) {
             const basedOnList = await response.json();
+            console.log('Based on options received:', basedOnList);
             const select = document.getElementById('basedOnFilter');
+            
+            // Clear existing options
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
             
             basedOnList.forEach(basedOn => {
                 const option = document.createElement('option');
@@ -371,7 +370,7 @@ function renderActivityData(container, items) {
         <div class="activity-list">
             ${items.map(item => `
                 <div class="activity-item">
-                    <div class="activity-time">${item.created_at || 'Baru saja'}</div>
+                    <div class="activity-time">${formatDate(item.created_at) || 'Baru saja'}</div>
                     <div class="activity-action">${item.action || 'Aktivitas'}</div>
                     <div class="activity-details">${item.details || ''}</div>
                 </div>
@@ -379,6 +378,23 @@ function renderActivityData(container, items) {
         </div>
     `;
     container.innerHTML = html;
+}
+
+// Format date helper
+function formatDate(dateStr) {
+    if (!dateStr) return null;
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return dateStr;
+    }
 }
 
 // Render profile data
@@ -394,7 +410,7 @@ function renderProfileData(container, profile) {
     
     const user = appState.user;
     
-    // Load user's usernames count
+    // Load user's usernames
     fetch(`${window.CONFIG?.API_BASE_URL}/api/user-usernames/${user.id}`)
         .then(res => res.json())
         .then(data => {
@@ -433,7 +449,8 @@ function renderProfileData(container, profile) {
                 </div>
             `;
         })
-        .catch(() => {
+        .catch(err => {
+            console.error('Error loading user usernames:', err);
             container.innerHTML = `
                 <div class="profile-details-content">
                     <div>Nama: ${user.first_name || ''} ${user.last_name || ''}</div>
