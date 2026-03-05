@@ -209,13 +209,13 @@
     }
 
     function renderUserProfile() {
-        if (!elements.userProfileHeader || !currentUser) return;
-
-        const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || 'User';
-        const username = currentUser.username ? `@${currentUser.username}` : '@user';
-        const avatarUrl = currentUser.photo_url || generateAvatarUrl(fullName, currentUser.id);
-
-        elements.userProfileHeader.innerHTML = `
+      if (!elements.userProfileHeader || !currentUser) return;
+    
+      const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || 'User';
+      const username = currentUser.username ? `@${currentUser.username}` : '@user';
+      const avatarUrl = currentUser.photo_url || generateAvatarUrl(fullName, currentUser.id);
+    
+      elements.userProfileHeader.innerHTML = `
             <div class="user-profile-card">
                 <div class="user-info">
                     <div class="user-fullname">${escapeHtml(fullName)}</div>
@@ -226,11 +226,21 @@
                 </div>
             </div>
         `;
+    
+      // PINDAHKAN KE SINI - setelah elemen dibuat
+      const userProfileCard = document.querySelector('.user-profile-card');
+      if (userProfileCard) {
+        userProfileCard.addEventListener('click', () => {
+          hapticFeedback('light');
+          document.querySelector('.nav-item[data-page="profile"]')?.click();
+        });
+      }
     }
 
     // ==================== DATA LOADING ====================
     async function loadMarketData() {
         showLoading(true);
+        hapticFeedback('medium');
 
         try {
             const usernames = await fetchWithRetry(`${API_BASE_URL}/api/market`, {
@@ -244,9 +254,11 @@
             });
 
             applyFilters();
+            hapticFeedback('success');
         } catch (error) {
             console.error('Error loading market data:', error);
             showToast('Gagal memuat data market', 'error');
+            hapticFeedback('error');
             allUsernames = [];
         } finally {
             showLoading(false);
@@ -584,11 +596,24 @@
         elements.marketSearch.addEventListener('input', (e) => {
           updateSearchButtons();
         });
+    
+        // Enter key
+        elements.marketSearch.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            hapticFeedback('medium');
+            filters.search = elements.marketSearch.value;
+            applyFilters();
+            elements.marketSearch.blur();
+          }
+        });
       }
     
       // Clear button
       if (elements.searchClearBtn) {
-        elements.searchClearBtn.addEventListener('click', () => {
+        elements.searchClearBtn.addEventListener('click', (e) => {
+          e.hapticProcessed = true; // Tandai sudah diproses untuk mencegah duplikasi
+          hapticFeedback('light');
           if (elements.marketSearch) {
             elements.marketSearch.value = '';
             filters.search = '';
@@ -604,7 +629,9 @@
     
       // Submit button
       if (elements.searchSubmitBtn) {
-        elements.searchSubmitBtn.addEventListener('click', () => {
+        elements.searchSubmitBtn.addEventListener('click', (e) => {
+          e.hapticProcessed = true; // Tandai sudah diproses
+          hapticFeedback('medium');
           if (elements.marketSearch) {
             filters.search = elements.marketSearch.value;
             applyFilters();
@@ -613,21 +640,50 @@
         });
       }
     
-      // Enter key
-      if (elements.marketSearch) {
-        elements.marketSearch.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            filters.search = elements.marketSearch.value;
-            applyFilters();
-            elements.marketSearch.blur();
-          }
+      // Filter toggle button
+      if (elements.filterToggle) {
+        elements.filterToggle.addEventListener('click', (e) => {
+          e.hapticProcessed = true; // Tandai sudah diproses
+          toggleFilterPanel();
         });
       }
     
-      if (elements.filterToggle) {
-        elements.filterToggle.addEventListener('click', toggleFilterPanel);
-      }
+      // ===== TAMBAHAN: HAPTIC UNTUK USERNAME CARDS =====
+      // Gunakan setTimeout untuk memastikan DOM sudah terupdate
+      setTimeout(() => {
+        document.querySelectorAll('.username-card').forEach(card => {
+          card.addEventListener('click', (e) => {
+            // Cegah duplikasi haptic
+            if (e.hapticProcessed) return;
+            e.hapticProcessed = true;
+    
+            // Getaran ringan saat klik card username
+            hapticFeedback('light');
+    
+            // OPTIONAL: Ambil data username dari card
+            const usernameElement = card.querySelector('.username');
+            const basedOnElement = card.querySelector('.based-on-value');
+    
+            if (usernameElement) {
+              const username = usernameElement.textContent;
+              console.log(`Username card clicked: @${username}`);
+    
+              // TODO: Tambahkan navigasi ke detail username jika diperlukan
+              // showUsernameDetail(username);
+            }
+          });
+        });
+    
+        // Juga tambahkan haptic untuk empty market (opsional)
+        const emptyMarket = document.querySelector('.empty-market');
+        if (emptyMarket) {
+          emptyMarket.addEventListener('click', (e) => {
+            if (e.hapticProcessed) return;
+            e.hapticProcessed = true;
+            hapticFeedback('light');
+          });
+        }
+      }, 100); // Delay 100ms untuk memastikan DOM siap
     }
 
     function renderActivities() {
@@ -791,7 +847,8 @@
     }
 
     // ==================== FILTER PANEL ====================
-    function toggleFilterPanel() {
+    function toggleFilterPanel() { 
+        hapticFeedback('medium');
         isFilterPanelOpen = !isFilterPanelOpen;
         if (isFilterPanelOpen) {
             elements.filterPanel.classList.add('show');
@@ -823,7 +880,7 @@
 
                 const type = chip.dataset.type;
                 if (!type) return;
-
+                
                 document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
 
@@ -851,6 +908,7 @@
 
         if (elements.resetFilters) {
             elements.resetFilters.addEventListener('click', () => {
+                hapticFeedback('warning');
                 resetFilters();
                 toggleFilterPanel();
             });
@@ -858,6 +916,7 @@
 
         if (elements.applyFilters) {
             elements.applyFilters.addEventListener('click', () => {
+                hapticFeedback('success');
                 applyFilters();
                 toggleFilterPanel();
             });
@@ -875,6 +934,7 @@
         elements.navItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
+                hapticFeedback('light');
                 const page = item.dataset.page;
                 if (!page) return;
 
@@ -957,6 +1017,7 @@
 
         if (elements.scrollTopBtn) {
             elements.scrollTopBtn.addEventListener('click', () => {
+                hapticFeedback('selection');
                 elements.marketMain.scrollTo({
                     top: 0,
                     behavior: 'smooth'
@@ -965,36 +1026,97 @@
         }
     }
 
-    // ==================== INITIALIZATION ====================
-    async function init() {
-        showLoading(true);
-
-        try {
-            await initTelegramUser();
-            renderUserProfile();
-
-            setupNavigation();
-            setupFilterPanel();
-            setupScrollHandling();
-
-            await loadMarketData();
-            // Don't load activities here, will load when tab is clicked
-            await loadUserUsernames();
-
-            renderGames();
-
-            if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.expand();
-                window.Telegram.WebApp.ready();
-            }
-
-            console.log('✅ INDOTAG MARKET initialized');
-        } catch (error) {
-            console.error('❌ Init error:', error);
-            showToast('Gagal memuat aplikasi', 'error');
-        } finally {
-            showLoading(false);
+    // ==================== HAPTIC FEEDBACK ====================
+    function hapticFeedback(style = 'light') {
+      if (!window.Telegram?.WebApp?.HapticFeedback) return;
+    
+      try {
+        switch (style) {
+          case 'light':
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            break;
+          case 'medium':
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+            break;
+          case 'heavy':
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+            break;
+          case 'success':
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            break;
+          case 'error':
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            break;
+          case 'warning':
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+            break;
+          case 'selection':
+            window.Telegram.WebApp.HapticFeedback.selectionChanged();
+            break;
+          default:
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
         }
+      } catch (e) {
+        console.log('Haptic feedback not supported');
+      }
+    }
+    
+    // ==================== AUTO HAPTIC FOR ALL BUTTONS ====================
+    function setupHapticForButtons() {
+      const clickableElements = document.querySelectorAll('button, .nav-item, .chip, .filter-section-header, .filter-close, .search-clear-btn, .search-submit-btn, .filter-toggle-btn, .filter-btn, .scroll-top-btn, .user-profile-card');
+    
+      clickableElements.forEach(element => {
+        element.addEventListener('click', (e) => {
+          if (e.defaultPrevented) return;
+    
+          if (element.classList.contains('nav-item')) {
+            hapticFeedback('light');
+          } else if (element.classList.contains('chip')) {
+            hapticFeedback('selection');
+          } else if (element.classList.contains('filter-btn') || element.classList.contains('apply')) {
+            hapticFeedback('medium');
+          } else if (element.classList.contains('reset')) {
+            hapticFeedback('warning');
+          } else if (element.classList.contains('filter-close')) {
+            hapticFeedback('light');
+          } else if (element.classList.contains('scroll-top-btn')) {
+            hapticFeedback('heavy');
+          } else {
+            hapticFeedback('light');
+          }
+        });
+      });
+    }
+
+    async function init() {
+      showLoading(true);
+    
+      try {
+        await initTelegramUser();
+        renderUserProfile();
+    
+        setupNavigation();
+        setupFilterPanel();
+        setupScrollHandling();
+        setupHapticForButtons(); // TAMBAHKAN INI
+    
+        await loadMarketData();
+        await loadUserUsernames();
+    
+        renderGames();
+    
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.expand();
+          window.Telegram.WebApp.ready();
+        }
+    
+        console.log('✅ INDOTAG MARKET initialized');
+      } catch (error) {
+        console.error('❌ Init error:', error);
+        showToast('Gagal memuat aplikasi', 'error');
+      } finally {
+        showLoading(false);
+      }
     }
 
     init();
