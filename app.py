@@ -210,6 +210,43 @@ def get_user_activity(user_id):
         logger.error(f"Error in /api/activity: {e}")
         return jsonify([]), 500
 
+# Tambahkan endpoint ini di app.py
+
+@app.route('/api/activities/all', methods=['GET', 'OPTIONS'])
+def get_all_activities():
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        # Get page and limit from query parameters
+        page = request.args.get('page', default=1, type=int)
+        limit = request.args.get('limit', default=50, type=int)
+        
+        logger.info(f"Getting all activities, page={page}, limit={limit}")
+        
+        # You need to create this method in Database class
+        # For now, we'll get activities from multiple users
+        # This is a placeholder - you need to implement get_all_activity_logs in data.py
+        logs, total = db.get_all_activity_logs(page, limit)
+        
+        result = []
+        for log in logs:
+            result.append({
+                'id': log[0],
+                'username': log[1],
+                'user_id': log[2],
+                'action': log[3],
+                'details': log[4],
+                'created_at': str(log[5]) if log[5] else None
+            })
+            
+        logger.info(f"Found {len(result)} activities")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /api/activities/all: {e}")
+        return jsonify([]), 500
+
 @app.after_request
 def after_request(response):
     """Add headers to all responses"""
