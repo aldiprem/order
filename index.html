@@ -8,6 +8,9 @@
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <!-- Font Awesome 6 (untuk icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <!-- CSS -->
     <link rel="stylesheet" href="/order/css/style.css">
     
@@ -19,7 +22,8 @@
     <div class="top-border-card">
         <div class="top-border-content">
             <div class="app-title">
-                <h1 id="appTitle">INDOTAG MARKET</h1>
+                <i class="fas fa-crown app-logo"></i>
+                <h1 id="appTitle">INDOTAG</h1>
             </div>
             <div class="user-info" id="userInfo">
                 <div class="profile-loading">
@@ -29,25 +33,26 @@
         </div>
     </div>
 
-    <!-- Filter Bar - Fixed Below Top Border -->
+    <!-- Filter Bar - Fixed dengan efek 3D -->
     <div class="filter-bar" id="filterBar">
         <div class="filter-header" onclick="toggleFilterPanel()">
-            <span>🔍 Filter & Cari Username</span>
-            <svg class="filter-arrow" viewBox="0 0 24 24" width="20" height="20">
-                <path d="M7 10l5 5 5-5H7z" fill="currentColor"/>
-            </svg>
+            <span><i class="fas fa-sliders-h"></i> Filter & Cari Username</span>
+            <i class="fas fa-chevron-down filter-arrow"></i>
         </div>
         
         <div class="filter-panel" id="filterPanel">
             <!-- Search Box -->
             <div class="filter-section">
-                <div class="filter-label">🔎 Cari Username / Based On</div>
-                <input type="text" class="filter-input" id="searchInput" placeholder="Contoh: username atau based on" oninput="debounceSearch()">
+                <div class="filter-label"><i class="fas fa-search"></i> Cari Username / Based On</div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Contoh: username atau based on" oninput="debounceSearch()">
+                </div>
             </div>
             
             <!-- Based On Filter -->
             <div class="filter-section">
-                <div class="filter-label">💠 Based On</div>
+                <div class="filter-label"><i class="fas fa-tag"></i> Based On</div>
                 <select class="filter-select" id="basedOnFilter" onchange="applyFilters()">
                     <option value="">Semua Based On</option>
                 </select>
@@ -55,60 +60,66 @@
             
             <!-- Type Filter -->
             <div class="filter-section">
-                <div class="filter-label">📋 Tipe Username</div>
+                <div class="filter-label"><i class="fas fa-layer-group"></i> Tipe Username</div>
                 <div class="type-buttons" id="typeFilter">
-                    <button class="type-btn active" data-type="">Semua</button>
-                    <button class="type-btn" data-type="UNCOMMON">UNCOMMON</button>
-                    <button class="type-btn" data-type="COMMON">COMMON</button>
+                    <button class="type-btn active" data-type=""><i class="fas fa-globe"></i> Semua</button>
+                    <button class="type-btn" data-type="UNCOMMON"><i class="fas fa-star"></i> UNCOMMON</button>
+                    <button class="type-btn" data-type="COMMON"><i class="fas fa-shield-alt"></i> COMMON</button>
                 </div>
                 <div class="subtype-buttons" id="subtypeFilter">
-                    <button class="subtype-btn" data-subtype="OP">OP</button>
-                    <button class="subtype-btn" data-subtype="SOP">SOP</button>
-                    <button class="subtype-btn" data-subtype="CANON">CANON</button>
-                    <button class="subtype-btn" data-subtype="SCANON">SCANON</button>
-                    <button class="subtype-btn" data-subtype="TAMPING">TAMPING</button>
-                    <button class="subtype-btn" data-subtype="TAMDAL">TAMDAL</button>
-                    <button class="subtype-btn" data-subtype="GANHUR">GANHUR</button>
-                    <button class="subtype-btn" data-subtype="SWITCH">SWITCH</button>
-                    <button class="subtype-btn" data-subtype="KURHUF">KURHUF</button>
+                    <button class="subtype-btn" data-subtype="OP"><i class="fas fa-bullseye"></i> OP</button>
+                    <button class="subtype-btn" data-subtype="SOP"><i class="fas fa-adjust"></i> SOP</button>
+                    <button class="subtype-btn" data-subtype="CANON"><i class="fas fa-exchange-alt"></i> CANON</button>
+                    <button class="subtype-btn" data-subtype="SCANON"><i class="fas fa-plus-circle"></i> SCANON</button>
+                    <button class="subtype-btn" data-subtype="TAMPING"><i class="fas fa-arrow-left"></i> TAMPING</button>
+                    <button class="subtype-btn" data-subtype="TAMDAL"><i class="fas fa-arrows-alt-h"></i> TAMDAL</button>
+                    <button class="subtype-btn" data-subtype="GANHUR"><i class="fas fa-sync-alt"></i> GANHUR</button>
+                    <button class="subtype-btn" data-subtype="SWITCH"><i class="fas fa-random"></i> SWITCH</button>
+                    <button class="subtype-btn" data-subtype="KURHUF"><i class="fas fa-minus-circle"></i> KURHUF</button>
                 </div>
             </div>
             
             <!-- Price Range -->
             <div class="filter-section">
-                <div class="filter-label">💰 Range Harga (Rp)</div>
+                <div class="filter-label"><i class="fas fa-coins"></i> Range Harga (Rp)</div>
                 <div class="price-range">
-                    <input type="number" class="filter-input price-input" id="minPrice" placeholder="Min" value="0" onchange="applyFilters()">
-                    <span>-</span>
-                    <input type="number" class="filter-input price-input" id="maxPrice" placeholder="Max" value="999999999" onchange="applyFilters()">
+                    <div class="price-input-wrapper">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="number" class="filter-input price-input" id="minPrice" placeholder="Min" value="0" onchange="applyFilters()">
+                    </div>
+                    <span class="price-separator">—</span>
+                    <div class="price-input-wrapper">
+                        <i class="fas fa-arrow-left"></i>
+                        <input type="number" class="filter-input price-input" id="maxPrice" placeholder="Max" value="999999999" onchange="applyFilters()">
+                    </div>
                 </div>
             </div>
             
             <!-- Sort By -->
             <div class="filter-section">
-                <div class="filter-label">📊 Urutkan</div>
+                <div class="filter-label"><i class="fas fa-sort-amount-down"></i> Urutkan</div>
                 <select class="filter-select" id="sortBy" onchange="applyFilters()">
-                    <option value="latest">Terbaru</option>
-                    <option value="price_low">Harga: Rendah ke Tinggi</option>
-                    <option value="price_high">Harga: Tinggi ke Rendah</option>
-                    <option value="char_asc">Karakter: Sedikit ke Banyak</option>
-                    <option value="char_desc">Karakter: Banyak ke Sedikit</option>
+                    <option value="latest"><i class="fas fa-clock"></i> Terbaru</option>
+                    <option value="price_low"><i class="fas fa-arrow-up"></i> Harga: Rendah ke Tinggi</option>
+                    <option value="price_high"><i class="fas fa-arrow-down"></i> Harga: Tinggi ke Rendah</option>
+                    <option value="char_asc"><i class="fas fa-sort-alpha-up"></i> Karakter: Sedikit ke Banyak</option>
+                    <option value="char_desc"><i class="fas fa-sort-alpha-down"></i> Karakter: Banyak ke Sedikit</option>
                 </select>
             </div>
             
-            <!-- Apply Button -->
-            <button class="apply-filter-btn" onclick="applyFilters()">Terapkan Filter</button>
+            <!-- Apply Button dengan efek 3D -->
+            <button class="apply-filter-btn" onclick="applyFilters()">
+                <i class="fas fa-check-circle"></i> Terapkan Filter
+            </button>
         </div>
     </div>
 
     <!-- Bottom Border Scroll Container -->
     <div class="bottom-border-scroll" id="scrollContainer">
-        <!-- Pull to refresh indicator (visual only, no refresh) -->
+        <!-- Pull to refresh indicator (visual only) -->
         <div class="pull-visual">
             <div class="pull-indicator">
-                <svg class="pull-arrow" viewBox="0 0 24 24">
-                    <path d="M20 12H4M4 12L8 8M4 12L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <i class="fas fa-arrow-down pull-arrow"></i>
                 <span>Tarik ke bawah</span>
             </div>
         </div>
@@ -118,9 +129,13 @@
             <!-- MARKET Page -->
             <div class="page active" id="marketPage">
                 <div class="content-card glass-effect">
-                    <h2>Market</h2>
+                    <div class="card-header">
+                        <i class="fas fa-store"></i>
+                        <h2>Marketplace</h2>
+                        <span class="header-badge" id="marketCount">0</span>
+                    </div>
                     <div class="market-items" id="marketItems">
-                        <!-- Loading state will be shown here -->
+                        <!-- Loading state akan ditampilkan di sini -->
                     </div>
                 </div>
             </div>
@@ -128,9 +143,13 @@
             <!-- MY USERNAMES Page -->
             <div class="page" id="gamesPage">
                 <div class="content-card glass-effect">
-                    <h2>My Usernames</h2>
+                    <div class="card-header">
+                        <i class="fas fa-database"></i>
+                        <h2>My Usernames</h2>
+                        <span class="header-badge" id="usernamesCount">0</span>
+                    </div>
                     <div class="games-items" id="gamesItems">
-                        <!-- User's usernames will be shown here -->
+                        <!-- Usernames user akan ditampilkan di sini -->
                     </div>
                 </div>
             </div>
@@ -138,9 +157,12 @@
             <!-- ACTIVITY Page -->
             <div class="page" id="activityPage">
                 <div class="content-card glass-effect">
-                    <h2>Activity</h2>
+                    <div class="card-header">
+                        <i class="fas fa-chart-line"></i>
+                        <h2>Activity Log</h2>
+                    </div>
                     <div class="activity-items" id="activityItems">
-                        <!-- Activity logs will be shown here -->
+                        <!-- Activity logs akan ditampilkan di sini -->
                     </div>
                 </div>
             </div>
@@ -148,38 +170,33 @@
             <!-- PROFILE Page -->
             <div class="page" id="profilePage">
                 <div class="content-card glass-effect">
-                    <h2>Profile</h2>
+                    <div class="card-header">
+                        <i class="fas fa-user-circle"></i>
+                        <h2>Profile</h2>
+                    </div>
                     <div class="profile-details" id="profileDetails">
-                        <!-- Profile info will be shown here -->
+                        <!-- Profile info akan ditampilkan di sini -->
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Floating Navigation (inside scroll container) -->
-        <nav class="floating-nav glass-effect">
+        <!-- Floating Navigation (fixed di bagian bawah) -->
+        <nav class="floating-nav glass-effect" id="floatingNav">
             <button class="nav-item active" data-page="market">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M3 9h18v10H3V9zm3 2v6h12v-6H6zM7 3h10v4H7V3z" fill="currentColor"/>
-                </svg>
+                <i class="fas fa-store"></i>
                 <span>MARKET</span>
             </button>
             <button class="nav-item" data-page="games">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-10H6v2h4v-2zm6 0h-4v2h4v-2z" fill="currentColor"/>
-                </svg>
+                <i class="fas fa-database"></i>
                 <span>MY USN</span>
             </button>
             <button class="nav-item" data-page="activity">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill="currentColor"/>
-                </svg>
+                <i class="fas fa-history"></i>
                 <span>ACTIVITY</span>
             </button>
             <button class="nav-item" data-page="profile">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
-                </svg>
+                <i class="fas fa-user"></i>
                 <span>PROFIL</span>
             </button>
         </nav>
