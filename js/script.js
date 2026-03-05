@@ -33,10 +33,10 @@
 
     // Collapsible sections state
     let collapsibleState = {
-        type: false,
-        price: false,
-        sort: false,
-        tag: false
+        type: true,  // Default expanded
+        price: true, // Default expanded
+        sort: true,  // Default expanded
+        tag: true    // Default expanded
     };
 
     // ==================== DOM ELEMENTS ====================
@@ -60,7 +60,9 @@
         sortBy: document.getElementById('sortBy'),
         resetFilters: document.getElementById('resetFilters'),
         applyFilters: document.getElementById('applyFilters'),
-        marketSearch: null
+        marketSearch: null,
+        searchClearBtn: null,
+        searchSubmitBtn: null
     };
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -250,7 +252,7 @@
         }
     }
 
-    // ==================== UPDATED ACTIVITY FUNCTIONS ====================
+    // ==================== UPDATED ACTIVITY FUNCTIONS (Only username-related activities) ====================
     async function loadActivities() {
         if (!currentUser) return;
 
@@ -263,7 +265,11 @@
             });
 
             if (response && Array.isArray(response)) {
-                activities = response;
+                // Filter only username-related activities (exclude USER_START)
+                activities = response.filter(activity => 
+                    !activity.action?.includes('USER_START') &&
+                    !activity.action?.includes('START')
+                );
             } else {
                 activities = [];
             }
@@ -446,7 +452,12 @@
             sortBy: 'latest'
         };
 
-        if (elements.marketSearch) elements.marketSearch.value = '';
+        if (elements.marketSearch) {
+            elements.marketSearch.value = '';
+            if (elements.searchClearBtn) {
+                elements.searchClearBtn.classList.remove('visible');
+            }
+        }
         
         document.querySelectorAll('.chip[data-type]').forEach(chip => {
             chip.classList.toggle('active', chip.dataset.type === 'all');
@@ -469,7 +480,13 @@
                 <div class="market-search-box">
                     <i class="fas fa-search"></i>
                     <input type="text" id="marketSearchInput" placeholder="Cari username atau based on..." value="${escapeHtml(filters.search)}" autocomplete="off">
+                    <button class="search-clear-btn" id="searchClearBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
+                <button class="search-submit-btn" id="searchSubmitBtn">
+                    <i class="fas fa-check"></i>
+                </button>
                 <button class="filter-toggle-btn" id="filterToggleBtn">
                     <i class="fas fa-sliders-h"></i>
                     <span class="filter-badge" id="filterBadge" style="display: ${activeFilterCount > 0 ? 'flex' : 'none'};">${activeFilterCount}</span>
@@ -494,7 +511,7 @@
 
                 clone.querySelector('.username').textContent = username.username;
                 clone.querySelector('.username-type-badge').textContent = username.username_type;
-                clone.querySelector('.based-on-value').textContent = username.based_on || '-';
+                clone.querySelector('.based-on-value').textContent = username.based_on || '';
                 clone.querySelector('.price-value').textContent = formatRupiah(username.price);
 
                 const div = document.createElement('div');
@@ -506,17 +523,63 @@
 
         marketPage.innerHTML = headerHtml + gridHtml;
 
+        // Re-attach event listeners
         elements.marketSearch = document.getElementById('marketSearchInput');
         elements.filterToggle = document.getElementById('filterToggleBtn');
         elements.filterBadge = document.getElementById('filterBadge');
+        elements.searchClearBtn = document.getElementById('searchClearBtn');
+        elements.searchSubmitBtn = document.getElementById('searchSubmitBtn');
 
+        // Show/hide clear button based on input value
         if (elements.marketSearch) {
+            if (elements.marketSearch.value.length > 0) {
+                elements.searchClearBtn?.classList.add('visible');
+            }
+
+            // Input event for real-time search (with debounce)
             elements.marketSearch.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    filters.search = e.target.value;
+                if (e.target.value.length > 0) {
+                    elements.searchClearBtn?.classList.add('visible');
+                } else {
+                    elements.searchClearBtn?.classList.remove('visible');
+                }
+            });
+        }
+
+        // Clear button
+        if (elements.searchClearBtn) {
+            elements.searchClearBtn.addEventListener('click', () => {
+                if (elements.marketSearch) {
+                    elements.marketSearch.value = '';
+                    elements.searchClearBtn.classList.remove('visible');
+                    filters.search = '';
                     applyFilters();
-                }, 500); // Debounce search
+                }
+            });
+        }
+
+        // Submit button (manual search)
+        if (elements.searchSubmitBtn) {
+            elements.searchSubmitBtn.addEventListener('click', () => {
+                if (elements.marketSearch) {
+                    filters.search = elements.marketSearch.value;
+                    applyFilters();
+                    
+                    // Hide keyboard
+                    elements.marketSearch.blur();
+                }
+            });
+        }
+
+        // Enter key in search input
+        if (elements.marketSearch) {
+            elements.marketSearch.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    filters.search = elements.marketSearch.value;
+                    applyFilters();
+                    elements.marketSearch.blur();
+                }
             });
         }
 
@@ -534,7 +597,7 @@
                 <div class="empty-market">
                     <i class="fas fa-history"></i>
                     <h3>Belum Ada Aktivitas</h3>
-                    <p>Aktivitas akan muncul di sini</p>
+                    <p>Aktivitas username akan muncul di sini</p>
                 </div>
             `;
             return;
@@ -551,7 +614,6 @@
             else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
             else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
             else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
-            else if (activity.action?.includes('START')) icon = 'fas fa-play';
             else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
 
             clone.querySelector('.activity-icon i').className = icon;
@@ -665,7 +727,15 @@
             
             if (!header || !sectionName) return;
             
-            header.addEventListener('click', () => {
+            // Set initial state from collapsibleState
+            if (collapsibleState[sectionName]) {
+                section.classList.add('expanded');
+            } else {
+                section.classList.remove('expanded');
+            }
+            
+            header.addEventListener('click', (e) => {
+                e.stopPropagation();
                 collapsibleState[sectionName] = !collapsibleState[sectionName];
                 
                 if (collapsibleState[sectionName]) {
@@ -674,11 +744,6 @@
                     section.classList.remove('expanded');
                 }
             });
-        });
-        
-        // Initialize all sections as collapsed
-        Object.keys(collapsibleState).forEach(key => {
-            collapsibleState[key] = false;
         });
     }
 
@@ -832,7 +897,6 @@
                     elements.scrollTopBtn.classList.remove('show');
                     elements.scrollTopBtn.classList.add('hide');
                     
-                    // Remove hide class after animation
                     setTimeout(() => {
                         elements.scrollTopBtn.classList.remove('hide');
                     }, 300);
