@@ -3,7 +3,6 @@
 // Initialize Telegram Web App
 const tg = window.Telegram.WebApp;
 tg.expand(); // Expand to full height
-tg.enableClosingConfirmation();
 
 // State management
 let appState = {
@@ -25,17 +24,17 @@ let appState = {
 
 // DOM Elements
 const mainContent = document.getElementById('mainContent');
+const scrollContainer = document.getElementById('scrollContainer');
 const navItems = document.querySelectorAll('.nav-item');
 const pages = document.querySelectorAll('.page');
 const appTitle = document.getElementById('appTitle');
 const userInfo = document.getElementById('userInfo');
-const pullToRefresh = document.querySelector('.pull-to-refresh');
 
-// Pull to refresh functionality
+// Pull visual variables (no refresh function)
 let touchStart = 0;
 let touchMove = 0;
 let isPulling = false;
-let refreshThreshold = window.CONFIG?.PULL_TO_REFRESH_THRESHOLD || 80;
+let pullThreshold = 60;
 
 // Initialize app
 async function initApp() {
@@ -47,8 +46,8 @@ async function initApp() {
     
     // Set up event listeners
     setupNavigation();
-    setupPullToRefresh();
-    setupScrollHandling();
+    setupPullVisual();
+    setupScrollBlocker();
     
     // Load initial page data
     loadPageData('market');
@@ -165,24 +164,50 @@ function switchPage(page) {
 
 // Load page data
 async function loadPageData(page) {
-    const container = document.getElementById(`${page}Items`);
+    const container = document.getElementById(`${page}Items`) || document.getElementById(`${page}Details`);
     if (!container) return;
     
     // Show loading state
     showLoadingState(container, page);
     
     try {
-        // Fetch data from backend
-        const response = await fetch(`${window.CONFIG?.API_BASE_URL}/api/${page}`);
+        // Simulate API call with mock data
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (response.ok) {
-            const data = await response.json();
-            appState.data[page] = data;
-            appState.loadingStates[page] = false;
-            renderPageData(page, data);
-        } else {
-            throw new Error('Failed to fetch data');
+        // Mock data
+        let data;
+        switch(page) {
+            case 'market':
+                data = [
+                    { name: 'Item 1', price: 10.99 },
+                    { name: 'Item 2', price: 24.99 },
+                    { name: 'Item 3', price: 5.99 },
+                    { name: 'Item 4', price: 15.50 }
+                ];
+                break;
+            case 'games':
+                data = [
+                    { name: 'Game 1' },
+                    { name: 'Game 2' },
+                    { name: 'Game 3' },
+                    { name: 'Game 4' }
+                ];
+                break;
+            case 'activity':
+                data = [
+                    { time: '2 menit lalu', description: 'Aktivitas 1' },
+                    { time: '1 jam lalu', description: 'Aktivitas 2' },
+                    { time: 'Kemarin', description: 'Aktivitas 3' }
+                ];
+                break;
+            case 'profile':
+                data = { balance: '1000', joined: '2024' };
+                break;
         }
+        
+        appState.data[page] = data;
+        appState.loadingStates[page] = false;
+        renderPageData(page, data);
     } catch (error) {
         console.error(`Error loading ${page} data:`, error);
         showEmptyState(container, page);
@@ -201,22 +226,22 @@ function showLoadingState(container, page) {
 // Show empty state
 function showEmptyState(container, page) {
     const messages = {
-        market: 'No items available in market',
-        games: 'No games available',
-        activity: 'No activity yet',
-        profile: 'No profile information'
+        market: 'Tidak ada item di market',
+        games: 'Tidak ada game tersedia',
+        activity: 'Belum ada aktivitas',
+        profile: 'Tidak ada informasi profil'
     };
     
     container.innerHTML = `
         <div class="empty-state">
-            ${messages[page] || 'No data available'}
+            ${messages[page] || 'Tidak ada data'}
         </div>
     `;
 }
 
 // Render page data
 function renderPageData(page, data) {
-    const container = document.getElementById(`${page}Items`);
+    const container = document.getElementById(`${page}Items`) || document.getElementById(`${page}Details`);
     if (!container) return;
     
     if (!data || (Array.isArray(data) && data.length === 0)) {
@@ -275,8 +300,8 @@ function renderActivityData(container, activities) {
         <div class="activity-list">
             ${activities.map(activity => `
                 <div class="activity-item">
-                    <div class="activity-time">${activity.time || 'Just now'}</div>
-                    <div>${activity.description || 'Activity'}</div>
+                    <div class="activity-time">${activity.time || 'Baru saja'}</div>
+                    <div>${activity.description || 'Aktivitas'}</div>
                 </div>
             `).join('')}
         </div>
@@ -288,78 +313,76 @@ function renderActivityData(container, activities) {
 function renderProfileData(container, profile) {
     const html = `
         <div class="profile-details-content">
-            <div>Balance: ${profile.balance || '0'}</div>
-            <div>Joined: ${profile.joined || 'Recently'}</div>
+            <div>Saldo: ${profile.balance || '0'}</div>
+            <div>Bergabung: ${profile.joined || 'Baru-baru ini'}</div>
         </div>
     `;
     container.innerHTML = html;
 }
 
-// Setup pull to refresh
-function setupPullToRefresh() {
-    mainContent.addEventListener('touchstart', (e) => {
-        if (mainContent.scrollTop === 0) {
+// Setup pull visual (no refresh function)
+function setupPullVisual() {
+    scrollContainer.addEventListener('touchstart', (e) => {
+        if (scrollContainer.scrollTop === 0) {
             touchStart = e.touches[0].clientY;
             isPulling = true;
         }
-    });
+    }, { passive: true });
     
-    mainContent.addEventListener('touchmove', (e) => {
+    scrollContainer.addEventListener('touchmove', (e) => {
         if (!isPulling) return;
         
         touchMove = e.touches[0].clientY;
         const pullDistance = touchMove - touchStart;
         
-        if (pullDistance > 0 && pullDistance < refreshThreshold) {
+        if (pullDistance > 0 && scrollContainer.scrollTop === 0) {
             e.preventDefault();
-            pullToRefresh.style.transform = `translateY(${Math.min(pullDistance, 60)}px)`;
-        }
-        
-        if (pullDistance >= refreshThreshold) {
-            pullToRefresh.classList.add('active');
-        }
-    });
-    
-    mainContent.addEventListener('touchend', () => {
-        if (isPulling) {
-            const pullDistance = touchMove - touchStart;
             
-            if (pullDistance >= refreshThreshold) {
-                refreshPage();
+            // Visual feedback only, no refresh
+            if (pullDistance < pullThreshold) {
+                scrollContainer.classList.add('pulling');
+                scrollContainer.classList.remove('pulling-max');
+            } else {
+                scrollContainer.classList.add('pulling-max');
             }
             
-            // Reset
-            pullToRefresh.style.transform = '';
-            pullToRefresh.classList.remove('active');
+            // Add resistance effect
+            scrollContainer.style.transform = `translateY(${Math.min(pullDistance * 0.3, 30)}px)`;
+        }
+    }, { passive: false });
+    
+    scrollContainer.addEventListener('touchend', () => {
+        if (isPulling) {
+            // Reset visual effects
+            scrollContainer.classList.remove('pulling', 'pulling-max');
+            scrollContainer.style.transform = '';
             isPulling = false;
         }
     });
+    
+    scrollContainer.addEventListener('touchcancel', () => {
+        // Reset on cancel
+        scrollContainer.classList.remove('pulling', 'pulling-max');
+        scrollContainer.style.transform = '';
+        isPulling = false;
+    });
 }
 
-// Refresh page
-async function refreshPage() {
-    pullToRefresh.classList.add('refreshing');
-    
-    // Reset loading states for current page
-    appState.loadingStates[appState.currentPage] = true;
-    
-    // Reload current page data
-    await loadPageData(appState.currentPage);
-    
-    // Re-detect user
-    await detectTelegramUser();
-    
-    pullToRefresh.classList.remove('refreshing');
-}
-
-// Setup scroll handling
-function setupScrollHandling() {
-    mainContent.addEventListener('scroll', () => {
-        // Prevent Telegram mini app from closing when scrolling to top
-        if (mainContent.scrollTop <= 0) {
-            mainContent.scrollTop = 1;
+// Setup scroll blocker to prevent refresh
+function setupScrollBlocker() {
+    // Prevent default scroll behavior at the top
+    scrollContainer.addEventListener('scroll', () => {
+        if (scrollContainer.scrollTop < 0) {
+            scrollContainer.scrollTop = 0;
         }
     });
+    
+    // Block any attempt to scroll beyond top
+    scrollContainer.addEventListener('touchmove', (e) => {
+        if (scrollContainer.scrollTop <= 0 && e.touches[0].clientY > touchStart) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 // Initialize app when DOM is ready
