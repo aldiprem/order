@@ -253,7 +253,7 @@
         }
     }
 
-    // ==================== UPDATED ACTIVITY FUNCTIONS (All Users) ====================
+    // ==================== ACTIVITY FUNCTIONS (All Users) ====================
     async function loadActivities() {
         const activityPage = document.getElementById('activityPage');
         if (!activityPage) return;
@@ -264,48 +264,19 @@
         isLoadingActivities = true;
 
         try {
-            // Get all activities (not filtered by user)
+            // Get activities for all users
             // Note: You need to create a new endpoint in app.py for this
-            // For now, we'll use a mock or try to get from a different endpoint
+            // For now, we'll use the existing endpoint but with a different approach
             let response;
             try {
-                // Try to get all activities (you need to add this endpoint)
+                // Try to get all activities from a new endpoint
                 response = await fetchWithRetry(`${API_BASE_URL}/api/activities/all`, {
                     method: 'GET'
                 });
             } catch (error) {
-                console.log('Activities all endpoint not available, using mock data');
-                // Mock data for demonstration
-                response = [
-                    {
-                        id: 1,
-                        action: 'USERNAME_ADDED',
-                        details: 'Menambahkan username @sengdok (tipe: user)',
-                        created_at: new Date().toISOString(),
-                        username: 'sengdok'
-                    },
-                    {
-                        id: 2,
-                        action: 'PRICE_SET',
-                        details: 'Mengatur harga untuk @othru: Rp 150,000',
-                        created_at: new Date(Date.now() - 3600000).toISOString(),
-                        username: 'othru'
-                    },
-                    {
-                        id: 3,
-                        action: 'LISTED_STATUS',
-                        details: 'Mengubah status listed untuk @scrakp menjadi listed',
-                        created_at: new Date(Date.now() - 86400000).toISOString(),
-                        username: 'scrakp'
-                    },
-                    {
-                        id: 4,
-                        action: 'BASED_ON_SET',
-                        details: 'Mengatur based_on untuk @ggaming: gaming',
-                        created_at: new Date(Date.now() - 172800000).toISOString(),
-                        username: 'ggaming'
-                    }
-                ];
+                console.log('Activities all endpoint not available');
+                // If endpoint doesn't exist, just set empty array
+                response = [];
             }
 
             if (response && Array.isArray(response)) {
