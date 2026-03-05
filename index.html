@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>MiniApp Telegram</title>
+    <title>INDOTAG MARKET</title>
     
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -12,20 +12,92 @@
     <link rel="stylesheet" href="/order/css/style.css">
     
     <!-- Config -->
-    <script src="config.js"></script>
+    <script src="/config.js"></script>
 </head>
 <body>
     <!-- Top Border Card - Fixed -->
     <div class="top-border-card">
         <div class="top-border-content">
             <div class="app-title">
-                <h1 id="appTitle">MiniApp</h1>
+                <h1 id="appTitle">INDOTAG MARKET</h1>
             </div>
             <div class="user-info" id="userInfo">
                 <div class="profile-loading">
                     <div class="spinner small"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar - Fixed Below Top Border -->
+    <div class="filter-bar" id="filterBar">
+        <div class="filter-header" onclick="toggleFilterPanel()">
+            <span>🔍 Filter & Cari Username</span>
+            <svg class="filter-arrow" viewBox="0 0 24 24" width="20" height="20">
+                <path d="M7 10l5 5 5-5H7z" fill="currentColor"/>
+            </svg>
+        </div>
+        
+        <div class="filter-panel" id="filterPanel">
+            <!-- Search Box -->
+            <div class="filter-section">
+                <div class="filter-label">🔎 Cari Username / Based On</div>
+                <input type="text" class="filter-input" id="searchInput" placeholder="Contoh: @username atau based on" oninput="debounceSearch()">
+            </div>
+            
+            <!-- Based On Filter -->
+            <div class="filter-section">
+                <div class="filter-label">💠 Based On</div>
+                <select class="filter-select" id="basedOnFilter" onchange="applyFilters()">
+                    <option value="">Semua Based On</option>
+                </select>
+            </div>
+            
+            <!-- Type Filter -->
+            <div class="filter-section">
+                <div class="filter-label">📋 Tipe Username</div>
+                <div class="type-buttons" id="typeFilter">
+                    <button class="type-btn active" data-type="">Semua</button>
+                    <button class="type-btn" data-type="UNCOMMON">UNCOMMON</button>
+                    <button class="type-btn" data-type="COMMON">COMMON</button>
+                </div>
+                <div class="subtype-buttons" id="subtypeFilter">
+                    <button class="subtype-btn" data-subtype="OP">OP</button>
+                    <button class="subtype-btn" data-subtype="SOP">SOP</button>
+                    <button class="subtype-btn" data-subtype="CANON">CANON</button>
+                    <button class="subtype-btn" data-subtype="SCANON">SCANON</button>
+                    <button class="subtype-btn" data-subtype="TAMPING">TAMPING</button>
+                    <button class="subtype-btn" data-subtype="TAMDAL">TAMDAL</button>
+                    <button class="subtype-btn" data-subtype="GANHUR">GANHUR</button>
+                    <button class="subtype-btn" data-subtype="SWITCH">SWITCH</button>
+                    <button class="subtype-btn" data-subtype="KURHUF">KURHUF</button>
+                </div>
+            </div>
+            
+            <!-- Price Range -->
+            <div class="filter-section">
+                <div class="filter-label">💰 Range Harga (Rp)</div>
+                <div class="price-range">
+                    <input type="number" class="filter-input price-input" id="minPrice" placeholder="Min" value="0" onchange="applyFilters()">
+                    <span>-</span>
+                    <input type="number" class="filter-input price-input" id="maxPrice" placeholder="Max" value="999999999" onchange="applyFilters()">
+                </div>
+            </div>
+            
+            <!-- Sort By -->
+            <div class="filter-section">
+                <div class="filter-label">📊 Urutkan</div>
+                <select class="filter-select" id="sortBy" onchange="applyFilters()">
+                    <option value="latest">Terbaru</option>
+                    <option value="price_low">Harga: Rendah ke Tinggi</option>
+                    <option value="price_high">Harga: Tinggi ke Rendah</option>
+                    <option value="char_asc">Karakter: Sedikit ke Banyak</option>
+                    <option value="char_desc">Karakter: Banyak ke Sedikit</option>
+                </select>
+            </div>
+            
+            <!-- Apply Button -->
+            <button class="apply-filter-btn" onclick="applyFilters()">Terapkan Filter</button>
         </div>
     </div>
 
@@ -53,12 +125,12 @@
                 </div>
             </div>
 
-            <!-- GAMES Page -->
+            <!-- GAMES Page (Will be repurposed for My Usernames) -->
             <div class="page" id="gamesPage">
                 <div class="content-card glass-effect">
-                    <h2>Games</h2>
+                    <h2>My Usernames</h2>
                     <div class="games-items" id="gamesItems">
-                        <!-- Loading state will be shown here -->
+                        <!-- User's usernames will be shown here -->
                     </div>
                 </div>
             </div>
@@ -68,7 +140,7 @@
                 <div class="content-card glass-effect">
                     <h2>Activity</h2>
                     <div class="activity-items" id="activityItems">
-                        <!-- Loading state will be shown here -->
+                        <!-- Activity logs will be shown here -->
                     </div>
                 </div>
             </div>
@@ -78,7 +150,7 @@
                 <div class="content-card glass-effect">
                     <h2>Profile</h2>
                     <div class="profile-details" id="profileDetails">
-                        <!-- Loading state will be shown here -->
+                        <!-- Profile info will be shown here -->
                     </div>
                 </div>
             </div>
@@ -96,7 +168,7 @@
                 <svg viewBox="0 0 24 24" width="24" height="24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-10H6v2h4v-2zm6 0h-4v2h4v-2z" fill="currentColor"/>
                 </svg>
-                <span>GAMES</span>
+                <span>MY USN</span>
             </button>
             <button class="nav-item" data-page="activity">
                 <svg viewBox="0 0 24 24" width="24" height="24">
