@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -15,23 +15,9 @@
     <script src="config.js"></script>
 </head>
 <body>
-    <!-- Pull to refresh indicator -->
-    <div class="pull-to-refresh">
-        <div class="refresh-indicator">
-            <svg class="refresh-arrow" viewBox="0 0 24 24">
-                <path d="M20 12H4M4 12L8 8M4 12L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Pull to refresh</span>
-        </div>
-        <div class="refreshing-indicator">
-            <div class="spinner"></div>
-            <span>Refreshing...</span>
-        </div>
-    </div>
-
-    <!-- User Profile Card -->
-    <div class="user-profile-card glass-effect">
-        <div class="user-profile-content">
+    <!-- Top Border Card - Fixed -->
+    <div class="top-border-card">
+        <div class="top-border-content">
             <div class="app-title">
                 <h1 id="appTitle">MiniApp</h1>
             </div>
@@ -43,76 +29,89 @@
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="main-content" id="mainContent">
-        <!-- MARKET Page -->
-        <div class="page active" id="marketPage">
-            <div class="content-card glass-effect">
-                <h2>Market</h2>
-                <div class="market-items" id="marketItems">
-                    <!-- Loading state will be shown here -->
-                </div>
+    <!-- Bottom Border Scroll Container -->
+    <div class="bottom-border-scroll" id="scrollContainer">
+        <!-- Pull to refresh indicator (visual only, no refresh) -->
+        <div class="pull-visual">
+            <div class="pull-indicator">
+                <svg class="pull-arrow" viewBox="0 0 24 24">
+                    <path d="M20 12H4M4 12L8 8M4 12L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span>Tarik ke bawah</span>
             </div>
         </div>
 
-        <!-- GAMES Page -->
-        <div class="page" id="gamesPage">
-            <div class="content-card glass-effect">
-                <h2>Games</h2>
-                <div class="games-items" id="gamesItems">
-                    <!-- Loading state will be shown here -->
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- MARKET Page -->
+            <div class="page active" id="marketPage">
+                <div class="content-card glass-effect">
+                    <h2>Market</h2>
+                    <div class="market-items" id="marketItems">
+                        <!-- Loading state will be shown here -->
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ACTIVITY Page -->
-        <div class="page" id="activityPage">
-            <div class="content-card glass-effect">
-                <h2>Activity</h2>
-                <div class="activity-items" id="activityItems">
-                    <!-- Loading state will be shown here -->
+            <!-- GAMES Page -->
+            <div class="page" id="gamesPage">
+                <div class="content-card glass-effect">
+                    <h2>Games</h2>
+                    <div class="games-items" id="gamesItems">
+                        <!-- Loading state will be shown here -->
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- PROFIL Page -->
-        <div class="page" id="profilePage">
-            <div class="content-card glass-effect">
-                <h2>Profile</h2>
-                <div class="profile-details" id="profileDetails">
-                    <!-- Loading state will be shown here -->
+            <!-- ACTIVITY Page -->
+            <div class="page" id="activityPage">
+                <div class="content-card glass-effect">
+                    <h2>Activity</h2>
+                    <div class="activity-items" id="activityItems">
+                        <!-- Loading state will be shown here -->
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
 
-    <!-- Floating Navigation -->
-    <nav class="floating-nav glass-effect">
-        <button class="nav-item active" data-page="market">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path d="M3 9h18v10H3V9zm3 2v6h12v-6H6zM7 3h10v4H7V3z" fill="currentColor"/>
-            </svg>
-            <span>MARKET</span>
-        </button>
-        <button class="nav-item" data-page="games">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-10H6v2h4v-2zm6 0h-4v2h4v-2z" fill="currentColor"/>
-            </svg>
-            <span>GAMES</span>
-        </button>
-        <button class="nav-item" data-page="activity">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill="currentColor"/>
-            </svg>
-            <span>ACTIVITY</span>
-        </button>
-        <button class="nav-item" data-page="profile">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
-            </svg>
-            <span>PROFIL</span>
-        </button>
-    </nav>
+            <!-- PROFILE Page -->
+            <div class="page" id="profilePage">
+                <div class="content-card glass-effect">
+                    <h2>Profile</h2>
+                    <div class="profile-details" id="profileDetails">
+                        <!-- Loading state will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating Navigation (inside scroll container) -->
+        <nav class="floating-nav glass-effect">
+            <button class="nav-item active" data-page="market">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M3 9h18v10H3V9zm3 2v6h12v-6H6zM7 3h10v4H7V3z" fill="currentColor"/>
+                </svg>
+                <span>MARKET</span>
+            </button>
+            <button class="nav-item" data-page="games">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-10H6v2h4v-2zm6 0h-4v2h4v-2z" fill="currentColor"/>
+                </svg>
+                <span>GAMES</span>
+            </button>
+            <button class="nav-item" data-page="activity">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill="currentColor"/>
+                </svg>
+                <span>ACTIVITY</span>
+            </button>
+            <button class="nav-item" data-page="profile">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                </svg>
+                <span>PROFIL</span>
+            </button>
+        </nav>
+    </div>
 
     <!-- JavaScript -->
     <script src="/order/js/script.js"></script>
