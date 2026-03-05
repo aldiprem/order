@@ -207,39 +207,48 @@ class Database:
             
             now = get_jakarta_time()
             
-            # Cek dulu data sebelum update (debug)
-            self.cur.execute("SELECT listed_status FROM added_usernames WHERE username = ?", (username,))
-            before = self.cur.fetchone()
-            print(f"Database Before update - {username}: {before[0] if before else 'None'}")
+            # Cek dulu apakah username ada
+            self.cur.execute("SELECT id, listed_status FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
             
-            # Lakukan update
+            if not result:
+                print(f"❌ Database: Username {username} tidak ditemukan!")
+                return False
+            
+            print(f"Database Before update - {username}: {result[1]}")
+            
+            # Lakukan update dengan pendekatan yang lebih sederhana
             self.cur.execute("""
             UPDATE added_usernames 
             SET listed_status = ?, updated_at = ? 
             WHERE username = ?
             """, (status, now, username))
+            
+            # Commit perubahan
             self.conn.commit()
             
-            # Verifikasi setelah update
+            # Verifikasi setelah update dengan query terpisah
             self.cur.execute("SELECT listed_status FROM added_usernames WHERE username = ?", (username,))
             after = self.cur.fetchone()
             print(f"Database After update - {username}: {after[0] if after else 'None'}")
             
-            if self.cur.rowcount > 0:
+            # Cek apakah update berhasil dengan membandingkan nilai
+            if after and after[0] == status:
                 # Log activity
                 self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
-                result = self.cur.fetchone()
-                if result:
-                    self.add_activity_log(result[0], "LISTED_STATUS", f"Mengubah status listed untuk @{username} menjadi {status}")
+                owner_result = self.cur.fetchone()
+                if owner_result:
+                    self.add_activity_log(owner_result[0], "LISTED_STATUS", f"Mengubah status listed untuk @{username} menjadi {status}")
                 
                 print(f"✅ Database: Updated {username} status to {status}")
                 return True
             else:
-                print(f"❌ Database: No rows updated for {username}")
+                print(f"❌ Database: Failed to update {username} status")
                 return False
                 
         except Exception as e:
             print(f"Error updating listed status: {e}")
+            self.conn.rollback()  # Rollback jika terjadi error
             return False
     
     def update_price(self, username, price):
