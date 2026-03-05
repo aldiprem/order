@@ -20,6 +20,7 @@
     let isFilterPanelOpen = false;
     let lastScrollTop = 0;
     let scrollTimeout;
+    let searchTimeout;
 
     // Filter state
     let filters = {
@@ -28,6 +29,14 @@
         minPrice: 0,
         maxPrice: 999999999,
         sortBy: 'latest'
+    };
+
+    // Collapsible sections state
+    let collapsibleState = {
+        type: false,
+        price: false,
+        sort: false,
+        tag: false
     };
 
     // ==================== DOM ELEMENTS ====================
@@ -43,15 +52,15 @@
         userProfileHeader: document.getElementById('userProfileHeader'),
         filterPanel: document.getElementById('filterPanel'),
         filterClose: document.getElementById('filterClose'),
-        filterToggle: null, // Will be set dynamically
-        filterBadge: null, // Will be set dynamically
+        filterToggle: null,
+        filterBadge: null,
         typeFilterChips: document.getElementById('typeFilterChips'),
         minPrice: document.getElementById('minPrice'),
         maxPrice: document.getElementById('maxPrice'),
         sortBy: document.getElementById('sortBy'),
         resetFilters: document.getElementById('resetFilters'),
         applyFilters: document.getElementById('applyFilters'),
-        marketSearch: null // Will be set dynamically
+        marketSearch: null
     };
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -167,10 +176,8 @@
                 photo_url: user.photo_url
             };
 
-            // Save to localStorage
             localStorage.setItem('market_user', JSON.stringify(currentUser));
 
-            // Verify user with backend
             try {
                 await fetchWithRetry(`${API_BASE_URL}/api/verify-user`, {
                     method: 'POST',
@@ -183,14 +190,12 @@
             return currentUser;
         }
 
-        // Try to load from localStorage
         const savedUser = localStorage.getItem('market_user');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
             return currentUser;
         }
 
-        // Fallback demo user
         currentUser = {
             id: 123456789,
             first_name: 'Demo',
@@ -225,14 +230,12 @@
         showLoading(true);
 
         try {
-            // Load listed usernames
             const usernames = await fetchWithRetry(`${API_BASE_URL}/api/market`, {
                 method: 'GET'
             });
 
             allUsernames = usernames || [];
             
-            // Determine username type for each
             allUsernames.forEach(u => {
                 u.username_type = determineUsernameType(u.username, u.based_on);
             });
@@ -247,27 +250,31 @@
         }
     }
 
+    // ==================== UPDATED ACTIVITY FUNCTIONS ====================
     async function loadActivities() {
+        if (!currentUser) return;
+
         try {
-            // For now, use mock data since activity endpoint might not exist
-            // In production, replace with actual API call
-            activities = [];
+            showLoading(true);
             
-            // Try to load from API if available
-            try {
-                const response = await fetchWithRetry(`${API_BASE_URL}/api/activity/all`, {
-                    method: 'GET'
-                });
-                if (response && Array.isArray(response)) {
-                    activities = response;
-                }
-            } catch (error) {
-                console.log('Activity endpoint not available, using mock data');
+            // Get activity logs for current user
+            const response = await fetchWithRetry(`${API_BASE_URL}/api/activity/${currentUser.id}`, {
+                method: 'GET'
+            });
+
+            if (response && Array.isArray(response)) {
+                activities = response;
+            } else {
+                activities = [];
             }
 
             renderActivities();
         } catch (error) {
             console.error('Error loading activities:', error);
+            activities = [];
+            renderActivities();
+        } finally {
+            showLoading(false);
         }
     }
 
@@ -293,13 +300,9 @@
         const usernameLower = username.toLowerCase();
         const basedOnLower = basedOn.toLowerCase();
 
-        // Check for OP (exact match)
         if (usernameLower === basedOnLower) return 'OP';
-
-        // Check for SCANON (adds 's' at end)
         if (usernameLower === basedOnLower + 's') return 'SCANON';
 
-        // Check for SOP (double letters)
         for (let i = 0; i < basedOnLower.length - 1; i++) {
             if (basedOnLower[i] === basedOnLower[i + 1]) {
                 if (usernameLower === basedOnLower.slice(0, i + 1) + basedOnLower.slice(i + 1)) {
@@ -308,7 +311,6 @@
             }
         }
 
-        // Check for CANON (i to l or l to i)
         let canonPossible = true;
         if (usernameLower.length === basedOnLower.length) {
             for (let i = 0; i < usernameLower.length; i++) {
@@ -323,14 +325,12 @@
             if (canonPossible) return 'CANON';
         }
 
-        // Check for TAMPING (add letter at beginning or end)
         if (usernameLower.length === basedOnLower.length + 1) {
             if (usernameLower.startsWith(basedOnLower) || usernameLower.endsWith(basedOnLower)) {
                 return 'TAMPING';
             }
         }
 
-        // Check for TAMDAL (add letter in middle)
         if (usernameLower.length === basedOnLower.length + 1) {
             for (let i = 0; i < basedOnLower.length; i++) {
                 if (usernameLower.startsWith(basedOnLower.slice(0, i)) && 
@@ -340,7 +340,6 @@
             }
         }
 
-        // Check for GANHUR (replace one letter)
         if (usernameLower.length === basedOnLower.length) {
             let diffCount = 0;
             for (let i = 0; i < usernameLower.length; i++) {
@@ -349,7 +348,6 @@
             if (diffCount === 1) return 'GANHUR';
         }
 
-        // Check for SWITCH (swap adjacent letters)
         if (usernameLower.length === basedOnLower.length) {
             for (let i = 0; i < basedOnLower.length - 1; i++) {
                 const switched = basedOnLower.slice(0, i) + basedOnLower[i + 1] + basedOnLower[i] + basedOnLower.slice(i + 2);
@@ -357,7 +355,6 @@
             }
         }
 
-        // Check for KURHUF (remove one letter)
         if (usernameLower.length === basedOnLower.length - 1) {
             for (let i = 0; i < basedOnLower.length; i++) {
                 if (usernameLower === basedOnLower.slice(0, i) + basedOnLower.slice(i + 1)) {
@@ -373,7 +370,6 @@
     function applyFilters() {
         let filtered = [...allUsernames];
 
-        // Apply search filter
         if (filters.search) {
             const searchLower = filters.search.toLowerCase();
             filtered = filtered.filter(u => 
@@ -382,18 +378,15 @@
             );
         }
 
-        // Apply type filter
         if (filters.type !== 'all') {
             filtered = filtered.filter(u => u.username_type === filters.type);
         }
 
-        // Apply price range
         filtered = filtered.filter(u => 
             (u.price || 0) >= filters.minPrice && 
             (u.price || 0) <= filters.maxPrice
         );
 
-        // Apply sorting
         switch (filters.sortBy) {
             case 'price_low':
                 filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
@@ -453,10 +446,8 @@
             sortBy: 'latest'
         };
 
-        // Update UI
         if (elements.marketSearch) elements.marketSearch.value = '';
         
-        // Update chips
         document.querySelectorAll('.chip[data-type]').forEach(chip => {
             chip.classList.toggle('active', chip.dataset.type === 'all');
         });
@@ -473,12 +464,11 @@
         const marketPage = document.getElementById('marketPage');
         if (!marketPage) return;
 
-        // Create header with search and filter
         const headerHtml = `
             <div class="market-header-actions">
                 <div class="market-search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="marketSearchInput" placeholder="Cari username atau based on..." value="${escapeHtml(filters.search)}">
+                    <input type="text" id="marketSearchInput" placeholder="Cari username atau based on..." value="${escapeHtml(filters.search)}" autocomplete="off">
                 </div>
                 <button class="filter-toggle-btn" id="filterToggleBtn">
                     <i class="fas fa-sliders-h"></i>
@@ -487,7 +477,6 @@
             </div>
         `;
 
-        // Create username grid
         let gridHtml = '<div class="username-grid">';
 
         if (filteredUsernames.length === 0) {
@@ -508,7 +497,6 @@
                 clone.querySelector('.based-on-value').textContent = username.based_on || '-';
                 clone.querySelector('.price-value').textContent = formatRupiah(username.price);
 
-                // Add to grid
                 const div = document.createElement('div');
                 div.appendChild(clone);
                 gridHtml += div.innerHTML;
@@ -518,15 +506,17 @@
 
         marketPage.innerHTML = headerHtml + gridHtml;
 
-        // Re-attach event listeners
         elements.marketSearch = document.getElementById('marketSearchInput');
         elements.filterToggle = document.getElementById('filterToggleBtn');
         elements.filterBadge = document.getElementById('filterBadge');
 
         if (elements.marketSearch) {
             elements.marketSearch.addEventListener('input', (e) => {
-                filters.search = e.target.value;
-                applyFilters();
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    filters.search = e.target.value;
+                    applyFilters();
+                }, 500); // Debounce search
             });
         }
 
@@ -539,8 +529,7 @@
         const activityPage = document.getElementById('activityPage');
         if (!activityPage) return;
 
-        if (activities.length === 0) {
-            // Show empty state with some mock activities for demo
+        if (!activities || activities.length === 0) {
             activityPage.innerHTML = `
                 <div class="empty-market">
                     <i class="fas fa-history"></i>
@@ -557,16 +546,25 @@
             const template = document.getElementById('activityItemTemplate');
             const clone = document.importNode(template.content, true);
 
-            // Set icon based on action
             let icon = 'fas fa-info-circle';
             if (activity.action?.includes('LISTED')) icon = 'fas fa-tag';
             else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
             else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
             else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
+            else if (activity.action?.includes('START')) icon = 'fas fa-play';
+            else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
 
             clone.querySelector('.activity-icon i').className = icon;
             clone.querySelector('.activity-title').textContent = activity.details || 'Aktivitas baru';
-            clone.querySelector('.activity-username').textContent = activity.username ? `@${activity.username}` : '';
+            
+            // Extract username from details if available
+            const usernameMatch = activity.details?.match(/@(\w+)/);
+            if (usernameMatch) {
+                clone.querySelector('.activity-username').textContent = usernameMatch[0];
+            } else {
+                clone.querySelector('.activity-username').textContent = '';
+            }
+            
             clone.querySelector('.activity-time').textContent = formatDate(activity.created_at);
 
             const div = document.createElement('div');
@@ -657,6 +655,33 @@
         gamesPage.appendChild(clone);
     }
 
+    // ==================== COLLAPSIBLE FILTER SECTIONS ====================
+    function setupCollapsibleSections() {
+        const sections = document.querySelectorAll('.filter-section.collapsible');
+        
+        sections.forEach(section => {
+            const header = section.querySelector('.filter-section-header');
+            const sectionName = header?.dataset.section;
+            
+            if (!header || !sectionName) return;
+            
+            header.addEventListener('click', () => {
+                collapsibleState[sectionName] = !collapsibleState[sectionName];
+                
+                if (collapsibleState[sectionName]) {
+                    section.classList.add('expanded');
+                } else {
+                    section.classList.remove('expanded');
+                }
+            });
+        });
+        
+        // Initialize all sections as collapsed
+        Object.keys(collapsibleState).forEach(key => {
+            collapsibleState[key] = false;
+        });
+    }
+
     // ==================== FILTER PANEL ====================
     function toggleFilterPanel() {
         isFilterPanelOpen = !isFilterPanelOpen;
@@ -672,12 +697,10 @@
     function setupFilterPanel() {
         if (!elements.filterPanel) return;
 
-        // Close button
         if (elements.filterClose) {
             elements.filterClose.addEventListener('click', toggleFilterPanel);
         }
 
-        // Click outside to close (on panel header handle)
         elements.filterPanel.addEventListener('click', (e) => {
             if (e.target.classList.contains('filter-panel-header') || 
                 e.target.classList.contains('filter-panel-handle')) {
@@ -685,7 +708,6 @@
             }
         });
 
-        // Type chips
         if (elements.typeFilterChips) {
             elements.typeFilterChips.addEventListener('click', (e) => {
                 const chip = e.target.closest('.chip');
@@ -694,7 +716,6 @@
                 const type = chip.dataset.type;
                 if (!type) return;
 
-                // Update active state
                 document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
 
@@ -702,7 +723,6 @@
             });
         }
 
-        // Price inputs
         if (elements.minPrice) {
             elements.minPrice.addEventListener('input', (e) => {
                 filters.minPrice = parseInt(e.target.value) || 0;
@@ -715,14 +735,12 @@
             });
         }
 
-        // Sort select
         if (elements.sortBy) {
             elements.sortBy.addEventListener('change', (e) => {
                 filters.sortBy = e.target.value;
             });
         }
 
-        // Reset button
         if (elements.resetFilters) {
             elements.resetFilters.addEventListener('click', () => {
                 resetFilters();
@@ -730,20 +748,20 @@
             });
         }
 
-        // Apply button
         if (elements.applyFilters) {
             elements.applyFilters.addEventListener('click', () => {
                 applyFilters();
                 toggleFilterPanel();
             });
         }
+
+        setupCollapsibleSections();
     }
 
     // ==================== NAVIGATION ====================
     function setupNavigation() {
         if (!elements.navItems.length) return;
 
-        // Set initial indicator position
         updateNavIndicator('market');
 
         elements.navItems.forEach(item => {
@@ -752,11 +770,9 @@
                 const page = item.dataset.page;
                 if (!page) return;
 
-                // Update active states
                 elements.navItems.forEach(nav => nav.classList.remove('active'));
                 item.classList.add('active');
 
-                // Update pages
                 elements.pages.forEach(p => p.classList.remove('active'));
                 const targetPage = document.getElementById(`${page}Page`);
                 if (targetPage) {
@@ -764,13 +780,11 @@
                     currentPage = page;
                 }
 
-                // Update indicator
                 updateNavIndicator(page);
 
-                // Load page-specific data if needed
                 if (page === 'market' && allUsernames.length === 0) {
                     loadMarketData();
-                } else if (page === 'activity' && activities.length === 0) {
+                } else if (page === 'activity' && currentUser) {
                     loadActivities();
                 } else if (page === 'profile' && currentUser) {
                     loadUserUsernames();
@@ -799,35 +813,41 @@
         elements.marketMain.addEventListener('scroll', () => {
             const scrollTop = elements.marketMain.scrollTop;
 
-            // Hide/show bottom nav
             if (scrollTop > lastScrollTop && scrollTop > 100) {
-                // Scrolling down
                 elements.bottomNav.classList.add('hide');
             } else {
-                // Scrolling up
                 elements.bottomNav.classList.remove('hide');
             }
 
-            // Show/hide scroll to top button
+            // Show/hide scroll to top button with animation
             if (scrollTop > 300) {
-                // Check if 3 rows passed (approx 3 * card height)
-                elements.scrollTopBtn.classList.add('show');
+                if (elements.scrollTopBtn.classList.contains('show')) {
+                    // Already showing
+                } else {
+                    elements.scrollTopBtn.classList.remove('hide');
+                    elements.scrollTopBtn.classList.add('show');
+                }
             } else {
-                elements.scrollTopBtn.classList.remove('show');
+                if (elements.scrollTopBtn.classList.contains('show')) {
+                    elements.scrollTopBtn.classList.remove('show');
+                    elements.scrollTopBtn.classList.add('hide');
+                    
+                    // Remove hide class after animation
+                    setTimeout(() => {
+                        elements.scrollTopBtn.classList.remove('hide');
+                    }, 300);
+                }
             }
 
             lastScrollTop = scrollTop;
 
-            // Clear previous timeout
             if (scrollTimeout) clearTimeout(scrollTimeout);
 
-            // Show bottom nav after scrolling stops
             scrollTimeout = setTimeout(() => {
                 elements.bottomNav.classList.remove('hide');
             }, 1500);
         });
 
-        // Scroll to top button
         if (elements.scrollTopBtn) {
             elements.scrollTopBtn.addEventListener('click', () => {
                 elements.marketMain.scrollTo({
@@ -843,24 +863,19 @@
         showLoading(true);
 
         try {
-            // Initialize Telegram user
             await initTelegramUser();
             renderUserProfile();
 
-            // Setup event listeners
             setupNavigation();
             setupFilterPanel();
             setupScrollHandling();
 
-            // Load initial data
             await loadMarketData();
             await loadActivities();
             await loadUserUsernames();
 
-            // Render games placeholder
             renderGames();
 
-            // Expand Telegram Web App
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.expand();
                 window.Telegram.WebApp.ready();
@@ -875,6 +890,5 @@
         }
     }
 
-    // Start the app
     init();
 })();
