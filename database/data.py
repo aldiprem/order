@@ -324,7 +324,27 @@ class Database:
         except Exception as e:
             print(f"Error adding activity log: {e}")
             return False
-    
+
+    def get_all_activity_logs(self, page=1, limit=50):
+        """Get all activity logs with pagination"""
+        try:
+            offset = (page - 1) * limit
+            self.cur.execute("""
+            SELECT * FROM activity_log 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+            """, (limit, offset))
+            logs = self.cur.fetchall()
+            
+            # Get total count for pagination
+            self.cur.execute("SELECT COUNT(*) FROM activity_log")
+            total = self.cur.fetchone()[0]
+            
+            return logs, total
+        except Exception as e:
+            print(f"Error getting all activity logs: {e}")
+            return [], 0
+
     def get_activity_logs(self, user_id, page=1, limit=10):
         """Get activity logs for a user with pagination"""
         try:
