@@ -66,6 +66,60 @@
         searchSubmitBtn: null
     };
 
+    // ==================== HAPTIC FEEDBACK TELEGRAM (VERSI DIPERBAIKI) ====================
+    let telegramHaptic = null;
+    
+    function initHaptic() {
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        telegramHaptic = window.Telegram.WebApp.HapticFeedback;
+        console.log('✅ Haptic feedback initialized');
+        return true;
+      } else {
+        console.log('⚠️ Haptic feedback not available');
+        return false;
+      }
+    }
+    
+    function hapticImpact(style = 'medium') {
+      if (!telegramHaptic) {
+        // Coba inisialisasi ulang
+        if (!initHaptic()) return;
+      }
+    
+      try {
+        telegramHaptic.impactOccurred(style);
+        console.log(`📳 Haptic impact: ${style}`);
+      } catch (e) {
+        console.log('Haptic impact error:', e);
+      }
+    }
+    
+    function hapticNotification(type = 'success') {
+      if (!telegramHaptic) {
+        if (!initHaptic()) return;
+      }
+    
+      try {
+        telegramHaptic.notificationOccurred(type);
+        console.log(`📳 Haptic notification: ${type}`);
+      } catch (e) {
+        console.log('Haptic notification error:', e);
+      }
+    }
+    
+    function hapticSelection() {
+      if (!telegramHaptic) {
+        if (!initHaptic()) return;
+      }
+    
+      try {
+        telegramHaptic.selectionChanged();
+        console.log(`📳 Haptic selection changed`);
+      } catch (e) {
+        console.log('Haptic selection error:', e);
+      }
+    }
+
     // ==================== UTILITY FUNCTIONS ====================
     function showToast(message, type = 'info', duration = 3000) {
         if (!elements.toastContainer) return;
@@ -1092,28 +1146,92 @@
       showLoading(true);
     
       try {
+        // ===== INISIALISASI HAPTIC PALING AWAL =====
+        console.log('📳 Initializing haptic feedback...');
+    
+        // Cek ketersediaan Telegram WebApp
+        if (window.Telegram?.WebApp) {
+          console.log('📱 Telegram WebApp detected, version:', window.Telegram.WebApp.version);
+    
+          // Inisialisasi haptic
+          initHaptic();
+    
+          // Test haptic setelah 500ms (untuk memastikan bekerja)
+          setTimeout(() => {
+            hapticImpact('light');
+            console.log('📳 Haptic test successful');
+          }, 500);
+        } else {
+          console.log('⚠️ Telegram WebApp not detected - running in browser mode');
+    
+          // Fallback untuk browser (simulasi)
+          window.Telegram = {
+            WebApp: {
+              HapticFeedback: {
+                impactOccurred: (style) => console.log(`📳 [BROWSER] Haptic impact: ${style}`),
+                notificationOccurred: (type) => console.log(`📳 [BROWSER] Haptic notification: ${type}`),
+                selectionChanged: () => console.log(`📳 [BROWSER] Haptic selection changed`)
+              }
+            }
+          };
+    
+          // Inisialisasi ulang dengan simulasi
+          initHaptic();
+        }
+    
+        // ===== INISIALISASI TELEGRAM USER =====
         await initTelegramUser();
         renderUserProfile();
     
+        // ===== SETUP NAVIGATION =====
         setupNavigation();
-        setupFilterPanel();
-        setupScrollHandling();
-        setupHapticForButtons(); // TAMBAHKAN INI
     
+        // ===== SETUP FILTER PANEL =====
+        setupFilterPanel();
+    
+        // ===== SETUP SCROLL HANDLING =====
+        setupScrollHandling();
+    
+        // ===== SETUP HAPTIC UNTUK SEMUA TOMBOL =====
+        // Beri sedikit delay agar DOM siap
+        setTimeout(() => {
+          setupHapticForButtons();
+          console.log('✅ Haptic buttons initialized');
+        }, 200);
+    
+        // ===== LOAD DATA =====
         await loadMarketData();
         await loadUserUsernames();
     
+        // ===== RENDER GAMES =====
         renderGames();
     
+        // ===== TELEGRAM WEBAPP READY =====
         if (window.Telegram?.WebApp) {
           window.Telegram.WebApp.expand();
           window.Telegram.WebApp.ready();
+          console.log('📱 Telegram WebApp ready');
         }
     
-        console.log('✅ INDOTAG MARKET initialized');
+        // ===== TEST HAPTIC LENGKAP (UNTUK DEBUG, BISA DIHAPUS NANTI) =====
+        setTimeout(() => {
+          console.log('🔍 Running haptic test sequence...');
+          testHaptic();
+        }, 1500);
+    
+        console.log('✅ INDOTAG MARKET initialized successfully');
+    
       } catch (error) {
         console.error('❌ Init error:', error);
         showToast('Gagal memuat aplikasi', 'error');
+    
+        // Coba haptic error
+        try {
+          hapticNotification('error');
+        } catch (e) {
+          // Abaikan
+        }
+    
       } finally {
         showLoading(false);
       }
