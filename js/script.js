@@ -3,6 +3,7 @@
 // Initialize Telegram Web App
 const tg = window.Telegram.WebApp;
 tg.expand(); // Expand to full height
+tg.disableVerticalSwipes(); // Disable vertical swipes to prevent refresh
 
 // State management
 let appState = {
@@ -19,12 +20,22 @@ let appState = {
         games: [],
         activity: [],
         profile: {}
+    },
+    filters: {
+        search: '',
+        based_on: '',
+        type: '',
+        min_price: 0,
+        max_price: 999999999,
+        sort_by: 'latest'
     }
 };
 
 // DOM Elements
 const mainContent = document.getElementById('mainContent');
 const scrollContainer = document.getElementById('scrollContainer');
+const filterBar = document.getElementById('filterBar');
+const filterPanel = document.getElementById('filterPanel');
 const navItems = document.querySelectorAll('.nav-item');
 const pages = document.querySelectorAll('.page');
 const appTitle = document.getElementById('appTitle');
@@ -35,11 +46,13 @@ let touchStart = 0;
 let touchMove = 0;
 let isPulling = false;
 let pullThreshold = 60;
+let lastScrollTop = 0;
+let filterVisible = true;
 
 // Initialize app
 async function initApp() {
     // Set app title
-    appTitle.textContent = window.CONFIG?.APP_NAME || 'MiniApp';
+    appTitle.textContent = window.CONFIG?.APP_NAME || 'INDOTAG MARKET';
     
     // Detect Telegram user
     await detectTelegramUser();
@@ -48,9 +61,12 @@ async function initApp() {
     setupNavigation();
     setupPullVisual();
     setupScrollBlocker();
+    setupScrollHideFilter();
+    setupFilterButtons();
     
     // Load initial page data
     loadPageData('market');
+    loadBasedOnOptions();
     
     // Hide loading after initial setup
     tg.ready();
@@ -171,46 +187,82 @@ async function loadPageData(page) {
     showLoadingState(container, page);
     
     try {
-        // Simulate API call with mock data
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        let url = `${window.CONFIG?.API_BASE_URL}/api/`;
         
-        // Mock data
-        let data;
-        switch(page) {
-            case 'market':
-                data = [
-                    { name: 'Item 1', price: 10.99 },
-                    { name: 'Item 2', price: 24.99 },
-                    { name: 'Item 3', price: 5.99 },
-                    { name: 'Item 4', price: 15.50 }
-                ];
-                break;
-            case 'games':
-                data = [
-                    { name: 'Game 1' },
-                    { name: 'Game 2' },
-                    { name: 'Game 3' },
-                    { name: 'Game 4' }
-                ];
-                break;
-            case 'activity':
-                data = [
-                    { time: '2 menit lalu', description: 'Aktivitas 1' },
-                    { time: '1 jam lalu', description: 'Aktivitas 2' },
-                    { time: 'Kemarin', description: 'Aktivitas 3' }
-                ];
-                break;
-            case 'profile':
-                data = { balance: '1000', joined: '2024' };
-                break;
+        if (page === 'market') {
+            // Build filter query
+            const params = new URLSearchParams();
+            if (appState.filters.search) params.append('search', appState.filters.search);
+            if (appState.filters.based_on) params.append('based_on', appState.filters.based_on);
+            if (appState.filters.type) params.append('type', appState.filters.type);
+            if (appState.filters.min_price > 0) params.append('min_price', appState.filters.min_price);
+            if (appState.filters.max_price < 999999999) params.append('max_price', appState.filters.max_price);
+            if (appState.filters.sort_by) params.append('sort_by', appState.filters.sort_by);
+            
+            url += `market?${params.toString()}`;
+        } else if (page === 'games' && appState.user) {
+            url += `user-usernames/${appState.user.id}`;
+        } else if (page === 'activity' && appState.user) {
+            url += `activity/${appState.user.id}`;
+        } else {
+            // Use mock data for now
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            let data;
+            switch(page) {
+                case 'market':
+                    data = [];
+                    break;
+                case 'games':
+                    data = [];
+                    break;
+                case 'activity':
+                    data = [];
+                    break;
+                case 'profile':
+                    data = { balance: '0', joined: '2024' };
+                    break;
+            }
+            
+            appState.data[page] = data;
+            appState.loadingStates[page] = false;
+            renderPageData(page, data);
+            return;
         }
         
-        appState.data[page] = data;
-        appState.loadingStates[page] = false;
-        renderPageData(page, data);
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const data = await response.json();
+            appState.data[page] = data;
+            appState.loadingStates[page] = false;
+            renderPageData(page, data);
+        } else {
+            throw new Error('Failed to fetch data');
+        }
     } catch (error) {
         console.error(`Error loading ${page} data:`, error);
         showEmptyState(container, page);
+    }
+}
+
+// Load based on options for filter
+async function loadBasedOnOptions() {
+    try {
+        const response = await fetch(`${window.CONFIG?.API_BASE_URL}/api/based-on-list`);
+        if (response.ok) {
+            const basedOnList = await response.json();
+            const select = document.getElementById('basedOnFilter');
+            
+            basedOnList.forEach(basedOn => {
+                const option = document.createElement('option');
+                option.value = basedOn;
+                option.textContent = basedOn;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading based on options:', error);
     }
 }
 
@@ -226,8 +278,8 @@ function showLoadingState(container, page) {
 // Show empty state
 function showEmptyState(container, page) {
     const messages = {
-        market: 'Tidak ada item di market',
-        games: 'Tidak ada game tersedia',
+        market: 'Tidak ada username di market',
+        games: 'Anda belum memiliki username',
         activity: 'Belum ada aktivitas',
         profile: 'Tidak ada informasi profil'
     };
@@ -267,12 +319,19 @@ function renderPageData(page, data) {
 
 // Render market data
 function renderMarketData(container, items) {
+    if (!items || items.length === 0) {
+        showEmptyState(container, 'market');
+        return;
+    }
+    
     const html = `
         <div class="market-grid">
             ${items.map(item => `
-                <div class="market-item">
-                    <div class="market-item-title">${item.name || 'Item'}</div>
-                    <div class="market-item-price">$${item.price || '0.00'}</div>
+                <div class="market-item" onclick="showUsernameDetail('${item.username}')">
+                    <div class="market-item-username">@${item.username}</div>
+                    <div class="market-item-basedon">${item.based_on || '-'}</div>
+                    <div class="market-item-type">${item.username_type || 'UNCOMMON'}</div>
+                    <div class="market-item-price">Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
                 </div>
             `).join('')}
         </div>
@@ -280,13 +339,20 @@ function renderMarketData(container, items) {
     container.innerHTML = html;
 }
 
-// Render games data
-function renderGamesData(container, games) {
+// Render games data (My Usernames)
+function renderGamesData(container, items) {
+    if (!items || items.length === 0) {
+        showEmptyState(container, 'games');
+        return;
+    }
+    
     const html = `
         <div class="games-grid">
-            ${games.map(game => `
-                <div class="game-item">
-                    <div>${game.name || 'Game'}</div>
+            ${items.map(item => `
+                <div class="game-item" onclick="showUsernameDetail('${item.username}')">
+                    <div class="game-item-username">@${item.username}</div>
+                    <div class="game-item-status ${item.listed_status}">${item.listed_status === 'listed' ? 'LISTED' : 'UNLISTED'}</div>
+                    <div class="game-item-price">Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
                 </div>
             `).join('')}
         </div>
@@ -295,13 +361,19 @@ function renderGamesData(container, games) {
 }
 
 // Render activity data
-function renderActivityData(container, activities) {
+function renderActivityData(container, items) {
+    if (!items || items.length === 0) {
+        showEmptyState(container, 'activity');
+        return;
+    }
+    
     const html = `
         <div class="activity-list">
-            ${activities.map(activity => `
+            ${items.map(item => `
                 <div class="activity-item">
-                    <div class="activity-time">${activity.time || 'Baru saja'}</div>
-                    <div>${activity.description || 'Aktivitas'}</div>
+                    <div class="activity-time">${item.created_at || 'Baru saja'}</div>
+                    <div class="activity-action">${item.action || 'Aktivitas'}</div>
+                    <div class="activity-details">${item.details || ''}</div>
                 </div>
             `).join('')}
         </div>
@@ -311,13 +383,160 @@ function renderActivityData(container, activities) {
 
 // Render profile data
 function renderProfileData(container, profile) {
-    const html = `
-        <div class="profile-details-content">
-            <div>Saldo: ${profile.balance || '0'}</div>
-            <div>Bergabung: ${profile.joined || 'Baru-baru ini'}</div>
-        </div>
-    `;
-    container.innerHTML = html;
+    if (!appState.user) {
+        container.innerHTML = `
+            <div class="empty-state">
+                Silakan buka melalui Telegram untuk melihat profil
+            </div>
+        `;
+        return;
+    }
+    
+    const user = appState.user;
+    
+    // Load user's usernames count
+    fetch(`${window.CONFIG?.API_BASE_URL}/api/user-usernames/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+            const totalUsernames = data.length;
+            const listedUsernames = data.filter(u => u.listed_status === 'listed').length;
+            
+            container.innerHTML = `
+                <div class="profile-details-content">
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Informasi Akun</div>
+                        <div>Nama: ${user.first_name || ''} ${user.last_name || ''}</div>
+                        <div>Username: ${user.username ? '@' + user.username : '-'}</div>
+                        <div>ID: ${user.id}</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Statistik Username</div>
+                        <div>Total Username: ${totalUsernames}</div>
+                        <div>Listed: ${listedUsernames}</div>
+                        <div>Unlisted: ${totalUsernames - listedUsernames}</div>
+                    </div>
+                    
+                    <div>
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Daftar Username</div>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${data.map(u => `
+                                <div style="padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="showUsernameDetail('${u.username}')">
+                                    <div>@${u.username}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        ${u.listed_status === 'listed' ? '🟢 Listed' : '🔴 Unlisted'} | Rp ${(u.price || 0).toLocaleString('id-ID')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(() => {
+            container.innerHTML = `
+                <div class="profile-details-content">
+                    <div>Nama: ${user.first_name || ''} ${user.last_name || ''}</div>
+                    <div>Username: ${user.username ? '@' + user.username : '-'}</div>
+                    <div>ID: ${user.id}</div>
+                </div>
+            `;
+        });
+}
+
+// Show username detail (placeholder for now)
+function showUsernameDetail(username) {
+    tg.showPopup({
+        title: 'Detail Username',
+        message: `@${username}\n\nFitur detail akan segera hadir!`,
+        buttons: [{type: 'close'}]
+    });
+}
+
+// Toggle filter panel
+function toggleFilterPanel() {
+    filterPanel.classList.toggle('expanded');
+    const arrow = document.querySelector('.filter-arrow');
+    if (filterPanel.classList.contains('expanded')) {
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Setup filter buttons
+function setupFilterButtons() {
+    // Type buttons
+    document.querySelectorAll('.type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            appState.filters.type = btn.dataset.type;
+            applyFilters();
+        });
+    });
+    
+    // Subtype buttons
+    document.querySelectorAll('.subtype-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.subtype-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            appState.filters.type = btn.dataset.subtype;
+            
+            // Also deactivate main type buttons
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            
+            applyFilters();
+        });
+    });
+}
+
+// Apply filters
+function applyFilters() {
+    appState.filters.search = document.getElementById('searchInput').value;
+    appState.filters.based_on = document.getElementById('basedOnFilter').value;
+    appState.filters.min_price = parseInt(document.getElementById('minPrice').value) || 0;
+    appState.filters.max_price = parseInt(document.getElementById('maxPrice').value) || 999999999;
+    appState.filters.sort_by = document.getElementById('sortBy').value;
+    
+    // Reset loading state and reload market data
+    appState.loadingStates.market = true;
+    loadPageData('market');
+}
+
+// Debounce search input
+let searchTimeout;
+function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        applyFilters();
+    }, 500);
+}
+
+// Setup scroll hide filter
+function setupScrollHideFilter() {
+    scrollContainer.addEventListener('scroll', () => {
+        const scrollTop = scrollContainer.scrollTop;
+        
+        // Hide filter when scrolling down, show when scrolling up
+        if (scrollTop > lastScrollTop && scrollTop > 50) {
+            // Scrolling down
+            if (filterVisible) {
+                filterBar.classList.add('hidden');
+                scrollContainer.classList.add('filter-hidden');
+                filterVisible = false;
+            }
+        } else {
+            // Scrolling up
+            if (!filterVisible) {
+                filterBar.classList.remove('hidden');
+                scrollContainer.classList.remove('filter-hidden');
+                filterVisible = true;
+            }
+        }
+        
+        lastScrollTop = scrollTop;
+    });
 }
 
 // Setup pull visual (no refresh function)
@@ -384,6 +603,12 @@ function setupScrollBlocker() {
         }
     }, { passive: false });
 }
+
+// Make functions global
+window.toggleFilterPanel = toggleFilterPanel;
+window.debounceSearch = debounceSearch;
+window.applyFilters = applyFilters;
+window.showUsernameDetail = showUsernameDetail;
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', initApp);
