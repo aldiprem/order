@@ -2,9 +2,9 @@
 
 // Initialize Telegram Web App
 const tg = window.Telegram.WebApp;
-tg.expand(); // Expand to full height
+tg.expand();
 if (tg.disableVerticalSwipes) {
-    tg.disableVerticalSwipes(); // Disable vertical swipes to prevent refresh
+    tg.disableVerticalSwipes();
 }
 
 // State management
@@ -38,39 +38,37 @@ const mainContent = document.getElementById('mainContent');
 const scrollContainer = document.getElementById('scrollContainer');
 const filterBar = document.getElementById('filterBar');
 const filterPanel = document.getElementById('filterPanel');
+const floatingNav = document.getElementById('floatingNav');
 const navItems = document.querySelectorAll('.nav-item');
 const pages = document.querySelectorAll('.page');
 const appTitle = document.getElementById('appTitle');
 const userInfo = document.getElementById('userInfo');
 
-// Pull visual variables (no refresh function)
+// Pull visual variables
 let touchStart = 0;
 let touchMove = 0;
 let isPulling = false;
 let pullThreshold = 60;
 let lastScrollTop = 0;
 let filterVisible = true;
+let navVisible = true;
+let scrollTimeout;
 
 // Initialize app
 async function initApp() {
-    // Set app title
-    appTitle.textContent = window.CONFIG?.APP_NAME || 'INDOTAG MARKET';
+    appTitle.textContent = window.CONFIG?.APP_NAME || 'INDOTAG';
     
-    // Detect Telegram user
     await detectTelegramUser();
     
-    // Set up event listeners
     setupNavigation();
     setupPullVisual();
     setupScrollBlocker();
-    setupScrollHideFilter();
+    setupScrollHide();
     setupFilterButtons();
     
-    // Load initial page data
     loadPageData('market');
     loadBasedOnOptions();
     
-    // Hide loading after initial setup
     tg.ready();
 }
 
@@ -81,9 +79,6 @@ async function detectTelegramUser() {
             const user = tg.initDataUnsafe.user;
             appState.user = user;
             renderUserInfo(user);
-            
-            // Verify with backend - HAPUS INI karena endpoint tidak ada
-            // await verifyUserWithBackend(user);
             console.log('User detected:', user);
         } else {
             renderUserInfo(null);
@@ -94,19 +89,18 @@ async function detectTelegramUser() {
     }
 }
 
-// HAPUS fungsi ini karena tidak digunakan
-// async function verifyUserWithBackend(user) { ... }
-
-// Render user info
+// Render user info dengan avatar
 function renderUserInfo(user) {
     if (!user) {
         userInfo.innerHTML = `
             <div class="user-details">
                 <div class="user-text">
                     <div class="user-name">Guest</div>
-                    <div class="user-username">@guest</div>
+                    <div class="user-username"><i class="fas fa-user"></i> @guest</div>
                 </div>
-                <div class="user-avatar">G</div>
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
             </div>
         `;
         return;
@@ -116,15 +110,34 @@ function renderUserInfo(user) {
     const displayName = user.first_name || 'User';
     const username = user.username ? `@${user.username}` : '';
     
-    userInfo.innerHTML = `
-        <div class="user-details">
-            <div class="user-text">
-                <div class="user-name">${displayName}</div>
-                <div class="user-username">${username}</div>
+    // Cek apakah ada photo_url dari Telegram
+    if (user.photo_url) {
+        userInfo.innerHTML = `
+            <div class="user-details">
+                <div class="user-text">
+                    <div class="user-name">${displayName}</div>
+                    <div class="user-username"><i class="fas fa-at"></i> ${username || 'no username'}</div>
+                </div>
+                <div class="user-avatar">
+                    <img src="${user.photo_url}" alt="${displayName}" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-user\'></i>'">
+                </div>
             </div>
-            <div class="user-avatar">${initials || 'U'}</div>
-        </div>
-    `;
+        `;
+    } else {
+        // Gunakan UI Avatars jika tidak ada foto
+        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials || 'U')}&size=48&background=3390ec&color=fff&bold=true`;
+        userInfo.innerHTML = `
+            <div class="user-details">
+                <div class="user-text">
+                    <div class="user-name">${displayName}</div>
+                    <div class="user-username"><i class="fas fa-at"></i> ${username || 'no username'}</div>
+                </div>
+                <div class="user-avatar">
+                    <img src="${avatarUrl}" alt="${displayName}">
+                </div>
+            </div>
+        `;
+    }
 }
 
 // Setup navigation
@@ -139,7 +152,6 @@ function setupNavigation() {
 
 // Switch page
 function switchPage(page) {
-    // Update active states
     navItems.forEach(item => {
         if (item.dataset.page === page) {
             item.classList.add('active');
@@ -158,7 +170,6 @@ function switchPage(page) {
     
     appState.currentPage = page;
     
-    // Load page data if not loaded
     if (appState.loadingStates[page]) {
         loadPageData(page);
     }
@@ -169,14 +180,13 @@ async function loadPageData(page) {
     const container = document.getElementById(`${page}Items`) || document.getElementById(`${page}Details`);
     if (!container) return;
     
-    // Show loading state
     showLoadingState(container, page);
     
     try {
         let url = `${window.CONFIG?.API_BASE_URL}/api/`;
+        let data = [];
         
         if (page === 'market') {
-            // Build filter query
             const params = new URLSearchParams();
             if (appState.filters.search) params.append('search', appState.filters.search);
             if (appState.filters.based_on) params.append('based_on', appState.filters.based_on);
@@ -191,14 +201,9 @@ async function loadPageData(page) {
             const response = await fetch(url);
             
             if (response.ok) {
-                const data = await response.json();
+                data = await response.json();
                 console.log('Market data received:', data);
-                appState.data[page] = data;
-                appState.loadingStates[page] = false;
-                renderPageData(page, data);
-            } else {
-                console.error('Failed to fetch market data, status:', response.status);
-                throw new Error('Failed to fetch data');
+                document.getElementById('marketCount').textContent = data.length;
             }
         } else if (page === 'games' && appState.user) {
             url += `user-usernames/${appState.user.id}`;
@@ -206,13 +211,9 @@ async function loadPageData(page) {
             const response = await fetch(url);
             
             if (response.ok) {
-                const data = await response.json();
+                data = await response.json();
                 console.log('User usernames received:', data);
-                appState.data[page] = data;
-                appState.loadingStates[page] = false;
-                renderPageData(page, data);
-            } else {
-                throw new Error('Failed to fetch data');
+                document.getElementById('usernamesCount').textContent = data.length;
             }
         } else if (page === 'activity' && appState.user) {
             url += `activity/${appState.user.id}`;
@@ -220,26 +221,22 @@ async function loadPageData(page) {
             const response = await fetch(url);
             
             if (response.ok) {
-                const data = await response.json();
+                data = await response.json();
                 console.log('Activity received:', data);
-                appState.data[page] = data;
-                appState.loadingStates[page] = false;
-                renderPageData(page, data);
-            } else {
-                throw new Error('Failed to fetch data');
             }
-        } else if (page === 'profile') {
-            // Profile data is handled in renderProfileData
-            appState.loadingStates[page] = false;
-            renderPageData(page, {});
         }
+        
+        appState.data[page] = data;
+        appState.loadingStates[page] = false;
+        renderPageData(page, data);
+        
     } catch (error) {
         console.error(`Error loading ${page} data:`, error);
         showEmptyState(container, page);
     }
 }
 
-// Load based on options for filter
+// Load based on options
 async function loadBasedOnOptions() {
     try {
         const response = await fetch(`${window.CONFIG?.API_BASE_URL}/api/based-on-list`);
@@ -248,7 +245,6 @@ async function loadBasedOnOptions() {
             console.log('Based on options received:', basedOnList);
             const select = document.getElementById('basedOnFilter');
             
-            // Clear existing options
             while (select.options.length > 1) {
                 select.remove(1);
             }
@@ -277,15 +273,35 @@ function showLoadingState(container, page) {
 // Show empty state
 function showEmptyState(container, page) {
     const messages = {
-        market: 'Tidak ada username di market',
-        games: 'Anda belum memiliki username',
-        activity: 'Belum ada aktivitas',
-        profile: 'Tidak ada informasi profil'
+        market: {
+            icon: 'fa-store',
+            title: 'Market Kosong',
+            message: 'Belum ada username yang tersedia di market'
+        },
+        games: {
+            icon: 'fa-database',
+            title: 'Belum Ada Username',
+            message: 'Anda belum memiliki username yang tersimpan'
+        },
+        activity: {
+            icon: 'fa-history',
+            title: 'Belum Ada Aktivitas',
+            message: 'Belum ada catatan aktivitas'
+        },
+        profile: {
+            icon: 'fa-user',
+            title: 'Informasi Profil',
+            message: 'Silakan buka melalui Telegram untuk melihat profil'
+        }
     };
+    
+    const msg = messages[page] || messages.market;
     
     container.innerHTML = `
         <div class="empty-state">
-            ${messages[page] || 'Tidak ada data'}
+            <i class="fas ${msg.icon}"></i>
+            <h3>${msg.title}</h3>
+            <p>${msg.message}</p>
         </div>
     `;
 }
@@ -318,19 +334,22 @@ function renderPageData(page, data) {
 
 // Render market data
 function renderMarketData(container, items) {
-    if (!items || items.length === 0) {
-        showEmptyState(container, 'market');
-        return;
-    }
-    
     const html = `
         <div class="market-grid">
             ${items.map(item => `
-                <div class="market-item" onclick="showUsernameDetail('${item.username}')">
-                    <div class="market-item-username">@${item.username}</div>
-                    <div class="market-item-basedon">${item.based_on || '-'}</div>
-                    <div class="market-item-type">${item.username_type || 'UNCOMMON'}</div>
-                    <div class="market-item-price">Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
+                <div class="market-item glass-effect" onclick="showUsernameDetail('${item.username}')">
+                    <div class="market-item-username">
+                        <i class="fas fa-at"></i> ${item.username}
+                    </div>
+                    <div class="market-item-basedon">
+                        <i class="fas fa-tag"></i> ${item.based_on || '-'}
+                    </div>
+                    <div class="market-item-type">
+                        <i class="fas fa-layer-group"></i> ${item.username_type || 'UNCOMMON'}
+                    </div>
+                    <div class="market-item-price">
+                        <i class="fas fa-coins"></i> Rp ${(item.price || 0).toLocaleString('id-ID')}
+                    </div>
                 </div>
             `).join('')}
         </div>
@@ -340,18 +359,20 @@ function renderMarketData(container, items) {
 
 // Render games data (My Usernames)
 function renderGamesData(container, items) {
-    if (!items || items.length === 0) {
-        showEmptyState(container, 'games');
-        return;
-    }
-    
     const html = `
         <div class="games-grid">
             ${items.map(item => `
-                <div class="game-item" onclick="showUsernameDetail('${item.username}')">
-                    <div class="game-item-username">@${item.username}</div>
-                    <div class="game-item-status ${item.listed_status}">${item.listed_status === 'listed' ? 'LISTED' : 'UNLISTED'}</div>
-                    <div class="game-item-price">Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
+                <div class="game-item glass-effect" onclick="showUsernameDetail('${item.username}')">
+                    <div class="game-item-username">
+                        <i class="fas fa-at"></i> ${item.username}
+                    </div>
+                    <div class="game-item-status ${item.listed_status}">
+                        <i class="fas fa-${item.listed_status === 'listed' ? 'check-circle' : 'times-circle'}"></i>
+                        ${item.listed_status === 'listed' ? 'LISTED' : 'UNLISTED'}
+                    </div>
+                    <div class="game-item-price">
+                        <i class="fas fa-coins"></i> Rp ${(item.price || 0).toLocaleString('id-ID')}
+                    </div>
                 </div>
             `).join('')}
         </div>
@@ -361,17 +382,16 @@ function renderGamesData(container, items) {
 
 // Render activity data
 function renderActivityData(container, items) {
-    if (!items || items.length === 0) {
-        showEmptyState(container, 'activity');
-        return;
-    }
-    
     const html = `
         <div class="activity-list">
             ${items.map(item => `
-                <div class="activity-item">
-                    <div class="activity-time">${formatDate(item.created_at) || 'Baru saja'}</div>
-                    <div class="activity-action">${item.action || 'Aktivitas'}</div>
+                <div class="activity-item glass-effect">
+                    <div class="activity-time">
+                        <i class="fas fa-clock"></i> ${formatDate(item.created_at) || 'Baru saja'}
+                    </div>
+                    <div class="activity-action">
+                        <i class="fas ${getActivityIcon(item.action)}"></i> ${item.action || 'Aktivitas'}
+                    </div>
                     <div class="activity-details">${item.details || ''}</div>
                 </div>
             `).join('')}
@@ -380,7 +400,20 @@ function renderActivityData(container, items) {
     container.innerHTML = html;
 }
 
-// Format date helper
+// Get activity icon
+function getActivityIcon(action) {
+    const icons = {
+        'USER_START': 'fa-rocket',
+        'USERNAME_ADDED': 'fa-plus-circle',
+        'BASED_ON_SET': 'fa-tag',
+        'PRICE_SET': 'fa-coins',
+        'LISTED_STATUS': 'fa-toggle-on',
+        'VERIFY': 'fa-check-circle'
+    };
+    return icons[action] || 'fa-history';
+}
+
+// Format date
 function formatDate(dateStr) {
     if (!dateStr) return null;
     try {
@@ -400,17 +433,12 @@ function formatDate(dateStr) {
 // Render profile data
 function renderProfileData(container, profile) {
     if (!appState.user) {
-        container.innerHTML = `
-            <div class="empty-state">
-                Silakan buka melalui Telegram untuk melihat profil
-            </div>
-        `;
+        showEmptyState(container, 'profile');
         return;
     }
     
     const user = appState.user;
     
-    // Load user's usernames
     fetch(`${window.CONFIG?.API_BASE_URL}/api/user-usernames/${user.id}`)
         .then(res => res.json())
         .then(data => {
@@ -419,29 +447,70 @@ function renderProfileData(container, profile) {
             
             container.innerHTML = `
                 <div class="profile-details-content">
-                    <div style="margin-bottom: 20px;">
-                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Informasi Akun</div>
-                        <div>Nama: ${user.first_name || ''} ${user.last_name || ''}</div>
-                        <div>Username: ${user.username ? '@' + user.username : '-'}</div>
-                        <div>ID: ${user.id}</div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-value">${totalUsernames}</div>
+                            <div class="stat-label">Total Username</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-value">${listedUsernames}</div>
+                            <div class="stat-label">Listed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div class="stat-value">${totalUsernames - listedUsernames}</div>
+                            <div class="stat-label">Unlisted</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar"></i>
+                            </div>
+                            <div class="stat-value">${new Date().getFullYear()}</div>
+                            <div class="stat-label">Bergabung</div>
+                        </div>
                     </div>
                     
-                    <div style="margin-bottom: 20px;">
-                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Statistik Username</div>
-                        <div>Total Username: ${totalUsernames}</div>
-                        <div>Listed: ${listedUsernames}</div>
-                        <div>Unlisted: ${totalUsernames - listedUsernames}</div>
+                    <div class="profile-section">
+                        <h3><i class="fas fa-user-circle"></i> Informasi Akun</h3>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label"><i class="fas fa-user"></i> Nama</span>
+                            <span class="profile-info-value">${user.first_name || ''} ${user.last_name || ''}</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label"><i class="fas fa-at"></i> Username</span>
+                            <span class="profile-info-value">${user.username ? '@' + user.username : '-'}</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label"><i class="fas fa-id-card"></i> User ID</span>
+                            <span class="profile-info-value">${user.id}</span>
+                        </div>
                     </div>
                     
-                    <div>
-                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Daftar Username</div>
-                        <div style="max-height: 200px; overflow-y: auto;">
+                    <div class="profile-section">
+                        <h3><i class="fas fa-database"></i> Daftar Username</h3>
+                        <div class="username-list">
                             ${data.map(u => `
-                                <div style="padding: 8px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="showUsernameDetail('${u.username}')">
-                                    <div>@${u.username}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">
-                                        ${u.listed_status === 'listed' ? '🟢 Listed' : '🔴 Unlisted'} | Rp ${(u.price || 0).toLocaleString('id-ID')}
+                                <div class="username-item" onclick="showUsernameDetail('${u.username}')">
+                                    <div class="username-item-info">
+                                        <span class="username-item-name">
+                                            <i class="fas fa-at"></i> ${u.username}
+                                        </span>
+                                        <span class="username-item-status ${u.listed_status}">
+                                            <i class="fas fa-${u.listed_status === 'listed' ? 'check-circle' : 'times-circle'}"></i>
+                                            ${u.listed_status === 'listed' ? 'Listed' : 'Unlisted'}
+                                        </span>
                                     </div>
+                                    <span class="username-item-price">
+                                        <i class="fas fa-coins"></i> Rp ${(u.price || 0).toLocaleString('id-ID')}
+                                    </span>
                                 </div>
                             `).join('')}
                         </div>
@@ -453,20 +522,32 @@ function renderProfileData(container, profile) {
             console.error('Error loading user usernames:', err);
             container.innerHTML = `
                 <div class="profile-details-content">
-                    <div>Nama: ${user.first_name || ''} ${user.last_name || ''}</div>
-                    <div>Username: ${user.username ? '@' + user.username : '-'}</div>
-                    <div>ID: ${user.id}</div>
+                    <div class="profile-section">
+                        <h3><i class="fas fa-user-circle"></i> Informasi Akun</h3>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Nama</span>
+                            <span class="profile-info-value">${user.first_name || ''} ${user.last_name || ''}</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Username</span>
+                            <span class="profile-info-value">${user.username ? '@' + user.username : '-'}</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">User ID</span>
+                            <span class="profile-info-value">${user.id}</span>
+                        </div>
+                    </div>
                 </div>
             `;
         });
 }
 
-// Show username detail (placeholder for now)
+// Show username detail
 function showUsernameDetail(username) {
     tg.showPopup({
-        title: 'Detail Username',
+        title: '🔍 Detail Username',
         message: `@${username}\n\nFitur detail akan segera hadir!`,
-        buttons: [{type: 'close'}]
+        buttons: [{type: 'close', text: 'Tutup'}]
     });
 }
 
@@ -483,7 +564,6 @@ function toggleFilterPanel() {
 
 // Setup filter buttons
 function setupFilterButtons() {
-    // Type buttons
     document.querySelectorAll('.type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
@@ -493,14 +573,12 @@ function setupFilterButtons() {
         });
     });
     
-    // Subtype buttons
     document.querySelectorAll('.subtype-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.subtype-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             appState.filters.type = btn.dataset.subtype;
             
-            // Also deactivate main type buttons
             document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
             
             applyFilters();
@@ -516,12 +594,11 @@ function applyFilters() {
     appState.filters.max_price = parseInt(document.getElementById('maxPrice').value) || 999999999;
     appState.filters.sort_by = document.getElementById('sortBy').value;
     
-    // Reset loading state and reload market data
     appState.loadingStates.market = true;
     loadPageData('market');
 }
 
-// Debounce search input
+// Debounce search
 let searchTimeout;
 function debounceSearch() {
     clearTimeout(searchTimeout);
@@ -530,33 +607,54 @@ function debounceSearch() {
     }, 500);
 }
 
-// Setup scroll hide filter
-function setupScrollHideFilter() {
+// Setup scroll hide untuk filter dan navigation
+function setupScrollHide() {
     scrollContainer.addEventListener('scroll', () => {
         const scrollTop = scrollContainer.scrollTop;
         
-        // Hide filter when scrolling down, show when scrolling up
+        // Clear previous timeout
+        clearTimeout(scrollTimeout);
+        
+        // Hide elements when scrolling down
         if (scrollTop > lastScrollTop && scrollTop > 50) {
-            // Scrolling down
             if (filterVisible) {
                 filterBar.classList.add('hidden');
                 scrollContainer.classList.add('filter-hidden');
                 filterVisible = false;
             }
-        } else {
-            // Scrolling up
+            
+            if (navVisible) {
+                floatingNav.classList.add('hidden');
+                navVisible = false;
+            }
+        } 
+        // Show elements when scrolling up
+        else if (scrollTop < lastScrollTop) {
             if (!filterVisible) {
                 filterBar.classList.remove('hidden');
                 scrollContainer.classList.remove('filter-hidden');
                 filterVisible = true;
             }
+            
+            if (!navVisible) {
+                floatingNav.classList.remove('hidden');
+                navVisible = true;
+            }
         }
+        
+        // Show navigation when scroll stops
+        scrollTimeout = setTimeout(() => {
+            if (!navVisible && scrollTop > 100) {
+                floatingNav.classList.remove('hidden');
+                navVisible = true;
+            }
+        }, 150);
         
         lastScrollTop = scrollTop;
     });
 }
 
-// Setup pull visual (no refresh function)
+// Setup pull visual
 function setupPullVisual() {
     scrollContainer.addEventListener('touchstart', (e) => {
         if (scrollContainer.scrollTop === 0) {
@@ -574,7 +672,6 @@ function setupPullVisual() {
         if (pullDistance > 0 && scrollContainer.scrollTop === 0) {
             e.preventDefault();
             
-            // Visual feedback only, no refresh
             if (pullDistance < pullThreshold) {
                 scrollContainer.classList.add('pulling');
                 scrollContainer.classList.remove('pulling-max');
@@ -582,14 +679,12 @@ function setupPullVisual() {
                 scrollContainer.classList.add('pulling-max');
             }
             
-            // Add resistance effect
             scrollContainer.style.transform = `translateY(${Math.min(pullDistance * 0.3, 30)}px)`;
         }
     }, { passive: false });
     
     scrollContainer.addEventListener('touchend', () => {
         if (isPulling) {
-            // Reset visual effects
             scrollContainer.classList.remove('pulling', 'pulling-max');
             scrollContainer.style.transform = '';
             isPulling = false;
@@ -597,23 +692,20 @@ function setupPullVisual() {
     });
     
     scrollContainer.addEventListener('touchcancel', () => {
-        // Reset on cancel
         scrollContainer.classList.remove('pulling', 'pulling-max');
         scrollContainer.style.transform = '';
         isPulling = false;
     });
 }
 
-// Setup scroll blocker to prevent refresh
+// Setup scroll blocker
 function setupScrollBlocker() {
-    // Prevent default scroll behavior at the top
     scrollContainer.addEventListener('scroll', () => {
         if (scrollContainer.scrollTop < 0) {
             scrollContainer.scrollTop = 0;
         }
     });
     
-    // Block any attempt to scroll beyond top
     scrollContainer.addEventListener('touchmove', (e) => {
         if (scrollContainer.scrollTop <= 0 && e.touches[0].clientY > touchStart) {
             e.preventDefault();
@@ -621,11 +713,11 @@ function setupScrollBlocker() {
     }, { passive: false });
 }
 
-// Make functions global
+// Global functions
 window.toggleFilterPanel = toggleFilterPanel;
 window.debounceSearch = debounceSearch;
 window.applyFilters = applyFilters;
 window.showUsernameDetail = showUsernameDetail;
 
-// Initialize app when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', initApp);
