@@ -13,7 +13,12 @@ def get_jakarta_time():
 
 class Database:
     def __init__(self, db_path="database/indotag.db"):
+        # Ensure database directory exists
+        import os
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
         self.cur = self.conn.cursor()
         self.create_tables()
     
@@ -141,6 +146,36 @@ class Database:
             return self.cur.fetchall()
         except Exception as e:
             print(f"Error getting user added usernames: {e}")
+            return []
+    
+    def get_listed_usernames(self):
+        """Get all usernames with listed status"""
+        try:
+            self.cur.execute("""
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, updated_at 
+            FROM added_usernames 
+            WHERE listed_status = 'listed' AND status = 'verified'
+            ORDER BY updated_at DESC
+            """)
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting listed usernames: {e}")
+            return []
+    
+    def get_all_based_on(self):
+        """Get all unique based_on values"""
+        try:
+            self.cur.execute("""
+            SELECT DISTINCT based_on FROM added_usernames 
+            WHERE based_on IS NOT NULL AND based_on != ''
+            ORDER BY based_on
+            """)
+            return [row[0] for row in self.cur.fetchall()]
+        except Exception as e:
+            print(f"Error getting based_on list: {e}")
             return []
     
     def get_username_detail(self, username):
