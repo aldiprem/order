@@ -191,6 +191,13 @@ class Database:
                 username = username[1:]
             
             now = get_jakarta_time()
+            
+            # Cek dulu data sebelum update (debug)
+            self.cur.execute("SELECT listed_status FROM added_usernames WHERE username = ?", (username,))
+            before = self.cur.fetchone()
+            print(f"Database Before update - {username}: {before[0] if before else 'None'}")
+            
+            # Lakukan update
             self.cur.execute("""
             UPDATE added_usernames 
             SET listed_status = ?, updated_at = ? 
@@ -198,13 +205,24 @@ class Database:
             """, (status, now, username))
             self.conn.commit()
             
-            # Log activity
-            self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
-            result = self.cur.fetchone()
-            if result:
-                self.add_activity_log(result[0], "LISTED_STATUS", f"Mengubah status listed untuk @{username} menjadi {status}")
+            # Verifikasi setelah update
+            self.cur.execute("SELECT listed_status FROM added_usernames WHERE username = ?", (username,))
+            after = self.cur.fetchone()
+            print(f"Database After update - {username}: {after[0] if after else 'None'}")
             
-            return True
+            if self.cur.rowcount > 0:
+                # Log activity
+                self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+                result = self.cur.fetchone()
+                if result:
+                    self.add_activity_log(result[0], "LISTED_STATUS", f"Mengubah status listed untuk @{username} menjadi {status}")
+                
+                print(f"✅ Database: Updated {username} status to {status}")
+                return True
+            else:
+                print(f"❌ Database: No rows updated for {username}")
+                return False
+                
         except Exception as e:
             print(f"Error updating listed status: {e}")
             return False
