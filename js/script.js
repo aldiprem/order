@@ -504,10 +504,10 @@
 
     // ==================== RENDER FUNCTIONS ====================
     function renderMarket() {
-        const marketPage = document.getElementById('marketPage');
-        if (!marketPage) return;
-
-        const headerHtml = `
+      const marketPage = document.getElementById('marketPage');
+      if (!marketPage) return;
+    
+      const headerHtml = `
             <div class="market-header-actions">
                 <div class="market-search-box">
                     <i class="fas fa-search"></i>
@@ -515,101 +515,119 @@
                     <button class="search-clear-btn" id="searchClearBtn">
                         <i class="fas fa-times"></i>
                     </button>
+                    <button class="search-submit-btn" id="searchSubmitBtn">
+                        <i class="fas fa-check"></i>
+                    </button>
                 </div>
-                <button class="search-submit-btn" id="searchSubmitBtn">
-                    <i class="fas fa-check"></i>
-                </button>
                 <button class="filter-toggle-btn" id="filterToggleBtn">
                     <i class="fas fa-sliders-h"></i>
                     <span class="filter-badge" id="filterBadge" style="display: ${activeFilterCount > 0 ? 'flex' : 'none'};">${activeFilterCount}</span>
                 </button>
             </div>
         `;
-
-        let gridHtml = '<div class="username-grid">';
-
-        if (filteredUsernames.length === 0) {
-            gridHtml = `
+    
+      let gridHtml = '<div class="username-grid">';
+    
+      if (filteredUsernames.length === 0) {
+        gridHtml = `
                 <div class="empty-market">
                     <i class="fas fa-tag"></i>
                     <h3>Tidak Ada Username</h3>
                     <p>${allUsernames.length === 0 ? 'Memuat data...' : 'Tidak ada username yang cocok dengan filter'}</p>
                 </div>
             `;
-        } else {
-            filteredUsernames.forEach(username => {
-                const template = document.getElementById('marketUsernameTemplate');
-                const clone = document.importNode(template.content, true);
-
-                clone.querySelector('.username').textContent = username.username;
-                clone.querySelector('.username-type-badge').textContent = username.username_type;
-                clone.querySelector('.based-on-value').textContent = username.based_on || '';
-                clone.querySelector('.price-value').textContent = formatRupiah(username.price);
-
-                const div = document.createElement('div');
-                div.appendChild(clone);
-                gridHtml += div.innerHTML;
-            });
-            gridHtml += '</div>';
-        }
-
-        marketPage.innerHTML = headerHtml + gridHtml;
-
-        elements.marketSearch = document.getElementById('marketSearchInput');
-        elements.filterToggle = document.getElementById('filterToggleBtn');
-        elements.filterBadge = document.getElementById('filterBadge');
-        elements.searchClearBtn = document.getElementById('searchClearBtn');
-        elements.searchSubmitBtn = document.getElementById('searchSubmitBtn');
-
-        if (elements.marketSearch) {
-            if (elements.marketSearch.value.length > 0) {
-                elements.searchClearBtn?.classList.add('visible');
-            }
-
-            elements.marketSearch.addEventListener('input', (e) => {
-                if (e.target.value.length > 0) {
-                    elements.searchClearBtn?.classList.add('visible');
-                } else {
-                    elements.searchClearBtn?.classList.remove('visible');
-                }
-            });
-        }
-
-        if (elements.searchClearBtn) {
-            elements.searchClearBtn.addEventListener('click', () => {
-                if (elements.marketSearch) {
-                    elements.marketSearch.value = '';
-                    elements.searchClearBtn.classList.remove('visible');
-                    filters.search = '';
-                    applyFilters();
-                }
-            });
-        }
-
-        if (elements.searchSubmitBtn) {
-            elements.searchSubmitBtn.addEventListener('click', () => {
-                if (elements.marketSearch) {
-                    filters.search = elements.marketSearch.value;
-                    applyFilters();
-                    elements.marketSearch.blur();
-                }
-            });
-        }
-
-        if (elements.marketSearch) {
-            elements.marketSearch.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    filters.search = elements.marketSearch.value;
-                    applyFilters();
-                    elements.marketSearch.blur();
-                }
-            });
-        }
-
-        if (elements.filterToggle) {
-            elements.filterToggle.addEventListener('click', toggleFilterPanel);
-        }
+      } else {
+        filteredUsernames.forEach(username => {
+          const template = document.getElementById('marketUsernameTemplate');
+          const clone = document.importNode(template.content, true);
+    
+          clone.querySelector('.username').textContent = username.username;
+          clone.querySelector('.username-type-badge').textContent = username.username_type;
+          clone.querySelector('.based-on-value').textContent = username.based_on || '';
+          clone.querySelector('.price-value').textContent = formatRupiah(username.price);
+    
+          const div = document.createElement('div');
+          div.appendChild(clone);
+          gridHtml += div.innerHTML;
+        });
+        gridHtml += '</div>';
+      }
+    
+      marketPage.innerHTML = headerHtml + gridHtml;
+    
+      elements.marketSearch = document.getElementById('marketSearchInput');
+      elements.filterToggle = document.getElementById('filterToggleBtn');
+      elements.filterBadge = document.getElementById('filterBadge');
+      elements.searchClearBtn = document.getElementById('searchClearBtn');
+      elements.searchSubmitBtn = document.getElementById('searchSubmitBtn');
+    
+      // Search box logic - show/hide buttons based on input
+      if (elements.marketSearch) {
+        const updateSearchButtons = () => {
+          const hasValue = elements.marketSearch.value.length > 0;
+    
+          // Adjust padding based on button visibility
+          if (hasValue) {
+            elements.marketSearch.style.paddingRight = '100px'; // Space for both buttons
+            elements.searchClearBtn?.classList.add('visible');
+            elements.searchSubmitBtn?.classList.add('visible');
+          } else {
+            elements.marketSearch.style.paddingRight = '20px'; // Default padding
+            elements.searchClearBtn?.classList.remove('visible');
+            elements.searchSubmitBtn?.classList.remove('visible');
+          }
+        };
+    
+        // Initial state
+        updateSearchButtons();
+    
+        elements.marketSearch.addEventListener('input', (e) => {
+          updateSearchButtons();
+        });
+      }
+    
+      // Clear button
+      if (elements.searchClearBtn) {
+        elements.searchClearBtn.addEventListener('click', () => {
+          if (elements.marketSearch) {
+            elements.marketSearch.value = '';
+            filters.search = '';
+            applyFilters();
+    
+            // Update button visibility
+            elements.marketSearch.style.paddingRight = '20px';
+            elements.searchClearBtn.classList.remove('visible');
+            elements.searchSubmitBtn.classList.remove('visible');
+          }
+        });
+      }
+    
+      // Submit button
+      if (elements.searchSubmitBtn) {
+        elements.searchSubmitBtn.addEventListener('click', () => {
+          if (elements.marketSearch) {
+            filters.search = elements.marketSearch.value;
+            applyFilters();
+            elements.marketSearch.blur();
+          }
+        });
+      }
+    
+      // Enter key
+      if (elements.marketSearch) {
+        elements.marketSearch.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            filters.search = elements.marketSearch.value;
+            applyFilters();
+            elements.marketSearch.blur();
+          }
+        });
+      }
+    
+      if (elements.filterToggle) {
+        elements.filterToggle.addEventListener('click', toggleFilterPanel);
+      }
     }
 
     function renderActivities() {
