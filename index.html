@@ -30,9 +30,10 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Scroll to Top Button -->
+    <!-- Scroll to Top Button (Floating) -->
     <button class="scroll-top-btn" id="scrollTopBtn">
         <i class="fas fa-arrow-up"></i>
+        <div class="scroll-btn-glow"></div>
     </button>
 
     <!-- Main Container -->
@@ -59,7 +60,7 @@
             </div>
         </header>
 
-        <!-- Main Content (Non-scrollable container) -->
+        <!-- Main Content (No pull-to-refresh) -->
         <main class="market-main" id="marketMain">
             <!-- Content will be dynamically loaded based on active tab -->
             <div class="page-content active" id="marketPage">
@@ -76,36 +77,38 @@
             </div>
         </main>
 
-        <!-- Bottom Pagination Bar (Hides on scroll) -->
+        <!-- Bottom Pagination Bar (Floating) -->
         <nav class="bottom-nav" id="bottomNav">
-            <button class="nav-item active" data-page="market">
-                <div class="nav-icon">
-                    <i class="fas fa-store"></i>
-                </div>
-                <span>MARKET</span>
-                <div class="nav-glow"></div>
-            </button>
-            <button class="nav-item" data-page="games">
-                <div class="nav-icon">
-                    <i class="fas fa-gamepad"></i>
-                </div>
-                <span>GAMES</span>
-                <div class="nav-glow"></div>
-            </button>
-            <button class="nav-item" data-page="activity">
-                <div class="nav-icon">
-                    <i class="fas fa-history"></i>
-                </div>
-                <span>ACTIVITY</span>
-                <div class="nav-glow"></div>
-            </button>
-            <button class="nav-item" data-page="profile">
-                <div class="nav-icon">
-                    <i class="fas fa-user"></i>
-                </div>
-                <span>PROFIL</span>
-                <div class="nav-glow"></div>
-            </button>
+            <div class="nav-container">
+                <button class="nav-item active" data-page="market">
+                    <div class="nav-icon">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <span>MARKET</span>
+                    <div class="nav-glow"></div>
+                </button>
+                <button class="nav-item" data-page="games">
+                    <div class="nav-icon">
+                        <i class="fas fa-gamepad"></i>
+                    </div>
+                    <span>GAMES</span>
+                    <div class="nav-glow"></div>
+                </button>
+                <button class="nav-item" data-page="activity">
+                    <div class="nav-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <span>ACTIVITY</span>
+                    <div class="nav-glow"></div>
+                </button>
+                <button class="nav-item" data-page="profile">
+                    <div class="nav-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span>PROFIL</span>
+                    <div class="nav-glow"></div>
+                </button>
+            </div>
             <div class="nav-indicator" id="navIndicator"></div>
         </nav>
 
@@ -120,75 +123,95 @@
             </div>
             
             <div class="filter-panel-content">
-                <!-- Type Filter -->
-                <div class="filter-section">
-                    <label class="filter-label">
-                        <i class="fas fa-tag"></i>
-                        Type Username
-                    </label>
-                    <div class="filter-chips" id="typeFilterChips">
-                        <button class="chip active" data-type="all">Semua</button>
-                        <button class="chip" data-type="OP">OP</button>
-                        <button class="chip" data-type="CANON">CANON</button>
-                        <button class="chip" data-type="SCANON">SCANON</button>
-                        <button class="chip" data-type="SOP">SOP</button>
-                        <button class="chip" data-type="TAMPING">TAMPING</button>
-                        <button class="chip" data-type="TAMDAL">TAMDAL</button>
-                        <button class="chip" data-type="GANHUR">GANHUR</button>
-                        <button class="chip" data-type="SWITCH">SWITCH</button>
-                        <button class="chip" data-type="KURHUF">KURHUF</button>
-                        <button class="chip" data-type="UNCOMMON">UNCOMMON</button>
+                <!-- Type Filter - Collapsible -->
+                <div class="filter-section collapsible">
+                    <div class="filter-section-header" data-section="type">
+                        <label class="filter-label">
+                            <i class="fas fa-tag"></i>
+                            TYPE USERNAME
+                        </label>
+                        <i class="fas fa-chevron-down section-arrow"></i>
                     </div>
-                </div>
-
-                <!-- Price Range Filter -->
-                <div class="filter-section">
-                    <label class="filter-label">
-                        <i class="fas fa-credit-card"></i>
-                        Price Range (Rp)
-                    </label>
-                    <div class="price-range-inputs">
-                        <div class="price-input-wrapper">
-                            <span class="price-prefix">Rp</span>
-                            <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
-                        </div>
-                        <span class="price-separator">—</span>
-                        <div class="price-input-wrapper">
-                            <span class="price-prefix">Rp</span>
-                            <input type="number" id="maxPrice" placeholder="Max" min="0" value="999999999">
+                    <div class="filter-section-body" id="typeSectionBody">
+                        <div class="filter-chips" id="typeFilterChips">
+                            <button class="chip active" data-type="all">Semua</button>
+                            <button class="chip" data-type="OP">OP</button>
+                            <button class="chip" data-type="CANON">CANON</button>
+                            <button class="chip" data-type="SCANON">SCANON</button>
+                            <button class="chip" data-type="SOP">SOP</button>
+                            <button class="chip" data-type="TAMPING">TAMPING</button>
+                            <button class="chip" data-type="TAMDAL">TAMDAL</button>
+                            <button class="chip" data-type="GANHUR">GANHUR</button>
+                            <button class="chip" data-type="SWITCH">SWITCH</button>
+                            <button class="chip" data-type="KURHUF">KURHUF</button>
+                            <button class="chip" data-type="UNCOMMON">UNCOMMON</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sort By Filter -->
-                <div class="filter-section">
-                    <label class="filter-label">
-                        <i class="fas fa-sort-amount-down"></i>
-                        Sort By
-                    </label>
-                    <div class="filter-select-wrapper">
-                        <select id="sortBy">
-                            <option value="latest">Lasted (Terbaru)</option>
-                            <option value="price_low">Low to High (Harga Terendah)</option>
-                            <option value="price_high">High to Low (Harga Tertinggi)</option>
-                            <option value="char_asc">Char Ascending (Karakter ↑)</option>
-                            <option value="char_desc">Char Descending (Karakter ↓)</option>
-                            <option value="alpha_asc">Alphabet Ascending (A-Z)</option>
-                            <option value="alpha_desc">Alphabet Descending (Z-A)</option>
-                        </select>
-                        <i class="fas fa-chevron-down select-arrow"></i>
+                <!-- Price Range Filter - Collapsible -->
+                <div class="filter-section collapsible">
+                    <div class="filter-section-header" data-section="price">
+                        <label class="filter-label">
+                            <i class="fas fa-credit-card"></i>
+                            PRICE RANGE
+                        </label>
+                        <i class="fas fa-chevron-down section-arrow"></i>
+                    </div>
+                    <div class="filter-section-body" id="priceSectionBody">
+                        <div class="price-range-inputs">
+                            <div class="price-input-wrapper">
+                                <span class="price-prefix">Rp</span>
+                                <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
+                            </div>
+                            <span class="price-separator">—</span>
+                            <div class="price-input-wrapper">
+                                <span class="price-prefix">Rp</span>
+                                <input type="number" id="maxPrice" placeholder="Max" min="0" value="999999999">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Username Tag (placeholder) -->
-                <div class="filter-section">
-                    <label class="filter-label">
-                        <i class="fas fa-at"></i>
-                        Username Tag
-                    </label>
-                    <div class="username-tag-placeholder">
-                        <i class="fas fa-clock"></i>
-                        <span>Coming Soon</span>
+                <!-- Sort By Filter - Collapsible -->
+                <div class="filter-section collapsible">
+                    <div class="filter-section-header" data-section="sort">
+                        <label class="filter-label">
+                            <i class="fas fa-sort-amount-down"></i>
+                            SORT BY
+                        </label>
+                        <i class="fas fa-chevron-down section-arrow"></i>
+                    </div>
+                    <div class="filter-section-body" id="sortSectionBody">
+                        <div class="filter-select-wrapper">
+                            <select id="sortBy">
+                                <option value="latest">Lasted (Terbaru)</option>
+                                <option value="price_low">Low to High (Harga Terendah)</option>
+                                <option value="price_high">High to Low (Harga Tertinggi)</option>
+                                <option value="char_asc">Char Ascending (Karakter ↑)</option>
+                                <option value="char_desc">Char Descending (Karakter ↓)</option>
+                                <option value="alpha_asc">Alphabet Ascending (A-Z)</option>
+                                <option value="alpha_desc">Alphabet Descending (Z-A)</option>
+                            </select>
+                            <i class="fas fa-chevron-down select-arrow"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Username Tag - Collapsible (Placeholder) -->
+                <div class="filter-section collapsible">
+                    <div class="filter-section-header" data-section="tag">
+                        <label class="filter-label">
+                            <i class="fas fa-at"></i>
+                            USERNAME TAG
+                        </label>
+                        <i class="fas fa-chevron-down section-arrow"></i>
+                    </div>
+                    <div class="filter-section-body" id="tagSectionBody">
+                        <div class="username-tag-placeholder">
+                            <i class="fas fa-clock"></i>
+                            <span>Coming Soon</span>
+                        </div>
                     </div>
                 </div>
             </div>
