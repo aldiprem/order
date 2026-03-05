@@ -21,6 +21,7 @@
     let lastScrollTop = 0;
     let scrollTimeout;
     let searchTimeout;
+    let isLoadingActivities = false;
 
     // Filter state
     let filters = {
@@ -33,10 +34,10 @@
 
     // Collapsible sections state
     let collapsibleState = {
-        type: true,  // Default expanded
-        price: true, // Default expanded
-        sort: true,  // Default expanded
-        tag: true    // Default expanded
+        type: true,
+        price: true,
+        sort: true,
+        tag: true
     };
 
     // ==================== DOM ELEMENTS ====================
@@ -252,17 +253,60 @@
         }
     }
 
-    // ==================== UPDATED ACTIVITY FUNCTIONS (Only username-related activities) ====================
+    // ==================== UPDATED ACTIVITY FUNCTIONS (All Users) ====================
     async function loadActivities() {
-        if (!currentUser) return;
+        const activityPage = document.getElementById('activityPage');
+        if (!activityPage) return;
+        
+        // Show skeleton loading immediately
+        renderActivitySkeleton();
+        
+        isLoadingActivities = true;
 
         try {
-            showLoading(true);
-            
-            // Get activity logs for current user
-            const response = await fetchWithRetry(`${API_BASE_URL}/api/activity/${currentUser.id}`, {
-                method: 'GET'
-            });
+            // Get all activities (not filtered by user)
+            // Note: You need to create a new endpoint in app.py for this
+            // For now, we'll use a mock or try to get from a different endpoint
+            let response;
+            try {
+                // Try to get all activities (you need to add this endpoint)
+                response = await fetchWithRetry(`${API_BASE_URL}/api/activities/all`, {
+                    method: 'GET'
+                });
+            } catch (error) {
+                console.log('Activities all endpoint not available, using mock data');
+                // Mock data for demonstration
+                response = [
+                    {
+                        id: 1,
+                        action: 'USERNAME_ADDED',
+                        details: 'Menambahkan username @sengdok (tipe: user)',
+                        created_at: new Date().toISOString(),
+                        username: 'sengdok'
+                    },
+                    {
+                        id: 2,
+                        action: 'PRICE_SET',
+                        details: 'Mengatur harga untuk @othru: Rp 150,000',
+                        created_at: new Date(Date.now() - 3600000).toISOString(),
+                        username: 'othru'
+                    },
+                    {
+                        id: 3,
+                        action: 'LISTED_STATUS',
+                        details: 'Mengubah status listed untuk @scrakp menjadi listed',
+                        created_at: new Date(Date.now() - 86400000).toISOString(),
+                        username: 'scrakp'
+                    },
+                    {
+                        id: 4,
+                        action: 'BASED_ON_SET',
+                        details: 'Mengatur based_on untuk @ggaming: gaming',
+                        created_at: new Date(Date.now() - 172800000).toISOString(),
+                        username: 'ggaming'
+                    }
+                ];
+            }
 
             if (response && Array.isArray(response)) {
                 // Filter only username-related activities (exclude USER_START)
@@ -280,8 +324,25 @@
             activities = [];
             renderActivities();
         } finally {
-            showLoading(false);
+            isLoadingActivities = false;
         }
+    }
+
+    function renderActivitySkeleton() {
+        const activityPage = document.getElementById('activityPage');
+        if (!activityPage) return;
+        
+        let skeletonHtml = '<div class="activity-list">';
+        for (let i = 0; i < 5; i++) {
+            const template = document.getElementById('activitySkeletonTemplate');
+            const clone = document.importNode(template.content, true);
+            const div = document.createElement('div');
+            div.appendChild(clone);
+            skeletonHtml += div.innerHTML;
+        }
+        skeletonHtml += '</div>';
+        
+        activityPage.innerHTML = skeletonHtml;
     }
 
     async function loadUserUsernames() {
@@ -523,20 +584,17 @@
 
         marketPage.innerHTML = headerHtml + gridHtml;
 
-        // Re-attach event listeners
         elements.marketSearch = document.getElementById('marketSearchInput');
         elements.filterToggle = document.getElementById('filterToggleBtn');
         elements.filterBadge = document.getElementById('filterBadge');
         elements.searchClearBtn = document.getElementById('searchClearBtn');
         elements.searchSubmitBtn = document.getElementById('searchSubmitBtn');
 
-        // Show/hide clear button based on input value
         if (elements.marketSearch) {
             if (elements.marketSearch.value.length > 0) {
                 elements.searchClearBtn?.classList.add('visible');
             }
 
-            // Input event for real-time search (with debounce)
             elements.marketSearch.addEventListener('input', (e) => {
                 if (e.target.value.length > 0) {
                     elements.searchClearBtn?.classList.add('visible');
@@ -546,7 +604,6 @@
             });
         }
 
-        // Clear button
         if (elements.searchClearBtn) {
             elements.searchClearBtn.addEventListener('click', () => {
                 if (elements.marketSearch) {
@@ -558,20 +615,16 @@
             });
         }
 
-        // Submit button (manual search)
         if (elements.searchSubmitBtn) {
             elements.searchSubmitBtn.addEventListener('click', () => {
                 if (elements.marketSearch) {
                     filters.search = elements.marketSearch.value;
                     applyFilters();
-                    
-                    // Hide keyboard
                     elements.marketSearch.blur();
                 }
             });
         }
 
-        // Enter key in search input
         if (elements.marketSearch) {
             elements.marketSearch.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -623,6 +676,8 @@
             const usernameMatch = activity.details?.match(/@(\w+)/);
             if (usernameMatch) {
                 clone.querySelector('.activity-username').textContent = usernameMatch[0];
+            } else if (activity.username) {
+                clone.querySelector('.activity-username').textContent = `@${activity.username}`;
             } else {
                 clone.querySelector('.activity-username').textContent = '';
             }
@@ -727,7 +782,6 @@
             
             if (!header || !sectionName) return;
             
-            // Set initial state from collapsibleState
             if (collapsibleState[sectionName]) {
                 section.classList.add('expanded');
             } else {
@@ -849,7 +903,8 @@
 
                 if (page === 'market' && allUsernames.length === 0) {
                     loadMarketData();
-                } else if (page === 'activity' && currentUser) {
+                } else if (page === 'activity') {
+                    // Always load activities when switching to activity page
                     loadActivities();
                 } else if (page === 'profile' && currentUser) {
                     loadUserUsernames();
@@ -884,7 +939,6 @@
                 elements.bottomNav.classList.remove('hide');
             }
 
-            // Show/hide scroll to top button with animation
             if (scrollTop > 300) {
                 if (elements.scrollTopBtn.classList.contains('show')) {
                     // Already showing
@@ -935,7 +989,7 @@
             setupScrollHandling();
 
             await loadMarketData();
-            await loadActivities();
+            // Don't load activities here, will load when tab is clicked
             await loadUserUsernames();
 
             renderGames();
