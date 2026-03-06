@@ -1486,7 +1486,16 @@
         console.error('Error loading notifications:', error);
       }
     }
-    
+
+    function startNotificationPolling() {
+      // Poll setiap 5 detik
+      setInterval(() => {
+        if (currentUser) {
+          loadPendingNotifications();
+        }
+      }, 5000);
+    }
+
     function updateNotificationBadge() {
       const badge = document.getElementById('notificationBadge');
       if (!badge) return;
@@ -1883,6 +1892,7 @@
       
             await initTelegramUser();
             renderUserProfile();
+            startNotificationPolling();
       
             setupNavigation();
             setupFilterPanel();
