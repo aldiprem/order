@@ -16,6 +16,7 @@
     
     <!-- CSS -->
     <link rel="stylesheet" href="/order/css/style.css">
+    <link rel="stylesheet" href="/order/css/panel.css">
     
     <!-- Config -->
     <script src="/order/config.js"></script>
@@ -106,6 +107,50 @@
             </div>
             <div class="nav-indicator" id="navIndicator"></div>
         </nav>
+
+        <!-- Panel Detail Username -->
+        <div class="username-panel" id="usernamePanel">
+          <div class="panel-handle"></div>
+        
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <button class="cart-icon-btn" id="panelCartBtn">
+                <i class="fas fa-shopping-cart"></i>
+              </button>
+            </div>
+            <button class="panel-close-btn" id="panelCloseBtn">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        
+          <div class="panel-content" id="panelContent">
+            <!-- Loading State -->
+            <div class="panel-loading" id="panelLoading">
+              <div class="panel-spinner"></div>
+              <div class="panel-loading-text">Memuat detail username...</div>
+            </div>
+        
+            <!-- Content akan diisi oleh JavaScript -->
+            <div class="panel-detail" id="panelDetail" style="display: none;">
+              <h2 class="username-title" id="panelUsername">@username</h2>
+        
+              <div class="info-grid" id="panelInfoGrid">
+                <!-- Info rows akan diisi oleh JavaScript -->
+              </div>
+            </div>
+          </div>
+        
+          <div class="panel-footer">
+            <button class="panel-btn btn-buy" id="panelBuyBtn">
+              <i class="fas fa-bolt"></i>
+              BUY NOW
+            </button>
+            <button class="panel-btn btn-offer" id="panelOfferBtn">
+              <i class="fas fa-hand-holding-usd"></i>
+              MAKE OFFER
+            </button>
+          </div>
+        </div>
 
         <!-- Filter Panel (Sliding from bottom) -->
         <div class="filter-panel" id="filterPanel">
