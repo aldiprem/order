@@ -721,13 +721,16 @@
             e.hapticProcessed = true;
             hapticFeedback('light');
       
+            // PERBAIKI: Ambil username dari elemen dengan class 'username'
             const usernameElement = card.querySelector('.username');
             if (usernameElement) {
               const username = usernameElement.textContent;
-              console.log(`Username card clicked: @${username}`);
+              console.log('🔍 Card clicked - username:', username); // TAMBAHKAN LOG
       
               // TAMPILKAN PANEL
               showUsernamePanel(username);
+            } else {
+              console.error('Username element not found in card');
             }
           });
         });
@@ -1272,6 +1275,126 @@
       });
     }
 
+    // ==================== PANEL FUNCTIONS ====================
+    function showUsernamePanel(username) {
+        console.log('🔍 showUsernamePanel called with:', username); // LOG
+        
+        if (!elements.usernamePanel) {
+            console.error('usernamePanel element not found!');
+            return;
+        }
+        
+        hapticFeedback('medium');
+        
+        // Tampilkan loading
+        elements.panelLoading.style.display = 'flex';
+        elements.panelDetail.style.display = 'none';
+        
+        // Buka panel
+        elements.usernamePanel.classList.add('show');
+        isUsernamePanelOpen = true;
+        
+        // Load data username
+        loadUsernameDetail(username);
+    }
+    
+    async function loadUsernameDetail(username) {
+        console.log('🔍 loadUsernameDetail called with:', username); // LOG
+        console.log('allUsernames:', allUsernames); // LOG
+        
+        try {
+            // Cari data dari allUsernames yang sudah ada
+            const userData = allUsernames.find(u => u.username === username);
+            
+            console.log('Found userData:', userData); // LOG
+            
+            if (!userData) {
+                console.error('User data not found for:', username);
+                showToast('Data username tidak ditemukan', 'error');
+                hideUsernamePanel();
+                return;
+            }
+            
+            // Render panel (langsung tanpa setTimeout)
+            renderUsernamePanel(userData);
+            
+        } catch (error) {
+            console.error('Error loading username detail:', error);
+            showToast('Gagal memuat detail username', 'error');
+            hideUsernamePanel();
+        }
+    }
+    
+    function renderUsernamePanel(data) {
+        console.log('🔍 renderUsernamePanel called with:', data); // LOG
+        
+        if (!elements.panelUsername || !elements.panelInfoGrid) {
+            console.error('Panel elements not found!');
+            return;
+        }
+        
+        // Set username
+        elements.panelUsername.textContent = `@${data.username}`;
+        
+        // Format kind dengan emoji
+        const kindEmoji = {
+            "MULCHAR INDO": "🇮🇩",
+            "MULCHAR ENG": "🇬🇧",
+            "IDOL MALE": "👨",
+            "IDOL FEMALE": "👩",
+            "NSFW": "🔞",
+            "2D": "🎮",
+            "ANIME": "🌸",
+            "ANOTHER": "❓"
+        }[data.kind] || "❓";
+        
+        // Format type
+        const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
+        
+        // Format tanggal
+        const date = data.updated_at ? new Date(data.updated_at) : new Date();
+        const formattedDate = date.toLocaleDateString('id-ID', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        
+        // Buat info grid
+        const infoGrid = `
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-at"></i> Based on</span>
+                <span class="info-value">${data.based_on || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
+                <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
+                <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-user"></i> Type</span>
+                <span class="info-value">${typeText}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
+                <span class="info-value price">${formatRupiah(data.price)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
+                <span class="info-value date">${formattedDate}</span>
+            </div>
+        `;
+        
+        elements.panelInfoGrid.innerHTML = infoGrid;
+        
+        // Sembunyikan loading, tampilkan detail
+        elements.panelLoading.style.display = 'none';
+        elements.panelDetail.style.display = 'block';
+        
+        console.log('✅ Panel rendered successfully'); // LOG
+    }
+
     async function init() {
       showLoading(true);
     
@@ -1335,7 +1458,7 @@
         
         // ===== SETUP PANEL CARD =====
         setupPanel();
-    
+        
         // ===== RENDER GAMES =====
         renderGames();
     
