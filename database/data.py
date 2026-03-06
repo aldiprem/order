@@ -625,6 +625,8 @@ class Database:
         """Create a pending request from web app"""
         try:
             now = get_jakarta_time()
+            
+            # Pastikan tabel ada
             self.cur.execute("""
             CREATE TABLE IF NOT EXISTS webapp_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -636,59 +638,75 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """)
+            self.conn.commit()
+            print(f"✅ Table webapp_requests created/verified")
+            
+            # Insert data
+            print(f"Inserting: request_id={request_id}, username={username}, requester_id={requester_id}, time={now}")
             
             self.cur.execute("""
             INSERT INTO webapp_requests (request_id, username, requester_id, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """, (request_id, username, requester_id, 'pending', now, now))
+            
             self.conn.commit()
+            
+            # Verifikasi
+            self.cur.execute("SELECT * FROM webapp_requests WHERE request_id = ?", (request_id,))
+            result = self.cur.fetchone()
+            if result:
+                print(f"✅ Data verified in database: {result}")
+            else:
+                print(f"❌ Data not found after insert!")
             
             return True
         except Exception as e:
-            print(f"Error creating webapp request: {e}")
+            print(f"❌ Error creating webapp request: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-    
-    def get_pending_webapp_requests(self, limit=10):
-        """Get pending requests from web app that need to be processed by bot"""
-        try:
-            self.cur.execute("""
-            SELECT * FROM webapp_requests 
-            WHERE status = 'pending'
-            ORDER BY created_at ASC
-            LIMIT ?
-            """, (limit,))
-            return self.cur.fetchall()
-        except Exception as e:
-            print(f"Error getting pending webapp requests: {e}")
-            return []
-    
-    def get_user_pending_requests(self, user_id):
-        """Get pending requests for a specific user"""
-        try:
-            self.cur.execute("""
-            SELECT * FROM webapp_requests 
-            WHERE requester_id = ? AND status = 'pending'
-            ORDER BY created_at DESC
-            """, (user_id,))
-            return self.cur.fetchall()
-        except Exception as e:
-            print(f"Error getting user pending requests: {e}")
-            return []
-    
-    def update_webapp_request_status(self, request_id, status):
-        """Update status of webapp request"""
-        try:
-            now = get_jakarta_time()
-            self.cur.execute("""
-            UPDATE webapp_requests 
-            SET status = ?, updated_at = ? 
-            WHERE request_id = ?
-            """, (status, now, request_id))
-            self.conn.commit()
-            return True
-        except Exception as e:
-            print(f"Error updating webapp request: {e}")
-            return False
+  
+  def get_pending_webapp_requests(self, limit=10):
+      """Get pending requests from web app that need to be processed by bot"""
+      try:
+          self.cur.execute("""
+          SELECT * FROM webapp_requests 
+          WHERE status = 'pending'
+          ORDER BY created_at ASC
+          LIMIT ?
+          """, (limit,))
+          return self.cur.fetchall()
+      except Exception as e:
+          print(f"Error getting pending webapp requests: {e}")
+          return []
+  
+  def get_user_pending_requests(self, user_id):
+      """Get pending requests for a specific user"""
+      try:
+          self.cur.execute("""
+          SELECT * FROM webapp_requests 
+          WHERE requester_id = ? AND status = 'pending'
+          ORDER BY created_at DESC
+          """, (user_id,))
+          return self.cur.fetchall()
+      except Exception as e:
+          print(f"Error getting user pending requests: {e}")
+          return []
+  
+  def update_webapp_request_status(self, request_id, status):
+      """Update status of webapp request"""
+      try:
+          now = get_jakarta_time()
+          self.cur.execute("""
+          UPDATE webapp_requests 
+          SET status = ?, updated_at = ? 
+          WHERE request_id = ?
+          """, (status, now, request_id))
+          self.conn.commit()
+          return True
+      except Exception as e:
+          print(f"Error updating webapp request: {e}")
+          return False
 
     def generate_verification_id(self, length=25):
         chars = string.ascii_letters + string.digits
