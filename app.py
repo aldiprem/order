@@ -81,7 +81,7 @@ def get_market():
         
         logger.info(f"Market request with filters: search={search}, based_on={based_on}, type={type_filter}, price={min_price}-{max_price}, sort={sort_by}")
         
-        # Get all listed usernames
+        # Get all listed usernames (sudah termasuk shape dari database)
         usernames = db.get_listed_usernames()
         logger.info(f"Found {len(usernames)} listed usernames from database")
         
@@ -100,17 +100,9 @@ def get_market():
         usernames = [u for u in usernames if min_price <= (u[11] or 0) <= max_price]
         logger.info(f"After price filter: {len(usernames)} usernames")
         
-        # Convert tuples to lists to allow modification
-        usernames = [list(u) for u in usernames]
-        
-        # Determine username type based on rules
-        for u in usernames:
-            u_type = determine_username_type(u[1], u[9])
-            u.append(u_type)  # Add type at index 13
-        
-        # Filter by type if specified
+        # Filter by type (shape) - GUNAKAN SHAPE DARI DATABASE (index 12)
         if type_filter:
-            usernames = [u for u in usernames if u[13] == type_filter]
+            usernames = [u for u in usernames if u[12] == type_filter]  # shape di index 12
             logger.info(f"After type filter: {len(usernames)} usernames")
         
         # Sort results
@@ -123,9 +115,9 @@ def get_market():
         elif sort_by == 'char_desc':
             usernames.sort(key=lambda x: len(x[9] or '') if x[9] else 0, reverse=True)
         elif sort_by == 'latest':
-            usernames.sort(key=lambda x: x[12] or '', reverse=True)
+            usernames.sort(key=lambda x: x[13] or '', reverse=True)  # updated_at di index 13
         
-        # Format for frontend
+        # Format for frontend - GUNAKAN SHAPE DARI DATABASE
         result = []
         for u in usernames:
             result.append({
@@ -136,11 +128,11 @@ def get_market():
                 'owner_username': u[4],
                 'based_on': u[9],
                 'price': u[11] or 0,
-                'updated_at': str(u[12]) if u[12] else None,
-                'username_type': u[13] if len(u) > 13 else 'UNCOMMON'
+                'updated_at': str(u[13]) if u[13] else None,
+                'username_type': u[12] if len(u) > 12 else 'UNCOMMON'  # GUNAKAN SHAPE DARI DB
             })
         
-        logger.info(f"Returning {len(result)} formatted usernames")
+        logger.info(f"Returning {len(result)} formatted usernames with shape from database")
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in /api/market: {e}")
