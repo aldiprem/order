@@ -375,41 +375,54 @@ def webapp_add_username():
         
     try:
         data = request.json
+        print("\n" + "="*50)
+        print("📱 WEBAPP ADD USERNAME REQUEST RECEIVED")
+        print(f"Raw data: {data}")
+        
         username = data.get('username')
         user_id = data.get('user_id')
         
-        logger.info(f"📱 WebApp add username request: username={username}, user_id={user_id}")
+        print(f"Username: {username}")
+        print(f"User ID: {user_id}")
         
         if not username or not user_id:
-            logger.error("Missing username or user_id")
+            print("❌ ERROR: Missing username or user_id")
             return jsonify({'success': False, 'error': 'Username dan user_id diperlukan'}), 400
         
         # Bersihkan username
         clean_username = username.replace('@', '').strip()
+        print(f"Cleaned username: {clean_username}")
+        
         if not clean_username:
-            logger.error("Invalid username format")
+            print("❌ ERROR: Invalid username format")
             return jsonify({'success': False, 'error': 'Username tidak valid'}), 400
         
         # Buat session ID untuk request ini
         request_id = db.generate_verification_id()
-        logger.info(f"Generated request_id: {request_id} for username @{clean_username}")
+        print(f"Generated request_id: {request_id}")
         
         # Simpan di database sebagai pending request dari web app
+        print("Attempting to save to database...")
         success = db.create_webapp_request(request_id, clean_username, user_id)
         
         if success:
-            logger.info(f"✅ Webapp request saved to database: {request_id}")
+            print(f"✅ SUCCESS: Webapp request saved with ID: {request_id}")
+            
+            # Verifikasi data tersimpan
+            verify = db.get_verification_session(request_id)
+            print(f"Verification check: {verify}")
+            
             return jsonify({
                 'success': True, 
                 'message': 'Permintaan telah dikirim', 
                 'request_id': request_id
             })
         else:
-            logger.error("Failed to save webapp request to database")
+            print("❌ ERROR: Failed to save to database")
             return jsonify({'success': False, 'error': 'Gagal menyimpan permintaan'}), 400
         
     except Exception as e:
-        logger.error(f"Error in webapp_add_username: {e}")
+        print(f"❌ EXCEPTION: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
