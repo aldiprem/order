@@ -1197,69 +1197,6 @@
             }
         }
         
-        function renderUsernamePanel(data) {
-            if (!elements.panelUsername || !elements.panelInfoGrid) return;
-            
-            // Set username
-            elements.panelUsername.textContent = `@${data.username}`;
-            
-            // Format kind dengan emoji
-            const kindEmoji = {
-                "MULCHAR INDO": "🇮🇩",
-                "MULCHAR ENG": "🇬🇧",
-                "IDOL MALE": "👨",
-                "IDOL FEMALE": "👩",
-                "NSFW": "🔞",
-                "2D": "🎮",
-                "ANIME": "🌸",
-                "ANOTHER": "❓"
-            }[data.kind] || "❓";
-            
-            // Format type
-            const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
-            
-            // Format tanggal
-            const date = data.updated_at ? new Date(data.updated_at) : new Date();
-            const formattedDate = date.toLocaleDateString('id-ID', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-            
-            // Buat info grid
-            const infoGrid = `
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-at"></i> Based on</span>
-                    <span class="info-value">${data.based_on || '-'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
-                    <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
-                    <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-user"></i> Type</span>
-                    <span class="info-value">${typeText}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
-                    <span class="info-value price">${formatRupiah(data.price)}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
-                    <span class="info-value date">${formattedDate}</span>
-                </div>
-            `;
-            
-            elements.panelInfoGrid.innerHTML = infoGrid;
-            
-            // Sembunyikan loading, tampilkan detail
-            elements.panelLoading.style.display = 'none';
-            elements.panelDetail.style.display = 'block';
-        }
-    
     // ==================== SETUP PANEL ====================
     function setupPanel() {
         if (!elements.usernamePanel) return;
@@ -1444,20 +1381,22 @@
     }
     
     function hideUsernamePanel() {
-        if (!elements.usernamePanel) return;
-        
-        elements.usernamePanel.classList.remove('show');
-        
-        // Sembunyikan overlay
-        const overlay = document.getElementById('panelOverlay');
-        if (overlay) {
-            overlay.classList.remove('show');
-        }
-        
-        document.body.classList.remove('panel-open');
-        
-        // Reset transform jika ada
-        elements.usernamePanel.style.transform = '';
+      if (!elements.usernamePanel) return;
+    
+      elements.usernamePanel.classList.remove('show');
+    
+      // Sembunyikan overlay
+      const overlay = document.getElementById('panelOverlay');
+      if (overlay) {
+        overlay.classList.remove('show');
+      }
+    
+      document.body.classList.remove('panel-open');
+    
+      // Reset transform jika ada
+      elements.usernamePanel.style.transform = '';
+    
+      console.log('🔍 Panel hidden');
     }
     
     function renderUsernamePanel(data) {
@@ -1468,55 +1407,55 @@
             return;
         }
         
-        // Set username
+        // Set username dengan gradient biru
         elements.panelUsername.textContent = `@${data.username}`;
         
-        // Format kind dengan emoji
-        const kindEmoji = {
-            "MULCHAR INDO": "🇮🇩",
-            "MULCHAR ENG": "🇬🇧",
-            "IDOL MALE": "👨",
-            "IDOL FEMALE": "👩",
-            "NSFW": "🔞",
-            "2D": "🎮",
-            "ANIME": "🌸",
-            "ANOTHER": "❓"
-        }[data.kind] || "❓";
+        // Format kind - TANPA EMOJI, HURUF BESAR
+        const kindText = (data.kind || 'MULCHAR INDO').toUpperCase();
         
-        // Format type
-        const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
+        // Format type - TANPA EMOJI, HURUF BESAR
+        const typeText = (data.type === 'channel' ? 'CHANNEL' : 'USER').toUpperCase();
         
-        // Format tanggal
+        // Format tanggal - HURUF BESAR
         const date = data.updated_at ? new Date(data.updated_at) : new Date();
         const formattedDate = date.toLocaleDateString('id-ID', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
-        });
+        }).toUpperCase();
         
-        // Buat info grid - DALAM SATU KOLOM (container sudah dari HTML)
+        // Format harga - HURUF BESAR
+        const priceText = formatRupiah(data.price).toUpperCase();
+        
+        // Format based on - HURUF BESAR
+        const basedOnText = (data.based_on || '-').toUpperCase();
+        
+        // Format shape/bentuk - HURUF BESAR
+        const shapeText = (data.username_type || 'OP').toUpperCase();
+        
+        // Buat info grid - DALAM SATU KOLOM, TANPA EMOJI
         const infoGrid = `
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-at"></i> Based on</span>
-                <span class="info-value">${data.based_on || '-'}</span>
+                <span class="info-label"><i class="fas fa-at"></i> BASED ON</span>
+                <span class="info-value">${basedOnText}</span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
-                <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
+                <span class="info-label"><i class="fas fa-shapes"></i> BENTUK</span>
+                <span class="info-value"><span class="badge">${shapeText}</span></span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
-                <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
+                <span class="info-label"><i class="fas fa-tag"></i> JENIS</span>
+                <span class="info-value">${kindText}</span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-user"></i> Type</span>
+                <span class="info-label"><i class="fas fa-user"></i> TYPE</span>
                 <span class="info-value">${typeText}</span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
-                <span class="info-value price">${formatRupiah(data.price)}</span>
+                <span class="info-label"><i class="fas fa-credit-card"></i> HARGA</span>
+                <span class="info-value price">${priceText}</span>
             </div>
             <div class="info-row">
-                <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
+                <span class="info-label"><i class="fas fa-calendar-alt"></i> ADDED</span>
                 <span class="info-value date">${formattedDate}</span>
             </div>
         `;
