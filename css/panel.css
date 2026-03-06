@@ -1,19 +1,19 @@
-/* panel.css - Panel Detail Username Styles (VERSI DIPERBAIKI) */
+/* panel.css - Panel Detail Username Styles (VERSI FINAL) */
 
 :root {
-    --panel-bg: rgba(25, 25, 35, 0.95);
-    --panel-border: rgba(255, 255, 255, 0.08);
+    --panel-bg: rgba(20, 20, 25, 0.98);
+    --panel-border: rgba(255, 255, 255, 0.1);
     --text-primary: #ffffff;
     --text-secondary: #e0e0e0;
     --text-muted: #a0a0a0;
     --accent-color: #40a7e3;
     --success-color: #10b981;
     --danger-color: #ef4444;
-    --border-light: rgba(255, 255, 255, 0.05);
-    --border-hover: rgba(64, 167, 227, 0.2);
+    --border-light: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(64, 167, 227, 0.3);
 }
 
-/* Panel Container - Ukuran menyesuaikan konten */
+/* Panel Container - Paling Atas */
 .username-panel {
     position: fixed;
     bottom: 0;
@@ -29,28 +29,28 @@
     border-radius: 24px 24px 0 0;
     transform: translateY(100%);
     transition: transform 0.3s ease-out;
-    z-index: 3000;
+    z-index: 10000; /* LEBIH TINGGI DARI SEMUA ELEMEN */
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
 }
 
 .username-panel.show {
     transform: translateY(0);
 }
 
-/* Overlay untuk klik luar panel */
+/* Overlay untuk klik luar panel - Paling Atas Kedua */
 .panel-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    z-index: 2999;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 9999; /* DI BAWAH PANEL */
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -61,11 +61,24 @@
     visibility: visible;
 }
 
-/* Panel Handle (untuk drag) */
+/* Sembunyikan scroll-to-top button saat panel terbuka */
+body.panel-open .scroll-top-btn {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Sembunyikan bottom navigation saat panel terbuka */
+body.panel-open .bottom-nav {
+    display: none !important;
+}
+
+/* Panel Handle */
 .panel-handle {
     width: 40px;
     height: 4px;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     margin: 12px auto 8px;
     cursor: grab;
@@ -74,7 +87,7 @@
 
 .panel-handle:active {
     cursor: grabbing;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Panel Header */
@@ -142,7 +155,7 @@
     padding: 16px 20px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-    max-height: calc(90vh - 140px); /* Sesuaikan dengan header + footer */
+    max-height: calc(90vh - 140px);
 }
 
 .panel-content::-webkit-scrollbar {
@@ -162,40 +175,44 @@
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Username Title */
+/* Username Title - 3D Gradient Biru */
 .username-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffffff, #40a7e3, #2d8bcb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     margin-bottom: 20px;
     letter-spacing: -0.5px;
     padding-left: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 20px rgba(64, 167, 227, 0.3);
 }
 
-/* Container Utama untuk semua info - 1 papan kolom */
+/* Container Utama untuk semua info */
 .info-container {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--border-light);
     border-radius: 16px;
-    padding: 4px 0;
+    padding: 0;
     margin-bottom: 20px;
     overflow: hidden;
 }
 
-/* Info Grid - tanpa gap agar border menyatu */
+/* Info Grid */
 .info-grid {
     display: flex;
     flex-direction: column;
 }
 
-/* Info Row - setiap baris dalam 1 papan */
+/* Info Row - setiap baris dengan border silver */
 .info-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
+    padding: 16px 20px;
     background: transparent;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* SILVER BORDER */
     transition: all 0.2s ease;
 }
 
@@ -208,13 +225,16 @@
     background: rgba(255, 255, 255, 0.02);
 }
 
+/* Label Format - HURUF BESAR */
 .info-label {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-secondary);
+    text-transform: uppercase; /* HURUF BESAR */
+    letter-spacing: 0.5px;
 }
 
 .info-label i {
@@ -222,40 +242,48 @@
     font-size: 14px;
     width: 18px;
     text-align: center;
-    opacity: 0.8;
+    opacity: 0.9;
 }
 
+/* Value Format - HURUF BESAR, TANPA EMOJI */
 .info-value {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-primary);
     text-align: right;
     max-width: 60%;
     word-break: break-word;
+    text-transform: uppercase; /* HURUF BESAR */
+    letter-spacing: 0.3px;
 }
 
-/* Badge untuk value tertentu */
+/* Badge untuk Bentuk - TETAP HURUF BESAR */
 .info-value .badge {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(64, 167, 227, 0.1);
-    border: 1px solid rgba(64, 167, 227, 0.2);
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(64, 167, 227, 0.15);
+    border: 1px solid rgba(64, 167, 227, 0.3);
     color: var(--accent-color);
+    text-transform: uppercase;
 }
 
+/* Price - WARNA EMAS */
 .info-value .price {
     color: #ffd700;
-    font-weight: 600;
-    font-size: 15px;
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
 }
 
+/* Date - WARNA ABU-ABU */
 .info-value .date {
     color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 400;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
 }
 
 /* Panel Footer */
@@ -264,15 +292,15 @@
     border-top: 1px solid var(--border-light);
     display: flex;
     gap: 12px;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .panel-btn {
     flex: 1;
-    padding: 12px 16px;
+    padding: 14px 16px;
     border-radius: 30px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -280,7 +308,8 @@
     gap: 8px;
     transition: all 0.2s ease;
     border: none;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .btn-buy {
@@ -305,7 +334,7 @@
     box-shadow: 0 6px 16px rgba(255, 187, 51, 0.3);
 }
 
-/* Loading State untuk Panel */
+/* Loading State */
 .panel-loading {
     display: flex;
     flex-direction: column;
@@ -328,6 +357,7 @@
 .panel-loading-text {
     color: var(--text-muted);
     font-size: 14px;
+    text-transform: uppercase;
 }
 
 /* Animations */
@@ -335,7 +365,7 @@
     to { transform: rotate(360deg); }
 }
 
-/* Body panel-open - mencegah scroll background */
+/* Body panel-open */
 body.panel-open {
     overflow: hidden;
 }
@@ -347,31 +377,31 @@ body.panel-open {
     }
 
     .username-title {
-        font-size: 24px;
+        font-size: 28px;
         margin-bottom: 16px;
     }
 
     .info-row {
-        padding: 12px 14px;
+        padding: 14px 16px;
     }
 
     .info-label {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .info-label i {
-        font-size: 13px;
+        font-size: 12px;
         width: 16px;
     }
 
     .info-value {
-        font-size: 13px;
+        font-size: 12px;
         max-width: 55%;
     }
 
     .panel-btn {
-        padding: 10px 14px;
-        font-size: 13px;
+        padding: 12px 14px;
+        font-size: 12px;
     }
 
     .cart-icon-btn, .panel-close-btn {
