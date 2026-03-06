@@ -42,6 +42,15 @@
 
     // ==================== DOM ELEMENTS ====================
     const elements = {
+        usernamePanel: document.getElementById('usernamePanel'),
+        panelLoading: document.getElementById('panelLoading'),
+        panelDetail: document.getElementById('panelDetail'),
+        panelUsername: document.getElementById('panelUsername'),
+        panelInfoGrid: document.getElementById('panelInfoGrid'),
+        panelCloseBtn: document.getElementById('panelCloseBtn'),
+        panelCartBtn: document.getElementById('panelCartBtn'),
+        panelBuyBtn: document.getElementById('panelBuyBtn'),
+        panelOfferBtn: document.getElementById('panelOfferBtn'),
         loadingOverlay: document.getElementById('loadingOverlay'),
         toastContainer: document.getElementById('toastContainer'),
         scrollTopBtn: document.getElementById('scrollTopBtn'),
@@ -704,22 +713,25 @@
         });
       }
     
-      // Haptic untuk username cards
+      // Di dalam renderMarket(), bagian haptic untuk username cards:
       setTimeout(() => {
         document.querySelectorAll('.username-card').forEach(card => {
           card.addEventListener('click', (e) => {
             if (e.hapticProcessed) return;
             e.hapticProcessed = true;
             hapticFeedback('light');
-    
+      
             const usernameElement = card.querySelector('.username');
             if (usernameElement) {
               const username = usernameElement.textContent;
               console.log(`Username card clicked: @${username}`);
+      
+              // TAMPILKAN PANEL
+              showUsernamePanel(username);
             }
           });
         });
-    
+      
         const emptyMarket = document.querySelector('.empty-market');
         if (emptyMarket) {
           emptyMarket.addEventListener('click', (e) => {
@@ -1132,6 +1144,133 @@
         });
       });
     }
+    
+    async function loadUsernameDetail(username) {
+        try {
+            // Cari data dari allUsernames yang sudah ada
+            const userData = allUsernames.find(u => u.username === username);
+            
+            if (!userData) {
+                showToast('Data username tidak ditemukan', 'error');
+                hideUsernamePanel();
+                return;
+            }
+            
+            renderUsernamePanel(userData);
+            
+        } catch (error) {
+            console.error('Error loading username detail:', error);
+            showToast('Gagal memuat detail username', 'error');
+            hideUsernamePanel();
+        }
+    }
+    
+    function renderUsernamePanel(data) {
+        if (!elements.panelUsername || !elements.panelInfoGrid) return;
+        
+        // Set username
+        elements.panelUsername.textContent = `@${data.username}`;
+        
+        // Format kind dengan emoji
+        const kindEmoji = {
+            "MULCHAR INDO": "🇮🇩",
+            "MULCHAR ENG": "🇬🇧",
+            "IDOL MALE": "👨",
+            "IDOL FEMALE": "👩",
+            "NSFW": "🔞",
+            "2D": "🎮",
+            "ANIME": "🌸",
+            "ANOTHER": "❓"
+        }[data.kind] || "❓";
+        
+        // Format type
+        const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
+        
+        // Format tanggal
+        const date = data.updated_at ? new Date(data.updated_at) : new Date();
+        const formattedDate = date.toLocaleDateString('id-ID', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        
+        // Buat info grid
+        const infoGrid = `
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-at"></i> Based on</span>
+                <span class="info-value">${data.based_on || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
+                <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
+                <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-user"></i> Type</span>
+                <span class="info-value">${typeText}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
+                <span class="info-value price">${formatRupiah(data.price)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
+                <span class="info-value date">${formattedDate}</span>
+            </div>
+        `;
+        
+        elements.panelInfoGrid.innerHTML = infoGrid;
+        
+        // Sembunyikan loading, tampilkan detail
+        elements.panelLoading.style.display = 'none';
+        elements.panelDetail.style.display = 'block';
+    }
+
+    // ==================== SETUP PANEL ====================
+    function setupPanel() {
+      if (!elements.usernamePanel) return;
+    
+      // Tombol close
+      if (elements.panelCloseBtn) {
+        elements.panelCloseBtn.addEventListener('click', () => {
+          hapticFeedback('light');
+          hideUsernamePanel();
+        });
+      }
+    
+      // Tombol cart
+      if (elements.panelCartBtn) {
+        elements.panelCartBtn.addEventListener('click', () => {
+          hapticFeedback('medium');
+          showToast('Fitur keranjang akan segera hadir!', 'info');
+        });
+      }
+    
+      // Tombol buy
+      if (elements.panelBuyBtn) {
+        elements.panelBuyBtn.addEventListener('click', () => {
+          hapticFeedback('heavy');
+          showToast('Fitur pembelian akan segera hadir!', 'info');
+        });
+      }
+    
+      // Tombol offer
+      if (elements.panelOfferBtn) {
+        elements.panelOfferBtn.addEventListener('click', () => {
+          hapticFeedback('medium');
+          showToast('Fitur penawaran akan segera hadir!', 'info');
+        });
+      }
+    
+      // Klik di luar panel (opsional)
+      elements.usernamePanel.addEventListener('click', (e) => {
+        if (e.target === elements.usernamePanel) {
+          hideUsernamePanel();
+        }
+      });
+    }
 
     async function init() {
       showLoading(true);
@@ -1193,6 +1332,9 @@
         // ===== LOAD DATA =====
         await loadMarketData();
         await loadUserUsernames();
+        
+        // ===== SETUP PANEL CARD =====
+        setupPanel();
     
         // ===== RENDER GAMES =====
         renderGames();
