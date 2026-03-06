@@ -51,7 +51,8 @@ class Database:
             based_on TEXT,
             listed_status TEXT DEFAULT 'unlisted',
             price INTEGER DEFAULT 0,
-            shape TEXT DEFAULT 'UNCOMMON',
+            shape TEXT DEFAULT 'OP',
+            kind TEXT DEFAULT 'MULCHAR INDO',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (added_by) REFERENCES users(user_id),
             FOREIGN KEY (owner_id) REFERENCES users(user_id)
@@ -89,8 +90,65 @@ class Database:
         
         self.conn.commit()
         
-        # Migrasi database lama jika kolom belum ada
         self.migrate_add_shape_column()
+        self.migrate_add_kind_column()
+
+    def migrate_add_kind_column(self):
+        """Add kind column to existing tables if not exists"""
+        try:
+            # Cek apakah kolom sudah ada
+            self.cur.execute("PRAGMA table_info(added_usernames)")
+            columns = [column[1] for column in self.cur.fetchall()]
+            
+            if 'kind' not in columns:
+                print("🔄 Migrating database: Adding kind column...")
+                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN kind TEXT DEFAULT 'MULCHAR INDO'")
+                self.conn.commit()
+                print("✅ Column kind added successfully")
+            
+        except Exception as e:
+            print(f"Error during kind migration: {e}")
+
+    def get_username_kind(self, username):
+        """Get kind value for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+            
+            self.cur.execute("SELECT kind FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            return result[0] if result else "MULCHAR INDO"
+        except Exception as e:
+            print(f"Error getting username kind: {e}")
+            return "MULCHAR INDO"
+    
+    def update_kind(self, username, kind):
+        """Update kind value for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+            
+            now = get_jakarta_time()
+            
+            self.cur.execute("""
+            UPDATE added_usernames 
+            SET kind = ?, updated_at = ? 
+            WHERE username = ?
+            """, (kind, now, username))
+            self.conn.commit()
+            
+            # Log activity
+            self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+            owner_result = self.cur.fetchone()
+            if owner_result:
+                self.add_activity_log(owner_result[0], "KIND_SET", 
+                                      f"Mengatur kind untuk @{username}: {kind}")
+            
+            print(f"✅ Kind saved: '{kind}' for @{username}")
+            return True
+        except Exception as e:
+            print(f"Error updating kind: {e}")
+            return False
 
     def migrate_add_shape_column(self):
         try:
@@ -100,7 +158,7 @@ class Database:
             
             if 'shape' not in columns:
                 print("🔄 Migrating database: Adding shape column...")
-                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN shape TEXT DEFAULT 'UNCOMMON'")
+                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN shape TEXT DEFAULT 'OP'")
                 self.conn.commit()
                 print("✅ Column shape added successfully")
             
@@ -131,7 +189,7 @@ class Database:
     def determine_shape_for_db(self, username, based_on):
         """Determine username type based on rules (HARUS SAMA PERSIS dengan b.py)"""
         if not based_on or not username:
-            return "UNCOMMON"
+            return "OP"
         
         username_lower = username.lower()
         
@@ -203,7 +261,7 @@ class Database:
                 if removed == username_lower:
                     return "KURHUF"
         
-        return "UNCOMMON"
+        return "OP"
 
     def add_user(self, user_id, fullname, username=None):
         now = get_jakarta_time()
@@ -237,9 +295,8 @@ class Database:
         """Add username with type detection"""
         now = get_jakarta_time()
         
-        # Jika shape tidak diberikan, hitung otomatis (default UNCOMMON)
         if shape is None:
-            shape = "UNCOMMON"
+            shape = "OP"
         
         try:
             self.cur.execute("""
@@ -261,13 +318,13 @@ class Database:
             return False
 
     def get_user_added_usernames(self, user_id):
-        """Get all usernames added by a specific user (termasuk shape)"""
+        """Get all usernames added by a specific user (termasuk shape dan kind)"""
         try:
             self.cur.execute("""
             SELECT 
                 id, username, type, owner_id, owner_username, added_by, 
                 verified_at, status, verification_code, based_on, 
-                listed_status, price, shape, updated_at 
+                listed_status, price, shape, kind, updated_at 
             FROM added_usernames 
             WHERE added_by = ? AND status = 'verified'
             ORDER BY verified_at DESC
@@ -278,13 +335,13 @@ class Database:
             return []
     
     def get_listed_usernames(self):
-        """Get all usernames with listed status (termasuk shape)"""
+        """Get all usernames with listed status (termasuk shape dan kind)"""
         try:
             self.cur.execute("""
             SELECT 
                 id, username, type, owner_id, owner_username, added_by, 
                 verified_at, status, verification_code, based_on, 
-                listed_status, price, shape, updated_at 
+                listed_status, price, shape, kind, updated_at 
             FROM added_usernames 
             WHERE listed_status = 'listed' AND status = 'verified'
             ORDER BY updated_at DESC
@@ -308,18 +365,18 @@ class Database:
             return []
     
     def get_username_detail(self, username):
-        """Get detailed info about a specific username (dengan shape)"""
+        """Get detailed info about a specific username (dengan shape dan kind)"""
         try:
             # Clean username if needed
             if username.startswith('@'):
                 username = username[1:]
             
-            # Ambil semua kolom termasuk shape
+            # Ambil semua kolom termasuk shape dan kind
             self.cur.execute("""
             SELECT 
                 id, username, type, owner_id, owner_username, added_by, 
                 verified_at, status, verification_code, based_on, 
-                listed_status, price, shape, updated_at 
+                listed_status, price, shape, kind, updated_at 
             FROM added_usernames 
             WHERE username = ?
             """, (username,))
@@ -334,13 +391,8 @@ class Database:
                 print(f"  type: {result[2]}")
                 print(f"  based_on: '{result[9]}'")
                 print(f"  shape: {result[12]} (index 12)")
-                print(f"  updated_at: {result[13]}")
-                
-                # Verifikasi apakah shape sesuai dengan aturan
-                calculated_shape = self.determine_shape_for_db(result[1], result[9])
-                print(f"  calculated_shape (should be): {calculated_shape}")
-                if calculated_shape != result[12]:
-                    print(f"  ⚠️ MISMATCH! Database shape '{result[12]}' should be '{calculated_shape}'")
+                print(f"  kind: {result[13]} (index 13)")  # KOLOM KIND
+                print(f"  updated_at: {result[14]}")
             
             return result
         except Exception as e:
