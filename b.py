@@ -17,7 +17,8 @@ API_ID = 24576633
 API_HASH = "29931cf620fad738ee7f69442c98e2ee"
 BOT_TOKEN = "8560327887:AAHCjef_6K20ZCzqDHuFkO5UpmWS9STYv7M"
 
-bot = TelegramClient("indotag", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+# Buat bot client
+bot = TelegramClient("indotag", API_ID, API_HASH)
 
 # Initialize database
 db = Database()
@@ -27,7 +28,6 @@ user_state = {}
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
 
 print("🚀 Starting BotProcessor for web app integration...")
-bot_processor = BotProcessor(bot, db)
 
 def format_jakarta_time(dt):
     if dt is None:
@@ -1398,8 +1398,17 @@ async def verify_callback(event):
 async def main():
     """Main function to start bot and processor"""
     try:
-        # Start bot processor
+        # Start the bot client first
+        print("🚀 Starting bot...")
+        await bot.start(bot_token=BOT_TOKEN)
+        
+        # Initialize bot processor with the same bot client
+        print("🚀 Starting BotProcessor for web app integration...")
+        bot_processor = BotProcessor(bot, db)
+        
+        # Start the processor (creates a task in the same event loop)
         await bot_processor.start()
+        
         print("✅ Bot Processor for Web App started and running")
         print("✅ Bot berjalan...")
         print("Debug mode: ON - Errors will be printed to console")
