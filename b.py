@@ -1212,7 +1212,7 @@ async def process_channel_username(event, username_input, channel, requester_id)
             )
 
             try:
-                buttons = [[Button.inline("✅ Verifikasi Channel (Sebagai Admin)", data=f"verify_admin_{verification_id}".encode())]]
+                buttons = [[Button.inline("✅ Verifikasi Channel (Sebagai Admin)", data=f"verify_{verification_id}".encode())]]
                 verification_msg = f"""
 🔔 **Verifikasi Channel Diperlukan**
 
@@ -1342,9 +1342,9 @@ async def verify_callback(event):
         
         # Cek apakah ini admin verification
         is_admin = False
-        if data.startswith("verify_admin_"):
+        if data.startswith("verify_"):
             is_admin = True
-            verification_id = data.replace("verify_admin_", "")
+            verification_id = data.replace("verify_", "")
             print(f"Admin verification callback received for ID: {verification_id}")
         else:
             verification_id = data.replace("verify_", "")
