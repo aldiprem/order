@@ -1790,7 +1790,7 @@
         confirmBtn.disabled = true;
     
         try {
-          // Kirim permintaan ke endpoint baru
+          // PERBAIKAN: Gunakan endpoint /api/webapp/add-username, bukan /api/request-username
           const response = await fetchWithRetry(`${API_BASE_URL}/api/webapp/add-username`, {
             method: 'POST',
             body: JSON.stringify({
@@ -1811,7 +1811,7 @@
               loadPendingNotifications();
             }, 1000);
     
-            // Tampilkan info tambahan
+            // Tampilkan info tambahan dengan username bot yang benar
             showToast('📱 Buka bot @indotag_bot untuk verifikasi', 'info', 5000);
           } else {
             showToast(response.error || 'Gagal mengirim permintaan', 'error');
