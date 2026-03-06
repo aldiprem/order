@@ -117,7 +117,6 @@ def get_market():
         elif sort_by == 'latest':
             usernames.sort(key=lambda x: x[13] or '', reverse=True)  # updated_at di index 13
         
-        # Format for frontend - GUNAKAN SHAPE DARI DATABASE
         result = []
         for u in usernames:
             result.append({
@@ -128,11 +127,12 @@ def get_market():
                 'owner_username': u[4],
                 'based_on': u[9],
                 'price': u[11] or 0,
-                'updated_at': str(u[13]) if u[13] else None,
-                'username_type': u[12] if len(u) > 12 else 'UNCOMMON'  # GUNAKAN SHAPE DARI DB
+                'updated_at': str(u[14]) if len(u) > 14 else None,
+                'username_type': u[12] if len(u) > 12 else 'OP',
+                'kind': u[13] if len(u) > 13 else 'MULCHAR INDO'
             })
         
-        logger.info(f"Returning {len(result)} formatted usernames with shape from database")
+        logger.info(f"Returning {len(result)} formatted usernames with shape and kind from database")
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in /api/market: {e}")
