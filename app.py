@@ -154,6 +154,51 @@ def get_based_on_list():
         logger.error(f"Error in /api/based-on-list: {e}")
         return jsonify([]), 500
 
+@app.route('/api/username/<path:username>', methods=['GET', 'OPTIONS'])
+def get_username_detail(username):
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        # Clean username
+        clean_username = username.replace('@', '')
+        logger.info(f"Getting detail for username: {clean_username}")
+        
+        # Get username detail from database
+        usn_detail = db.get_username_detail(clean_username)
+        
+        if not usn_detail:
+            logger.warning(f"Username not found: {clean_username}")
+            return jsonify({'error': 'Username not found'}), 404
+        
+        # Format response
+        result = {
+            'id': usn_detail[0],
+            'username': usn_detail[1],
+            'type': usn_detail[2],
+            'owner_id': usn_detail[3],
+            'owner_username': usn_detail[4],
+            'added_by': usn_detail[5],
+            'verified_at': str(usn_detail[6]) if usn_detail[6] else None,
+            'status': usn_detail[7],
+            'based_on': usn_detail[9],
+            'listed_status': usn_detail[10],
+            'price': usn_detail[11] or 0,
+            'username_type': usn_detail[12] if len(usn_detail) > 12 else 'OP',
+            'kind': usn_detail[13] if len(usn_detail) > 13 else 'MULCHAR INDO',
+            'updated_at': str(usn_detail[14]) if len(usn_detail) > 14 else None
+        }
+        
+        logger.info(f"Returning detail for @{clean_username}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in /api/username/{username}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/user-usernames/<int:user_id>', methods=['GET', 'OPTIONS'])
 def get_user_usernames(user_id):
     # Handle preflight request
