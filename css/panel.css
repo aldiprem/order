@@ -13,13 +13,14 @@
     --border-hover: rgba(64, 167, 227, 0.2);
 }
 
-/* Panel Container */
+/* Panel Container - Ukuran menyesuaikan konten */
 .username-panel {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 80vh;
+    max-height: 90vh;
+    width: 100%;
     background: var(--panel-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -27,7 +28,7 @@
     border-top: 1px solid var(--panel-border);
     border-radius: 24px 24px 0 0;
     transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.3s ease-out;
     z-index: 3000;
     display: flex;
     flex-direction: column;
@@ -39,17 +40,34 @@
     transform: translateY(0);
 }
 
+/* Overlay untuk klik luar panel */
+.panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 2999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.panel-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* Panel Handle (untuk drag) */
 .panel-handle {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
     width: 40px;
     height: 4px;
     background: rgba(255, 255, 255, 0.15);
     border-radius: 4px;
-    z-index: 10;
+    margin: 12px auto 8px;
     cursor: grab;
     transition: background 0.2s ease;
 }
@@ -61,7 +79,7 @@
 
 /* Panel Header */
 .panel-header {
-    padding: 20px 20px 12px 20px;
+    padding: 8px 20px 12px 20px;
     border-bottom: 1px solid var(--border-light);
     display: flex;
     align-items: center;
@@ -124,6 +142,7 @@
     padding: 16px 20px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    max-height: calc(90vh - 140px); /* Sesuaikan dengan header + footer */
 }
 
 .panel-content::-webkit-scrollbar {
@@ -148,45 +167,45 @@
     font-size: 28px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     letter-spacing: -0.5px;
     padding-left: 4px;
 }
 
-/* Info Grid */
+/* Container Utama untuk semua info - 1 papan kolom */
+.info-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    padding: 4px 0;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+/* Info Grid - tanpa gap agar border menyatu */
 .info-grid {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 32px;
 }
 
+/* Info Row - setiap baris dalam 1 papan */
 .info-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 12px;
-    border: 1px solid transparent;
+    padding: 14px 16px;
+    background: transparent;
+    border-bottom: 1px solid var(--border-light);
     transition: all 0.2s ease;
-    position: relative;
+}
+
+/* Baris terakhir tanpa border */
+.info-row:last-child {
+    border-bottom: none;
 }
 
 .info-row:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Garis pemisah antar row - lebih subtle */
-.info-row:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 5%;
-    right: 5%;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .info-label {
@@ -241,7 +260,7 @@
 
 /* Panel Footer */
 .panel-footer {
-    padding: 16px 20px 24px;
+    padding: 16px 20px 20px;
     border-top: 1px solid var(--border-light);
     display: flex;
     gap: 12px;
@@ -250,7 +269,7 @@
 
 .panel-btn {
     flex: 1;
-    padding: 14px 16px;
+    padding: 12px 16px;
     border-radius: 30px;
     font-size: 14px;
     font-weight: 600;
@@ -292,7 +311,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    min-height: 200px;
     gap: 16px;
 }
 
@@ -324,16 +343,16 @@ body.panel-open {
 /* Responsive */
 @media (max-width: 480px) {
     .username-panel {
-        height: 85vh;
         border-radius: 20px 20px 0 0;
     }
 
     .username-title {
         font-size: 24px;
+        margin-bottom: 16px;
     }
 
     .info-row {
-        padding: 10px 12px;
+        padding: 12px 14px;
     }
 
     .info-label {
@@ -351,7 +370,7 @@ body.panel-open {
     }
 
     .panel-btn {
-        padding: 12px 14px;
+        padding: 10px 14px;
         font-size: 13px;
     }
 
