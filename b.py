@@ -1397,15 +1397,24 @@ async def verify_callback(event):
 
 async def main():
     """Main function to start bot and processor"""
-    # Start bot processor
-    await bot_processor.start()
-    print("✅ Bot Processor for Web App started and running")
-    print("✅ Bot berjalan...")
-    print("Debug mode: ON - Errors will be printed to console")
-    
-    # Run bot until disconnected
-    await bot.run_until_disconnected()
+    try:
+        # Start bot processor
+        await bot_processor.start()
+        print("✅ Bot Processor for Web App started and running")
+        print("✅ Bot berjalan...")
+        print("Debug mode: ON - Errors will be printed to console")
+        
+        # Run bot until disconnected
+        await bot.run_until_disconnected()
+    except Exception as e:
+        print(f"❌ Error in main: {e}")
+        traceback.print_exc()
 
-# Jalankan dengan asyncio.run()
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n✅ Bot stopped by user")
+    except Exception as e:
+        print(f"❌ Fatal error: {e}")
+        traceback.print_exc()
