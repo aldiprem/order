@@ -37,7 +37,6 @@ class Database:
         )
         """)
         
-        # Tabel username_added (menyimpan username yang diadd)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS added_usernames (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,13 +51,13 @@ class Database:
             based_on TEXT,
             listed_status TEXT DEFAULT 'unlisted',
             price INTEGER DEFAULT 0,
+            shape TEXT DEFAULT 'UNCOMMON',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (added_by) REFERENCES users(user_id),
             FOREIGN KEY (owner_id) REFERENCES users(user_id)
         )
         """)
         
-        # Tabel activity_log (menyimpan log aktivitas)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS activity_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,7 +88,108 @@ class Database:
         """)
         
         self.conn.commit()
-    
+        
+        # Migrasi database lama jika kolom belum ada
+        self.migrate_add_shape_column()
+
+    def migrate_add_shape_column(self):
+        try:
+            # Cek apakah kolom sudah ada
+            self.cur.execute("PRAGMA table_info(added_usernames)")
+            columns = [column[1] for column in self.cur.fetchall()]
+            
+            if 'shape' not in columns:
+                print("🔄 Migrating database: Adding shape column...")
+                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN shape TEXT DEFAULT 'UNCOMMON'")
+                self.conn.commit()
+                print("✅ Column shape added successfully")
+            
+            # Update existing records dengan type yang sesuai
+            self.cur.execute("SELECT id, username, based_on FROM added_usernames WHERE shape IS NULL OR shape = ''")
+            rows = self.cur.fetchall()
+            
+            for row in rows:
+                usn_id = row[0]
+                username = row[1]
+                based_on = row[2]
+                
+                # Hitung type berdasarkan username dan based_on
+                shape = self.determine_shape_for_db(username, based_on)
+                
+                self.cur.execute("UPDATE added_usernames SET shape = ? WHERE id = ?", (shape, usn_id))
+            
+            self.conn.commit()
+            print(f"✅ Updated {len(rows)} records with shape")
+            
+        except Exception as e:
+            print(f"Error during migration: {e}")
+
+    def determine_shape_for_db(self, username, based_on):
+        """Determine username type based on rules (sama seperti di app.py)"""
+        if not based_on or not username:
+            return "UNCOMMON"
+        
+        username_lower = username.lower()
+        based_on_lower = based_on.lower()
+        
+        # Check for OP (exact match)
+        if username_lower == based_on_lower:
+            return "OP"
+        
+        # Check for SCANON (adds 's' at end)
+        if username_lower == based_on_lower + 's':
+            return "SCANON"
+        
+        # Check for SOP (double letters)
+        for i in range(len(based_on_lower)-1):
+            if based_on_lower[i] == based_on_lower[i+1]:
+                if username_lower == based_on_lower[:i+1] + based_on_lower[i+1:]:
+                    return "SOP"
+        
+        # Check for CANON (i to l or l to i)
+        if len(username_lower) == len(based_on_lower):
+            canon_possible = True
+            for a, b in zip(username_lower, based_on_lower):
+                if (a == 'l' and b == 'i') or (a == 'i' and b == 'l'):
+                    continue
+                elif a != b:
+                    canon_possible = False
+                    break
+            if canon_possible:
+                return "CANON"
+        
+        # Check for TAMPING (add letter at beginning or end)
+        if len(username_lower) == len(based_on_lower) + 1:
+            if username_lower.startswith(based_on_lower) or username_lower.endswith(based_on_lower):
+                return "TAMPING"
+        
+        # Check for TAMDAL (add letter in middle)
+        if len(username_lower) == len(based_on_lower) + 1:
+            for i in range(len(based_on_lower)):
+                if username_lower.startswith(based_on_lower[:i]) and username_lower[i+1:].startswith(based_on_lower[i:]):
+                    return "TAMDAL"
+        
+        # Check for GANHUR (replace one letter)
+        if len(username_lower) == len(based_on_lower):
+            diff_count = sum(1 for a, b in zip(username_lower, based_on_lower) if a != b)
+            if diff_count == 1:
+                return "GANHUR"
+        
+        # Check for SWITCH (swap adjacent letters)
+        if len(username_lower) == len(based_on_lower):
+            for i in range(len(based_on_lower)-1):
+                switched = based_on_lower[:i] + based_on_lower[i+1] + based_on_lower[i] + based_on_lower[i+2:]
+                if switched == username_lower:
+                    return "SWITCH"
+        
+        # Check for KURHUF (remove one letter)
+        if len(username_lower) == len(based_on_lower) - 1:
+            for i in range(len(based_on_lower)):
+                if username_lower == based_on_lower[:i] + based_on_lower[i+1:]:
+                    return "KURHUF"
+        
+        return "UNCOMMON"
+
     def add_user(self, user_id, fullname, username=None):
         now = get_jakarta_time()
         self.cur.execute("""
@@ -118,17 +218,27 @@ class Database:
         self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
         return self.cur.fetchone()
     
-    def add_username_request(self, username, type_, owner_id, owner_username, added_by):
+    def add_username_request(self, username, type_, owner_id, owner_username, added_by, shape=None):
+        """Add username with type detection"""
         now = get_jakarta_time()
+        
+        # Jika shape tidak diberikan, hitung otomatis (default UNCOMMON)
+        if shape is None:
+            shape = "UNCOMMON"
+        
         try:
             self.cur.execute("""
-            INSERT INTO added_usernames (username, type, owner_id, owner_username, added_by, verified_at, status, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (username, type_, owner_id, owner_username, added_by, now, 'verified', now))
+            INSERT INTO added_usernames (
+                username, type, owner_id, owner_username, added_by, 
+                verified_at, status, shape, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (username, type_, owner_id, owner_username, added_by, now, 'verified', shape, now))
             self.conn.commit()
             
             # Log activity
-            self.add_activity_log(added_by, "USERNAME_ADDED", f"Menambahkan username @{username} (tipe: {type_})")
+            self.add_activity_log(added_by, "USERNAME_ADDED", 
+                                  f"Menambahkan username @{username} (tipe: {type_}, shape: {shape})")
             
             return True
         except Exception as e:
@@ -136,10 +246,14 @@ class Database:
             return False
 
     def get_user_added_usernames(self, user_id):
-        """Get all usernames added by a specific user"""
+        """Get all usernames added by a specific user (termasuk shape)"""
         try:
             self.cur.execute("""
-            SELECT * FROM added_usernames 
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, shape, updated_at 
+            FROM added_usernames 
             WHERE added_by = ? AND status = 'verified'
             ORDER BY verified_at DESC
             """, (user_id,))
@@ -149,13 +263,13 @@ class Database:
             return []
     
     def get_listed_usernames(self):
-        """Get all usernames with listed status"""
+        """Get all usernames with listed status (termasuk shape)"""
         try:
             self.cur.execute("""
             SELECT 
                 id, username, type, owner_id, owner_username, added_by, 
                 verified_at, status, verification_code, based_on, 
-                listed_status, price, updated_at 
+                listed_status, price, shape, updated_at 
             FROM added_usernames 
             WHERE listed_status = 'listed' AND status = 'verified'
             ORDER BY updated_at DESC
@@ -179,18 +293,18 @@ class Database:
             return []
     
     def get_username_detail(self, username):
-        """Get detailed info about a specific username"""
+        """Get detailed info about a specific username (dengan shape)"""
         try:
             # Clean username if needed
             if username.startswith('@'):
                 username = username[1:]
             
-            # Ambil semua kolom dengan urutan yang pasti
+            # Ambil semua kolom termasuk shape
             self.cur.execute("""
             SELECT 
                 id, username, type, owner_id, owner_username, added_by, 
                 verified_at, status, verification_code, based_on, 
-                listed_status, price, updated_at 
+                listed_status, price, shape, updated_at 
             FROM added_usernames 
             WHERE username = ?
             """, (username,))
@@ -202,37 +316,55 @@ class Database:
                 print(f"get_username_detail for {username}:")
                 print(f"  listed_status = {result[10]} (index 10)")
                 print(f"  price = {result[11]} (index 11)")
-                print(f"  updated_at = {result[12]} (index 12)")
+                print(f"  shape = {result[12]} (index 12)")  # KOLOM BARU
+                print(f"  updated_at = {result[13]} (index 13)")
             
             return result
         except Exception as e:
             print(f"Error getting username detail: {e}")
             return None
     
-    # Di file data.py, perbarui method update_based_on:
-    
     def update_based_on(self, username, based_on):
-        """Update based_on value for a username"""
+        """Update based_on value for a username dan update shape"""
         try:
             if username.startswith('@'):
                 username = username[1:]
             
             now = get_jakarta_time()
             
+            # Update based_on
             self.cur.execute("""
             UPDATE added_usernames 
             SET based_on = ?, updated_at = ? 
             WHERE username = ?
             """, (based_on, now, username))
+            
+            # Ambil username untuk menghitung type
+            self.cur.execute("SELECT username FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            
+            if result:
+                usn = result[0]
+                # Hitung shape berdasarkan based_on yang baru
+                shape = self.determine_shape_for_db(usn, based_on)
+                
+                # Update shape
+                self.cur.execute("""
+                UPDATE added_usernames 
+                SET shape = ? 
+                WHERE username = ?
+                """, (shape, username))
+            
             self.conn.commit()
             
             # Log activity
             self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
-            result = self.cur.fetchone()
-            if result:
-                self.add_activity_log(result[0], "BASED_ON_SET", f"Mengatur based_on untuk @{username}: {based_on}")
+            owner_result = self.cur.fetchone()
+            if owner_result:
+                self.add_activity_log(owner_result[0], "BASED_ON_SET", 
+                                      f"Mengatur based_on untuk @{username}: {based_on} (type: {shape})")
             
-            print(f"✅ Based_on saved with spaces: '{based_on}'")  # Debug log
+            print(f"✅ Based_on saved with spaces: '{based_on}', type: {shape}")
             return True
         except Exception as e:
             print(f"Error updating based_on: {e}")
