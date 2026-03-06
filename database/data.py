@@ -134,9 +134,12 @@ class Database:
             return "UNCOMMON"
         
         username_lower = username.lower()
-        based_on_lower = based_on.lower()
         
-        # 1. CEK OP (On Point) - tanpa perubahan
+        # PENTING: Hapus spasi dari based_on untuk perbandingan (sama seperti di b.py)
+        based_on_no_spaces = based_on.replace(' ', '')
+        based_on_lower = based_on_no_spaces.lower()
+        
+        # 1. CEK OP (On Point) - tanpa perubahan (setelah spasi dihapus)
         if username_lower == based_on_lower:
             return "OP"
         
