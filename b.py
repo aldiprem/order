@@ -4,6 +4,7 @@ import requests
 import json
 import sqlite3
 import asyncio
+import traceback
 import datetime
 import random
 import string
@@ -25,9 +26,8 @@ db = Database()
 user_state = {}
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
 
+print("🚀 Starting BotProcessor for web app integration...")
 bot_processor = BotProcessor(bot, db)
-bot_processor.start()
-print("✅ Bot Processor for Web App started")
 
 def format_jakarta_time(dt):
     if dt is None:
@@ -1395,6 +1395,7 @@ async def verify_callback(event):
         print(error_msg)
         await event.answer("❌ Terjadi kesalahan!", alert=True)
 
+print("✅ Bot Processor for Web App started and running")
 print("✅ Bot berjalan...")
 print("Debug mode: ON - Errors will be printed to console")
 bot.run_until_disconnected()
