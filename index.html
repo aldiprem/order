@@ -16,7 +16,7 @@
     
     <!-- CSS -->
     <link rel="stylesheet" href="/order/css/style.css">
-    <link rel="stylesheet" href="/order/css/panel.css">
+    <link rel="stylesheet" href="/order/css/style.css">
     
     <!-- Config -->
     <script src="/order/config.js"></script>
@@ -134,8 +134,11 @@
             <div class="panel-detail" id="panelDetail" style="display: none;">
               <h2 class="username-title" id="panelUsername">@username</h2>
         
-              <div class="info-grid" id="panelInfoGrid">
-                <!-- Info rows akan diisi oleh JavaScript -->
+              <!-- SATU KOLOM UNTUK SEMUA INFO -->
+              <div class="info-container">
+                <div class="info-grid" id="panelInfoGrid">
+                  <!-- Info rows akan diisi oleh JavaScript -->
+                </div>
               </div>
             </div>
           </div>
@@ -151,6 +154,9 @@
             </button>
           </div>
         </div>
+        
+        <!-- Overlay untuk klik luar panel -->
+        <div class="panel-overlay" id="panelOverlay"></div>
 
         <!-- Filter Panel (Sliding from bottom) -->
         <div class="filter-panel" id="filterPanel">
