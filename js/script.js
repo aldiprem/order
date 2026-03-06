@@ -75,248 +75,91 @@
         searchSubmitBtn: null
     };
 
-    // ==================== AUDIO MANAGER (IMPROVED VERSION) ====================
+    // ==================== AUDIO MANAGER ====================
     if (!window.AudioManager) {
-      window.AudioManager = {
-        enabled: true,
-        volume: 0.5,
-        basePath: '/order/sound/',
-        sounds: {
-          click: { file: 'click.mp3', instances: [], preloaded: false },
-          pop: { file: 'pop.mp3', instances: [], preloaded: false },
-          success: { file: 'success.mp3', instances: [], preloaded: false },
-          error: { file: 'error.mp3', instances: [], preloaded: false },
-          back: { file: 'back.mp3', instances: [], preloaded: false }
-        },
-        audioContext: null,
-        isUserInteracted: false,
-        pendingPlays: [],
-    
-        init: function() {
-          console.log('🔊 Initializing Audio Manager...');
-    
-          // Cek dukungan audio
-          if (!HTMLAudioElement) {
-            console.warn('⚠️ Audio not supported');
-            this.enabled = false;
-            return;
-          }
-    
-          // Buat AudioContext untuk iOS
-          try {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (window.AudioContext) {
-              this.audioContext = new AudioContext();
-              console.log('✅ AudioContext created, state:', this.audioContext.state);
-            }
-          } catch (e) {
-            console.warn('⚠️ AudioContext not supported:', e);
-          }
-    
-          // Preload semua sound
-          this.preloadAllSounds();
-    
-          // Setup user interaction listeners
-          this.setupUserInteractionListeners();
-    
-          // Coba play silent sound untuk unlock audio (khusus iOS)
-          this.tryUnlockAudio();
-    
-          console.log('✅ Audio Manager initialized');
-        },
-    
-        setupUserInteractionListeners: function() {
-          const unlockAudio = () => {
-            if (this.isUserInteracted) return;
-    
-            console.log('👆 User interaction detected - unlocking audio');
-            this.isUserInteracted = true;
-    
-            // Resume AudioContext jika ada
-            if (this.audioContext && this.audioContext.state === 'suspended') {
-              this.audioContext.resume().then(() => {
-                console.log('✅ AudioContext resumed');
-              }).catch(e => {
-                console.warn('❌ Failed to resume AudioContext:', e);
-              });
-            }
-    
-            // Play silent sound untuk unlock
-            this.playSilentSound();
-    
-            // Process pending plays
-            this.processPendingPlays();
-    
-            // Remove listeners setelah pertama kali
-            document.removeEventListener('touchstart', unlockAudio);
-            document.removeEventListener('click', unlockAudio);
-            document.removeEventListener('keydown', unlockAudio);
-            document.removeEventListener('touchend', unlockAudio);
-          };
-    
-          // Multiple events untuk maksimalkan coverage
-          document.addEventListener('touchstart', unlockAudio, { once: true });
-          document.addEventListener('click', unlockAudio, { once: true });
-          document.addEventListener('keydown', unlockAudio, { once: true });
-          document.addEventListener('touchend', unlockAudio, { once: true });
-        },
-    
-        tryUnlockAudio: function() {
-          // Untuk iOS: coba play silent sound
-          try {
-            const silentAudio = new Audio();
-            silentAudio.src = 'data:audio/mp3;base64,SUQzBAAAAA...'; // Base64 silent MP3
-            silentAudio.volume = 0.01;
-            silentAudio.play().then(() => {
-              console.log('✅ Silent audio played for unlock');
-              silentAudio.pause();
-            }).catch(e => {
-              // Ignore - akan di-unlock oleh user interaction
-            });
-          } catch (e) {
-            // Ignore
-          }
-        },
-    
-        playSilentSound: function() {
-          // Play sound dengan volume sangat rendah untuk unlock
-          this.play('click', 0.01);
-        },
-    
-        processPendingPlays: function() {
-          if (this.pendingPlays.length > 0) {
-            console.log(`🎵 Processing ${this.pendingPlays.length} pending plays`);
-            this.pendingPlays.forEach(pending => {
-              this.play(pending.name, pending.volume);
-            });
-            this.pendingPlays = [];
-          }
-        },
-    
-        preloadAllSounds: function() {
-          for (let name in this.sounds) {
-            this.preloadSound(name);
-          }
-        },
-    
-        preloadSound: function(name) {
-          const sound = this.sounds[name];
-          if (!sound || sound.preloaded) return;
-    
-          // Buat multiple instances untuk pooling
-          for (let i = 0; i < 3; i++) {
-            try {
-              const audio = new Audio();
-              audio.src = this.basePath + sound.file;
-              audio.volume = this.volume;
-              audio.preload = 'auto';
-    
-              // Force load
-              audio.load();
-    
-              audio.onerror = (e) => {
-                console.warn(`⚠️ Failed to load sound: ${name}`, e);
-              };
-    
-              audio.oncanplaythrough = () => {
-                console.log(`✅ Sound ready: ${name} (instance ${i+1})`);
-              };
-    
-              sound.instances.push(audio);
-            } catch (e) {
-              console.warn(`⚠️ Error preloading ${name}:`, e);
-            }
-          }
-    
-          sound.preloaded = true;
-          console.log(`✅ Preloaded sound: ${name} (${sound.instances.length} instances)`);
-        },
-    
-        play: function(name, volume) {
-          if (!this.enabled) return;
-    
-          // Jika belum ada user interaction, queue untuk diputar nanti
-          if (!this.isUserInteracted) {
-            console.log(`⏳ User not interacted yet, queueing sound: ${name}`);
-            this.pendingPlays.push({ name, volume });
-            return;
-          }
-    
-          const sound = this.sounds[name];
-          if (!sound) {
-            console.warn(`⚠️ Sound not found: ${name}`);
-            return;
-          }
-    
-          // Cari audio instance yang available
-          let audio = sound.instances.find(a => a.paused || a.ended);
-    
-          if (!audio) {
-            // Buat instance baru jika semua busy
-            try {
-              audio = new Audio();
-              audio.src = this.basePath + sound.file;
-              audio.volume = volume || this.volume;
-              sound.instances.push(audio);
-              console.log(`🔄 Created new audio instance for ${name}`);
-            } catch (e) {
-              console.warn(`⚠️ Failed to create audio instance:`, e);
-              return;
-            }
-          }
-    
-          this.playWithOptions(audio, volume);
-        },
-    
-        playWithOptions: function(audio, volume) {
-          if (!audio) return;
-    
-          try {
-            // Reset audio
-            audio.pause();
-            audio.currentTime = 0;
-    
-            // Set volume
-            audio.volume = volume || this.volume;
-    
-            // Play promise
-            const playPromise = audio.play();
-    
-            if (playPromise !== undefined) {
-              playPromise.catch(error => {
-                // AbortError adalah normal (multiple plays cepat)
-                if (error.name !== 'AbortError') {
-                  console.warn(`⚠️ Audio play failed:`, error);
-    
-                  // Coba unlock lagi
-                  if (error.name === 'NotAllowedError') {
-                    console.log('🔄 Play not allowed, waiting for user interaction...');
-                    this.isUserInteracted = false;
-                    this.setupUserInteractionListeners();
-                  }
+        window.AudioManager = {
+            enabled: true,
+            volume: 0.5,
+            basePath: '/order/sound/',
+            sounds: {
+                click: { file: 'click.mp3', instances: [], preloaded: false },
+                pop: { file: 'pop.mp3', instances: [], preloaded: false },
+                success: { file: 'success.mp3', instances: [], preloaded: false },
+                error: { file: 'error.mp3', instances: [], preloaded: false },
+                back: { file: 'back.mp3', instances: [], preloaded: false }
+            },
+
+            init: function() {
+                console.log('🔊 Initializing Audio Manager...');
+                if (!window.AudioContext && !HTMLAudioElement) {
+                    console.warn('⚠️ Audio not supported');
+                    this.enabled = false;
+                    return;
                 }
-              });
+                this.preloadAllSounds();
+                this.enableAudioOnUserInteraction();
+                console.log('✅ Audio Manager initialized');
+            },
+
+            preloadAllSounds: function() {
+                for (let name in this.sounds) {
+                    this.preloadSound(name);
+                }
+            },
+
+            preloadSound: function(name) {
+                const sound = this.sounds[name];
+                if (!sound || sound.preloaded) return;
+                
+                for (let i = 0; i < 2; i++) {
+                    const audio = new Audio();
+                    audio.src = this.basePath + sound.file;
+                    audio.volume = this.volume;
+                    audio.preload = 'auto';
+                    audio.onerror = () => console.warn(`⚠️ Failed to load: ${name}`);
+                    sound.instances.push(audio);
+                }
+                sound.preloaded = true;
+            },
+
+            enableAudioOnUserInteraction: function() {
+                const enable = () => {
+                    if (window.AudioContext) {
+                        const context = new AudioContext();
+                        if (context.state === 'suspended') context.resume();
+                    }
+                    this.play('click', 0.1);
+                    document.removeEventListener('touchstart', enable);
+                    document.removeEventListener('click', enable);
+                };
+                document.addEventListener('touchstart', enable, { once: true });
+                document.addEventListener('click', enable, { once: true });
+            },
+
+            play: function(name, vol) {
+                if (!this.enabled) return;
+                const sound = this.sounds[name];
+                if (!sound) return;
+                
+                const audio = sound.instances.find(a => a.paused || a.ended);
+                if (!audio) {
+                    const newAudio = new Audio();
+                    newAudio.src = this.basePath + sound.file;
+                    newAudio.volume = vol || this.volume;
+                    sound.instances.push(newAudio);
+                    this.playWithOptions(newAudio, vol);
+                    return;
+                }
+                this.playWithOptions(audio, vol);
+            },
+
+            playWithOptions: function(audio, vol) {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = vol || this.volume;
+                audio.play().catch(() => {});
             }
-          } catch (e) {
-            console.warn(`⚠️ Error playing sound:`, e);
-          }
-        },
-    
-        setVolume: function(volume) {
-          this.volume = Math.max(0, Math.min(1, volume));
-    
-          // Update semua instances
-          for (let sound of Object.values(this.sounds)) {
-            sound.instances.forEach(audio => {
-              audio.volume = this.volume;
-            });
-          }
-        },
-    
-        setEnabled: function(enabled) {
-          this.enabled = enabled;
-        }
-      };
+        };
     }
 
     // ==================== ANTI-DOUBLE FEEDBACK ====================
@@ -1487,14 +1330,8 @@
         try {
             console.log('📳 Initializing haptic feedback...');
             
-            // Inisialisasi Audio Manager
             if (window.AudioManager) {
-              window.AudioManager.init();
-    
-              setTimeout(() => {
-                window.AudioManager.play('click', 0.2);
-                console.log('🎵 Test sound queued');
-              }, 1000);
+                window.AudioManager.init();
             }
       
             if (window.Telegram?.WebApp) {
