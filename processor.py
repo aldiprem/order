@@ -1,6 +1,5 @@
 # processor.py - Menghubungkan web app dengan bot
 import asyncio
-import threading
 from telethon import TelegramClient, events, Button
 from telethon.tl.types import Channel, User, ChannelParticipantsAdmins
 from database.data import Database
@@ -10,15 +9,11 @@ class BotProcessor:
     def __init__(self, bot_client, db):
         self.bot = bot_client
         self.db = db
-        self.running = False
+        self.running = True  # SET KE TRUE
         self.processed_ids = set()
-        
-    def start(self):
-        """Start the processor - langsung gunakan loop yang ada"""
-        self.running = True
-        # Gunakan loop yang sudah ada dari bot
+        # Langsung mulai task di sini
         asyncio.create_task(self._process_requests())
-        print("✅ BotProcessor started and monitoring for webapp requests...")
+        print("✅ BotProcessor initialized and monitoring for webapp requests...")
         
     async def _process_requests(self):
         """Process pending requests from web app"""
@@ -27,7 +22,9 @@ class BotProcessor:
             try:
                 # Get pending requests
                 pending = self.db.get_pending_webapp_requests(5)
-                print(f"🔍 Checking for pending requests... Found {len(pending)}")
+                
+                if pending:
+                    print(f"🔍 Found {len(pending)} pending requests")
                 
                 for request in pending:
                     request_id = request[1]  # request_id
@@ -53,7 +50,7 @@ class BotProcessor:
                 print(f"❌ Error processing requests: {e}")
                 traceback.print_exc()
                 await asyncio.sleep(5)
-                
+    
     async def _process_username_request(self, username, requester_id, request_id):
         """Process a single username request"""
         try:
