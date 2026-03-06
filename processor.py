@@ -1,147 +1,296 @@
-async def process_channel_username(event, username_input, channel, requester_id):
-    """Process channel username verification (Improved version)"""
-    try:
-        print(f"Processing channel username: {username_input}")
-        clean_username = username_input[1:] if username_input.startswith('@') else username_input
-        creator_id = None
-        creator_username = None
+# processor.py - Menghubungkan web app dengan bot
+import asyncio
+from telethon import TelegramClient, events, Button
+from telethon.tl.types import Channel, User, ChannelParticipantsAdmins
+from database.data import Database
+import traceback
 
-        # --- METODE PALING ANDAL: Gunakan functions.channels.GetFullChannelRequest ---
-        try:
-            print("Mencoba mendapatkan informasi lengkap channel dengan GetFullChannelRequest...")
-            # Dapatkan objek channel yang lengkap (bukan versi "minimal")
-            full_channel = await bot(functions.channels.GetFullChannelRequest(channel))
-            
-            # Informasi lengkap channel ada di full_channel.chats
-            # Biasanya berisi satu objek Channel dengan atribut 'creator' dan 'id'
-            if full_channel and hasattr(full_channel, 'chats') and full_channel.chats:
-                for chat in full_channel.chats:
-                    # Cek apakah ini channel yang dimaksud dan apakah creator-nya diketahui
-                    if isinstance(chat, types.Channel) and chat.id == channel.id:
-                        # Atribut 'creator' (boolean) menandakan apakah pengguna yang terautentikasi (bot) adalah creator.
-                        # Tapi kita butuh ID creator-nya.
-                        # Coba cari di 'participants' atau data lain. Sayangnya, API sering tidak mengembalikan ID creator langsung.
-                        # Pendekatan ini mungkin tetap gagal.
-                        print(f"Info channel dari GetFullChannel: creator={getattr(chat, 'creator', False)}")
-                        
-                        # Sebagai fallback, kita bisa gunakan data dari peserta jika ada.
-                        # Namun, cara paling umum adalah dengan meminta salah satu admin mengklik tombol verifikasi.
-                        # Kita akan asumsikan creator adalah admin pertama yang bukan bot? Ini tidak akurat.
-                        pass
-
-            # Cara alternatif: Lihat di 'full_chat' (full_channel.full_chat)
-            if hasattr(full_channel, 'full_chat') and full_channel.full_chat:
-                 # Tidak ada informasi creator di sini biasanya.
-                 pass
-
-        except Exception as e:
-            print(f"Error saat GetFullChannelRequest: {e}")
-
-        # --- METODE KEDUA (YANG SUDAH ADA, TAPI DIPERBAIKI) ---
-        if not creator_id:
+class BotProcessor:
+    def __init__(self, bot_client, db):
+        self.bot = bot_client
+        self.db = db
+        self.running = True
+        self.processed_ids = set()
+        self.task = None
+        print("✅ BotProcessor initialized")
+        
+    async def start(self):
+        """Start the processor - panggil setelah loop berjalan"""
+        print("🔄 BotProcessor is now monitoring for webapp requests...")
+        # Gunakan loop yang sudah ada dari bot
+        self.task = asyncio.create_task(self._process_requests())
+        print("✅ BotProcessor started and monitoring for webapp requests...")
+        return self.task
+        
+    async def _process_requests(self):
+        """Process pending requests from web app"""
+        while self.running:
             try:
-                print("Mencoba mencari creator dari daftar admin...")
-                admins = await bot.get_participants(channel, filter=types.ChannelParticipantsAdmins)
-                print(f"Ditemukan {len(admins)} admin.")
-
-                for admin in admins:
-                    # Cara yang lebih baik untuk mengecek apakah admin adalah creator
-                    # Kita bisa mencoba mendapatkan hak admin yang lebih detail melalui peserta penuh
-                    try:
-                        # Dapatkan partisipan penuh untuk admin ini
-                        participant = await bot(functions.channels.GetParticipantRequest(
-                            channel=channel,
-                            participant=admin.id
-                        ))
-                        # Periksa apakah partisipan ini adalah creator
-                        if hasattr(participant, 'participant') and isinstance(participant.participant, types.ChannelParticipantCreator):
-                            creator_id = admin.id
-                            creator_username = admin.username
-                            print(f"Creator ditemukan dari GetParticipantRequest: {creator_id}")
-                            break
-                    except Exception as e:
-                        # Fallback: Jika GetParticipantRequest gagal, gunakan cara lama
-                        if hasattr(admin, 'admin_rights') and admin.admin_rights and admin.admin_rights.is_creator:
-                            creator_id = admin.id
-                            creator_username = admin.username
-                            print(f"Creator ditemukan dari admin_rights.is_creator: {creator_id}")
-                            break
-                        elif hasattr(admin, 'participant') and hasattr(admin.participant, 'is_creator') and admin.participant.is_creator:
-                            creator_id = admin.id
-                            creator_username = admin.username
-                            print(f"Creator ditemukan dari participant.is_creator: {creator_id}")
-                            break
-
+                # Get pending requests
+                pending = self.db.get_pending_webapp_requests(5)
+                
+                if pending:
+                    print(f"🔍 Found {len(pending)} pending requests")
+                
+                for request in pending:
+                    request_id = request[1]  # request_id
+                    
+                    # Skip if already processed
+                    if request_id in self.processed_ids:
+                        continue
+                        
+                    username = request[2]    # username
+                    requester_id = request[3] # requester_id
+                    
+                    print(f"📝 Processing webapp request: {request_id} for username @{username}")
+                    
+                    # Proses username seperti di bot
+                    await self._process_username_request(username, requester_id, request_id)
+                    
+                    # Tandai sebagai sedang diproses
+                    self.processed_ids.add(request_id)
+                    
+                await asyncio.sleep(3)  # Check every 3 seconds
+                
             except Exception as e:
-                print(f"Error saat memproses admin: {e}")
-
-        # --- Jika masih tidak ditemukan, minta bantuan user ---
-        if not creator_id:
-            error_msg = (
-                "❌ **Tidak dapat menemukan owner channel secara otomatis.**\n\n"
-                "Ini bisa terjadi karena:\n"
-                "1. Bot tidak memiliki hak istimewa yang cukup (pastikan bot adalah **Admin** dengan hak **'Manage Channel'** atau setara).\n"
-                "2. Keterbatasan API Telegram.\n\n"
-                "**Solusi:**\n"
-                "Pastikan bot adalah admin, lalu minta **salah satu admin channel** (minimal yang bisa menghapus/mengubah info channel) untuk menekan tombol verifikasi. Bot akan tetap memproses siapa pun admin yang menekan tombol sebagai pemilik untuk keperluan verifikasi ini."
-            )
-            print("Creator ID tidak ditemukan.")
-            await event.respond(error_msg)
+                print(f"❌ Error processing requests: {e}")
+                traceback.print_exc()
+                await asyncio.sleep(5)
+    
+    async def _process_username_request(self, username, requester_id, request_id):
+        """Process a single username request"""
+        try:
+            # Format username dengan @ jika belum ada
+            if not username.startswith('@'):
+                username_with_at = '@' + username
+            else:
+                username_with_at = username
+                username = username[1:]  # Clean username tanpa @
+                
+            print(f"🔍 Getting entity for {username_with_at}...")
             
-            # Tetap buat sesi verifikasi dengan mengirim pesan ke channel
-            # Siapa pun admin yang menekan tombol nanti akan diverifikasi.
-            verification_id = db.generate_verification_id()
-            session_id = db.create_verification_session(
+            try:
+                entity = await self.bot.get_entity(username_with_at)
+            except Exception as e:
+                print(f"❌ Entity not found for {username_with_at}: {e}")
+                self.db.update_webapp_request_status(request_id, 'failed')
+                await self.bot.send_message(
+                    requester_id,
+                    f"❌ **Username tidak ditemukan!**\n@{username} tidak dapat ditemukan di Telegram."
+                )
+                return
+            
+            print(f"✅ Entity found: {type(entity).__name__} - {getattr(entity, 'id', 'N/A')}")
+            
+            # Determine entity type and process accordingly
+            if isinstance(entity, Channel):
+                print(f"📢 Processing channel: @{username}")
+                await self._process_channel_from_webapp(entity, username, requester_id, request_id)
+            elif isinstance(entity, User):
+                print(f"👤 Processing user: @{username}")
+                await self._process_user_from_webapp(entity, username, requester_id, request_id)
+            else:
+                print(f"❌ Unknown entity type for @{username}")
+                self.db.update_webapp_request_status(request_id, 'failed')
+                await self.bot.send_message(
+                    requester_id,
+                    f"❌ **Tipe username tidak dikenal!**\n@{username} bukan channel atau user."
+                )
+                
+        except Exception as e:
+            print(f"❌ Error processing username {username}: {e}")
+            traceback.print_exc()
+            self.db.update_webapp_request_status(request_id, 'failed')
+            try:
+                await self.bot.send_message(
+                    requester_id,
+                    f"❌ **Error:** {str(e)}\n\nPastikan username benar dan bot memiliki akses."
+                )
+            except:
+                pass
+            
+    async def _process_user_from_webapp(self, user_entity, username, requester_id, request_id):
+        """Process user username from web app"""
+        try:
+            clean_username = username
+            
+            print(f"🔍 Checking if user @{clean_username} exists in database...")
+            # Check if user exists in database
+            user_data = self.db.get_user_by_username(clean_username)
+            
+            if not user_data:
+                print(f"❌ User @{clean_username} not found in database")
+                await self.bot.send_message(
+                    requester_id,
+                    f"❌ **User @{clean_username} belum menggunakan bot ini!**\n\nUser tersebut harus memulai bot ini terlebih dahulu dengan mengirim /start"
+                )
+                self.db.update_webapp_request_status(request_id, 'failed')
+                return
+            
+            print(f"✅ User @{clean_username} found in database")
+            
+            # Generate OTP
+            otp_code = self.db.generate_otp()
+            print(f"🔐 Generated OTP: {otp_code} for @{clean_username}")
+            
+            # Generate verification ID
+            verification_id = self.db.generate_verification_id()
+            
+            # Create verification session
+            session_id = self.db.create_verification_session(
                 verification_id,
                 clean_username,
-                "channel",
+                "user",
                 requester_id,
-                owner_id=None  # Owner ID tidak diketahui, akan diisi saat tombol ditekan
+                owner_id=user_entity.id,
+                otp_code=otp_code
             )
+            
+            if not session_id:
+                print(f"❌ Failed to create verification session for @{clean_username}")
+                await self.bot.send_message(requester_id, "❌ **Gagal membuat sesi verifikasi!**")
+                self.db.update_webapp_request_status(request_id, 'failed')
+                return
+            
+            print(f"✅ Verification session created: {session_id}")
+            
+            # Send OTP to target user
+            otp_msg = f"""
+🔐 **Kode Verifikasi**
 
+Seseorang ingin menambahkan username Anda (@{clean_username}) ke database INDOTAG MARKET melalui Web App.
+
+Kode verifikasi Anda: `{otp_code}`
+
+Jangan bagikan kode ini kepada siapapun.
+            """
+            await self.bot.send_message(user_entity.id, otp_msg)
+            print(f"📨 OTP sent to user @{clean_username} ({user_entity.id})")
+            
+            # Notify requester
+            await self.bot.send_message(
+                requester_id,
+                f"✅ **Kode OTP telah dikirim ke @{clean_username}**\n\nSilakan minta kode tersebut dan kirimkan ke bot ini.\n\nKetik /cancel untuk membatalkan."
+            )
+            print(f"📨 Notification sent to requester {requester_id}")
+            
+            # Update request status
+            self.db.update_webapp_request_status(request_id, 'processing')
+            print(f"✅ Webapp request {request_id} marked as processing")
+            
+        except Exception as e:
+            print(f"❌ Error processing user from webapp: {e}")
+            traceback.print_exc()
             try:
-                buttons = [[Button.inline("✅ Verifikasi Channel (Sebagai Admin)", data=f"verify_admin_{verification_id}".encode())]]
+                await self.bot.send_message(requester_id, f"❌ **Error: {str(e)}**")
+            except:
+                pass
+            self.db.update_webapp_request_status(request_id, 'failed')
+            
+    async def _process_channel_from_webapp(self, channel, username, requester_id, request_id):
+        """Process channel username from web app"""
+        try:
+            clean_username = username
+            
+            print(f"🔍 Looking for creator of channel @{clean_username}...")
+            
+            # Try to find creator
+            creator_id = None
+            creator_username = None
+            
+            try:
+                admins = await self.bot.get_participants(channel, filter=ChannelParticipantsAdmins)
+                print(f"Found {len(admins)} admins in channel @{clean_username}")
+                
+                for admin in admins:
+                    # Check if admin is creator
+                    if hasattr(admin, 'admin_rights') and admin.admin_rights and admin.admin_rights.is_creator:
+                        creator_id = admin.id
+                        creator_username = admin.username
+                        print(f"✅ Creator found: @{creator_username} ({creator_id})")
+                        break
+                        
+                    # Alternative method
+                    if hasattr(admin, 'participant') and hasattr(admin.participant, 'is_creator') and admin.participant.is_creator:
+                        creator_id = admin.id
+                        creator_username = admin.username
+                        print(f"✅ Creator found (via participant): @{creator_username} ({creator_id})")
+                        break
+                        
+            except Exception as e:
+                print(f"⚠️ Error finding creator: {e}")
+            
+            # Generate verification ID
+            verification_id = self.db.generate_verification_id()
+            
+            channel_with_at = '@' + clean_username
+            
+            if creator_id:
+                # Creator found - create session with owner
+                session_id = self.db.create_verification_session(
+                    verification_id,
+                    clean_username,
+                    "channel",
+                    requester_id,
+                    owner_id=creator_id
+                )
+                
+                # Send verification message to channel
+                buttons = [[Button.inline("✅ Verifikasi Channel", data=f"verify_{verification_id}".encode())]]
                 verification_msg = f"""
 🔔 **Verifikasi Channel Diperlukan**
 
 Channel: @{clean_username}
-Pengirim: [{event.sender.first_name}](tg://user?id={requester_id})
+Pengirim: [User](tg://user?id={requester_id}) (via Web App)
+
+Klik tombol di bawah untuk memverifikasi bahwa Anda adalah owner channel ini.
+                """
+                await self.bot.send_message(channel_with_at, verification_msg, buttons=buttons)
+                print(f"📨 Verification message sent to channel @{clean_username}")
+                
+                await self.bot.send_message(
+                    requester_id,
+                    f"✅ **Pesan verifikasi telah dikirim ke channel @{clean_username}**\n\nOwner channel harus menekan tombol verifikasi untuk menyelesaikan proses."
+                )
+                print(f"📨 Notification sent to requester {requester_id}")
+            else:
+                # Creator not found - send general verification
+                session_id = self.db.create_verification_session(
+                    verification_id,
+                    clean_username,
+                    "channel",
+                    requester_id,
+                    owner_id=None
+                )
+                
+                buttons = [[Button.inline("✅ Verifikasi Channel (Sebagai Admin)", data=f"verify_{verification_id}".encode())]]
+                verification_msg = f"""
+🔔 **Verifikasi Channel Diperlukan**
+
+Channel: @{clean_username}
+Pengirim: [User](tg://user?id={requester_id}) (via Web App)
 
 Klik tombol di bawah untuk **memverifikasi sebagai admin channel**. 
 *Catatan: Sistem akan menganggap admin yang menekan tombol ini sebagai pemilik untuk keperluan pencatatan.*
                 """
-                await bot.send_message(username_input, verification_msg, buttons=buttons)
-                await event.respond(f"✅ **Pesan verifikasi telah dikirim ke channel @{clean_username}**\n\nSiapa pun admin channel yang menekan tombol verifikasi akan dianggap sebagai pemilik untuk proses ini.")
-            except Exception as e:
-                await event.respond(f"❌ Gagal mengirim pesan ke channel: {e}")
-            return
-
-        # --- Jika creator_id ditemukan, lanjutkan seperti biasa ---
-        verification_id = db.generate_verification_id()
-        session_id = db.create_verification_session(
-            verification_id,
-            clean_username,
-            "channel",
-            requester_id,
-            owner_id=creator_id
-        )
-
-        try:
-            buttons = [[Button.inline("✅ Verifikasi Channel", data=f"verify_{verification_id}".encode())]]
-            verification_msg = f"""
-🔔 **Verifikasi Channel Diperlukan**
-
-Channel: @{clean_username}
-Pengirim: [{event.sender.first_name}](tg://user?id={requester_id})
-
-Klik tombol di bawah untuk memverifikasi bahwa Anda adalah owner channel ini.
-            """
-            await bot.send_message(username_input, verification_msg, buttons=buttons)
-            await event.respond(f"✅ **Pesan verifikasi telah dikirim ke channel @{clean_username}**\n\nOwner channel harus menekan tombol verifikasi untuk menyelesaikan proses.")
+                await self.bot.send_message(channel_with_at, verification_msg, buttons=buttons)
+                print(f"📨 Verification message sent to channel @{clean_username} (admin verification)")
+                
+                await self.bot.send_message(
+                    requester_id,
+                    f"✅ **Pesan verifikasi telah dikirim ke channel @{clean_username}**\n\nSiapa pun admin channel yang menekan tombol verifikasi akan dianggap sebagai pemilik untuk proses ini."
+                )
+                print(f"📨 Notification sent to requester {requester_id}")
+            
+            # Update request status
+            self.db.update_webapp_request_status(request_id, 'processing')
+            print(f"✅ Webapp request {request_id} marked as processing")
+            
         except Exception as e:
-            await event.respond(f"❌ Gagal mengirim pesan ke channel: {e}")
-
-    except Exception as e:
-        error_msg = f"Terjadi kesalahan kritis: {str(e)}"
-        print(error_msg)
-        await event.respond(f"❌ **{error_msg}**")
+            print(f"❌ Error processing channel from webapp: {e}")
+            traceback.print_exc()
+            try:
+                await self.bot.send_message(requester_id, f"❌ **Error: {str(e)}**")
+            except:
+                pass
+            self.db.update_webapp_request_status(request_id, 'failed')
