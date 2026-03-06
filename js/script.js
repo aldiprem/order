@@ -713,34 +713,63 @@
         });
       }
     
-      // Di dalam renderMarket(), bagian haptic untuk username cards:
       setTimeout(() => {
+        if (typeof setupPanel === 'function' && !window.panelSetupDone) {
+          setupPanel();
+          window.panelSetupDone = true;
+        }
+      
         document.querySelectorAll('.username-card').forEach(card => {
-          card.addEventListener('click', (e) => {
+          // Hapus event listener lama dengan clone node
+          const newCard = card.cloneNode(true);
+          card.parentNode.replaceChild(newCard, card);
+      
+          newCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+      
             if (e.hapticProcessed) return;
             e.hapticProcessed = true;
-            hapticFeedback('light');
       
-            // PERBAIKI: Ambil username dari elemen dengan class 'username'
-            const usernameElement = card.querySelector('.username');
+            // Haptic feedback
+            if (typeof hapticFeedback === 'function') {
+              hapticFeedback('light');
+            }
+      
+            // Ambil username dari elemen dengan class 'username'
+            const usernameElement = newCard.querySelector('.username');
             if (usernameElement) {
-              const username = usernameElement.textContent;
-              console.log('🔍 Card clicked - username:', username); // TAMBAHKAN LOG
+              const username = usernameElement.textContent.trim();
+              console.log('🔍 Card clicked - username:', username);
       
-              // TAMPILKAN PANEL
-              showUsernamePanel(username);
+              // TAMPILKAN PANEL - pastikan fungsi showUsernamePanel ada
+              if (typeof showUsernamePanel === 'function') {
+                showUsernamePanel(username);
+              } else {
+                console.error('showUsernamePanel function not found!');
+              }
             } else {
               console.error('Username element not found in card');
             }
           });
         });
       
+        // Handle empty market click
         const emptyMarket = document.querySelector('.empty-market');
         if (emptyMarket) {
-          emptyMarket.addEventListener('click', (e) => {
+          const newEmptyMarket = emptyMarket.cloneNode(true);
+          emptyMarket.parentNode.replaceChild(newEmptyMarket, emptyMarket);
+      
+          newEmptyMarket.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+      
             if (e.hapticProcessed) return;
             e.hapticProcessed = true;
-            hapticFeedback('light');
+      
+            if (typeof hapticFeedback === 'function') {
+              hapticFeedback('light');
+            }
           });
         }
       }, 100);
@@ -1235,9 +1264,15 @@
     function setupPanel() {
       if (!elements.usernamePanel) return;
     
+      // Variabel untuk drag
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+    
       // Tombol close
       if (elements.panelCloseBtn) {
-        elements.panelCloseBtn.addEventListener('click', () => {
+        elements.panelCloseBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
           hapticFeedback('light');
           hideUsernamePanel();
         });
@@ -1245,7 +1280,8 @@
     
       // Tombol cart
       if (elements.panelCartBtn) {
-        elements.panelCartBtn.addEventListener('click', () => {
+        elements.panelCartBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
           hapticFeedback('medium');
           showToast('Fitur keranjang akan segera hadir!', 'info');
         });
@@ -1253,7 +1289,8 @@
     
       // Tombol buy
       if (elements.panelBuyBtn) {
-        elements.panelBuyBtn.addEventListener('click', () => {
+        elements.panelBuyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
           hapticFeedback('heavy');
           showToast('Fitur pembelian akan segera hadir!', 'info');
         });
@@ -1261,23 +1298,125 @@
     
       // Tombol offer
       if (elements.panelOfferBtn) {
-        elements.panelOfferBtn.addEventListener('click', () => {
+        elements.panelOfferBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
           hapticFeedback('medium');
           showToast('Fitur penawaran akan segera hadir!', 'info');
         });
       }
     
-      // Klik di luar panel (opsional)
+      // Klik di luar panel (background)
       elements.usernamePanel.addEventListener('click', (e) => {
         if (e.target === elements.usernamePanel) {
           hideUsernamePanel();
         }
       });
+    
+      // Drag to close - handle (panel handle)
+      const panelHandle = document.querySelector('.panel-handle');
+      if (panelHandle) {
+        panelHandle.addEventListener('touchstart', (e) => {
+          startY = e.touches[0].clientY;
+          isDragging = true;
+          elements.usernamePanel.style.transition = 'none';
+        }, { passive: true });
+    
+        panelHandle.addEventListener('touchmove', (e) => {
+          if (!isDragging) return;
+          e.preventDefault();
+    
+          currentY = e.touches[0].clientY;
+          const deltaY = currentY - startY;
+    
+          if (deltaY > 0) {
+            // Hanya drag ke bawah
+            const translateY = Math.min(deltaY, window.innerHeight);
+            elements.usernamePanel.style.transform = `translateY(${translateY}px)`;
+          }
+        }, { passive: false });
+    
+        panelHandle.addEventListener('touchend', (e) => {
+          if (!isDragging) return;
+    
+          isDragging = false;
+          elements.usernamePanel.style.transition = '';
+    
+          const deltaY = currentY - startY;
+    
+          // Jika drag lebih dari 100px, tutup panel
+          if (deltaY > 100) {
+            hideUsernamePanel();
+          } else {
+            // Kembali ke posisi semula
+            elements.usernamePanel.style.transform = '';
+          }
+    
+          startY = 0;
+          currentY = 0;
+        });
+    
+        panelHandle.addEventListener('touchcancel', () => {
+          isDragging = false;
+          elements.usernamePanel.style.transition = '';
+          elements.usernamePanel.style.transform = '';
+          startY = 0;
+          currentY = 0;
+        });
+      }
+    
+      // Drag to close - seluruh panel (untuk swipe dari tengah)
+      elements.usernamePanel.addEventListener('touchstart', (e) => {
+        // Only start drag if touching the panel content area (not buttons)
+        if (e.target.closest('button')) return;
+    
+        startY = e.touches[0].clientY;
+        isDragging = true;
+        elements.usernamePanel.style.transition = 'none';
+      }, { passive: true });
+    
+      elements.usernamePanel.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+    
+        currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+    
+        if (deltaY > 0) {
+          const translateY = Math.min(deltaY, window.innerHeight);
+          elements.usernamePanel.style.transform = `translateY(${translateY}px)`;
+        }
+      }, { passive: false });
+    
+      elements.usernamePanel.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+    
+        isDragging = false;
+        elements.usernamePanel.style.transition = '';
+    
+        const deltaY = currentY - startY;
+    
+        if (deltaY > 100) {
+          hideUsernamePanel();
+        } else {
+          elements.usernamePanel.style.transform = '';
+        }
+    
+        startY = 0;
+        currentY = 0;
+      });
+    
+      elements.usernamePanel.addEventListener('touchcancel', () => {
+        isDragging = false;
+        elements.usernamePanel.style.transition = '';
+        elements.usernamePanel.style.transform = '';
+        startY = 0;
+        currentY = 0;
+      });
     }
 
     // ==================== PANEL FUNCTIONS ====================
     function showUsernamePanel(username) {
-        console.log('🔍 showUsernamePanel called with:', username); // LOG
+        console.log('🔍 showUsernamePanel called with:', username);
         
         if (!elements.usernamePanel) {
             console.error('usernamePanel element not found!');
@@ -1292,31 +1431,27 @@
         
         // Buka panel
         elements.usernamePanel.classList.add('show');
-        isUsernamePanelOpen = true;
+        document.body.classList.add('panel-open'); // Untuk mencegah scroll background
         
-        // Load data username
-        loadUsernameDetail(username);
+        // Load data username dari API
+        loadUsernameDetailFromAPI(username);
     }
     
-    async function loadUsernameDetail(username) {
-        console.log('🔍 loadUsernameDetail called with:', username); // LOG
-        console.log('allUsernames:', allUsernames); // LOG
-        
+    async function loadUsernameDetailFromAPI(username) {
         try {
-            // Cari data dari allUsernames yang sudah ada
-            const userData = allUsernames.find(u => u.username === username);
+            console.log('🔍 Fetching detail for:', username);
             
-            console.log('Found userData:', userData); // LOG
+            const response = await fetchWithRetry(`${API_BASE_URL}/api/username/${username}`, {
+                method: 'GET'
+            });
             
-            if (!userData) {
-                console.error('User data not found for:', username);
-                showToast('Data username tidak ditemukan', 'error');
-                hideUsernamePanel();
-                return;
+            console.log('✅ API Response:', response);
+            
+            if (response.error) {
+                throw new Error(response.error);
             }
             
-            // Render panel (langsung tanpa setTimeout)
-            renderUsernamePanel(userData);
+            renderUsernamePanel(response);
             
         } catch (error) {
             console.error('Error loading username detail:', error);
@@ -1325,8 +1460,15 @@
         }
     }
     
+    function hideUsernamePanel() {
+        if (!elements.usernamePanel) return;
+        
+        elements.usernamePanel.classList.remove('show');
+        document.body.classList.remove('panel-open');
+    }
+    
     function renderUsernamePanel(data) {
-        console.log('🔍 renderUsernamePanel called with:', data); // LOG
+        console.log('🔍 renderUsernamePanel called with:', data);
         
         if (!elements.panelUsername || !elements.panelInfoGrid) {
             console.error('Panel elements not found!');
@@ -1392,7 +1534,7 @@
         elements.panelLoading.style.display = 'none';
         elements.panelDetail.style.display = 'block';
         
-        console.log('✅ Panel rendered successfully'); // LOG
+        console.log('✅ Panel rendered successfully');
     }
 
     async function init() {
