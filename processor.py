@@ -1,31 +1,24 @@
-# bot_processor.py - Menghubungkan web app dengan bot
+# processor.py - Menghubungkan web app dengan bot
 import asyncio
 import threading
 from telethon import TelegramClient, events, Button
 from telethon.tl.types import Channel, User, ChannelParticipantsAdmins
 from database.data import Database
+import traceback
 
 class BotProcessor:
     def __init__(self, bot_client, db):
         self.bot = bot_client
         self.db = db
         self.running = False
-        self.loop = None
-        self.processed_ids = set()  # Untuk menghindari duplikasi proses
+        self.processed_ids = set()
         
     def start(self):
-        """Start the processor in a separate thread"""
+        """Start the processor - langsung gunakan loop yang ada"""
         self.running = True
-        thread = threading.Thread(target=self._run_loop)
-        thread.daemon = True
-        thread.start()
+        # Gunakan loop yang sudah ada dari bot
+        asyncio.create_task(self._process_requests())
         print("✅ BotProcessor started and monitoring for webapp requests...")
-        
-    def _run_loop(self):
-        """Run the asyncio event loop"""
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._process_requests())
         
     async def _process_requests(self):
         """Process pending requests from web app"""
@@ -34,6 +27,7 @@ class BotProcessor:
             try:
                 # Get pending requests
                 pending = self.db.get_pending_webapp_requests(5)
+                print(f"🔍 Checking for pending requests... Found {len(pending)}")
                 
                 for request in pending:
                     request_id = request[1]  # request_id
@@ -53,10 +47,11 @@ class BotProcessor:
                     # Tandai sebagai sedang diproses
                     self.processed_ids.add(request_id)
                     
-                await asyncio.sleep(2)  # Check every 2 seconds
+                await asyncio.sleep(3)  # Check every 3 seconds
                 
             except Exception as e:
                 print(f"❌ Error processing requests: {e}")
+                traceback.print_exc()
                 await asyncio.sleep(5)
                 
     async def _process_username_request(self, username, requester_id, request_id):
@@ -70,10 +65,11 @@ class BotProcessor:
                 username = username[1:]  # Clean username tanpa @
                 
             print(f"🔍 Getting entity for {username_with_at}...")
-            entity = await self.bot.get_entity(username_with_at)
             
-            if not entity:
-                print(f"❌ Entity not found for {username_with_at}")
+            try:
+                entity = await self.bot.get_entity(username_with_at)
+            except Exception as e:
+                print(f"❌ Entity not found for {username_with_at}: {e}")
                 self.db.update_webapp_request_status(request_id, 'failed')
                 await self.bot.send_message(
                     requester_id,
@@ -81,15 +77,13 @@ class BotProcessor:
                 )
                 return
             
-            print(f"✅ Entity found: {type(entity).__name__} - {entity.id}")
+            print(f"✅ Entity found: {type(entity).__name__} - {getattr(entity, 'id', 'N/A')}")
             
             # Determine entity type and process accordingly
             if isinstance(entity, Channel):
-                # Process channel - need to send verification message
                 print(f"📢 Processing channel: @{username}")
                 await self._process_channel_from_webapp(entity, username, requester_id, request_id)
             elif isinstance(entity, User):
-                # Process user - send OTP
                 print(f"👤 Processing user: @{username}")
                 await self._process_user_from_webapp(entity, username, requester_id, request_id)
             else:
@@ -102,6 +96,7 @@ class BotProcessor:
                 
         except Exception as e:
             print(f"❌ Error processing username {username}: {e}")
+            traceback.print_exc()
             self.db.update_webapp_request_status(request_id, 'failed')
             try:
                 await self.bot.send_message(
@@ -121,7 +116,6 @@ class BotProcessor:
             user_data = self.db.get_user_by_username(clean_username)
             
             if not user_data:
-                # User hasn't started the bot
                 print(f"❌ User @{clean_username} not found in database")
                 await self.bot.send_message(
                     requester_id,
@@ -183,7 +177,6 @@ Jangan bagikan kode ini kepada siapapun.
             
         except Exception as e:
             print(f"❌ Error processing user from webapp: {e}")
-            import traceback
             traceback.print_exc()
             try:
                 await self.bot.send_message(requester_id, f"❌ **Error: {str(e)}**")
@@ -292,7 +285,6 @@ Klik tombol di bawah untuk **memverifikasi sebagai admin channel**.
             
         except Exception as e:
             print(f"❌ Error processing channel from webapp: {e}")
-            import traceback
             traceback.print_exc()
             try:
                 await self.bot.send_message(requester_id, f"❌ **Error: {str(e)}**")
