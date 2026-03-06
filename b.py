@@ -1336,12 +1336,19 @@ Jangan bagikan kode ini kepada siapapun.
 
 @bot.on(events.CallbackQuery(pattern=b"verify_"))
 async def verify_callback(event):
-    """Handle verification button press"""
+    """Handle verification button press (both owner and admin)"""
     try:
         data = event.data.decode()
-        verification_id = data.replace("verify_", "")
         
-        print(f"Verification callback received for ID: {verification_id}")  # Debug log
+        # Cek apakah ini admin verification
+        is_admin = False
+        if data.startswith("verify_admin_"):
+            is_admin = True
+            verification_id = data.replace("verify_admin_", "")
+            print(f"Admin verification callback received for ID: {verification_id}")
+        else:
+            verification_id = data.replace("verify_", "")
+            print(f"Owner verification callback received for ID: {verification_id}")
         
         # Get session from database
         session = db.get_verification_session(verification_id)
@@ -1350,41 +1357,55 @@ async def verify_callback(event):
             await event.answer("❌ Sesi tidak valid atau sudah kadaluarsa!", alert=True)
             return
         
-        print(f"Session found: {session}")  # Debug log
+        print(f"Session found: {session}")
         
-        # Check if the user pressing button is the owner
+        # Get session data
+        username = session[2]  # username
+        session_type = session[3]  # type
+        requester_id = session[4]  # requester_id
+        session_owner_id = session[5]  # owner_id
+        
         user_id = event.sender_id
-        session_owner_id = session[5]  # owner_id at index 5
-        session_type = session[3]  # type at index 3
-        username = session[2]  # username at index 2
-        requester_id = session[4]  # requester_id at index 4
         
-        if user_id != session_owner_id:
-            await event.answer("❌ Anda bukan owner dari username ini!", alert=True)
-            return
+        # Untuk verifikasi admin, kita tidak perlu cek owner_id
+        if not is_admin:
+            # Untuk owner verification, cek apakah user adalah owner
+            if user_id != session_owner_id:
+                await event.answer("❌ Anda bukan owner dari username ini!", alert=True)
+                return
         
         # Update session status
-        db.update_verification_session(verification_id, status="verified")
+        db.update_verification_session(verification_id, status="verified", owner_id=user_id)
         
-        # Get owner info
+        # Get user info
         try:
-            owner_entity = await bot.get_entity(user_id)
-            owner_username = owner_entity.username if owner_entity else None
+            user_entity = await bot.get_entity(user_id)
+            user_username = user_entity.username if user_entity else None
         except Exception as e:
-            print(f"Error getting owner entity: {e}")
-            owner_username = None
+            print(f"Error getting user entity: {e}")
+            user_username = None
         
         # Add to added_usernames table
-        success = db.add_username_request(username, session_type, user_id, owner_username, requester_id)
+        success = db.add_username_request(username, session_type, user_id, user_username, requester_id)
         
         if success:
-            await event.edit(f"✅ **Verifikasi Berhasil!**\nUsername @{username} telah diverifikasi dan ditambahkan ke database.")
+            if is_admin:
+                success_msg = f"✅ **Verifikasi Berhasil (Sebagai Admin)!**\nUsername @{username} telah diverifikasi dan ditambahkan ke database."
+            else:
+                success_msg = f"✅ **Verifikasi Berhasil!**\nUsername @{username} telah diverifikasi dan ditambahkan ke database."
+            
+            await event.edit(success_msg)
             await event.answer("✅ Verifikasi berhasil!", alert=True)
             
             # Notify requester
             try:
-                await bot.send_message(requester_id, f"✅ **Verifikasi Berhasil!**\nUsername @{username} telah berhasil diverifikasi oleh owner dan ditambahkan ke database.")
-                print(f"Requester {requester_id} notified")  # Debug log
+                if is_admin:
+                    notify_msg = f"✅ **Verifikasi Berhasil!**\nUsername @{username} telah berhasil diverifikasi oleh admin channel dan ditambahkan ke database."
+                else:
+                    notify_msg = f"✅ **Verifikasi Berhasil!**\nUsername @{username} telah berhasil diverifikasi oleh owner dan ditambahkan ke database."
+                    
+                await bot.send_message(requester_id, notify_msg)
+                print(f"Requester {requester_id} notified")
             except Exception as e:
                 print(f"Error notifying requester: {e}")
         else:
@@ -1393,6 +1414,8 @@ async def verify_callback(event):
     except Exception as e:
         error_msg = f"Error in verify_callback: {str(e)}"
         print(error_msg)
+        import traceback
+        traceback.print_exc()
         await event.answer("❌ Terjadi kesalahan!", alert=True)
 
 async def main():
