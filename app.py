@@ -368,6 +368,39 @@ def verify_otp():
         logger.error(f"Error in verify-otp: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/debug/webapp-requests', methods=['GET'])
+def debug_webapp_requests():
+    """Debug endpoint to see all webapp requests"""
+    try:
+        conn = sqlite3.connect("database/indotag.db")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Cek apakah tabel ada
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='webapp_requests'")
+        if not cur.fetchone():
+            return jsonify({'error': 'Table webapp_requests not found'}), 404
+            
+        cur.execute("SELECT * FROM webapp_requests ORDER BY created_at DESC LIMIT 20")
+        rows = cur.fetchall()
+        
+        result = []
+        for row in rows:
+            result.append({
+                'id': row[0],
+                'request_id': row[1],
+                'username': row[2],
+                'requester_id': row[3],
+                'status': row[4],
+                'created_at': str(row[5]) if row[5] else None,
+                'updated_at': str(row[6]) if row[6] else None
+            })
+        
+        conn.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/webapp/add-username', methods=['POST', 'OPTIONS'])
 def webapp_add_username():
     if request.method == 'OPTIONS':
