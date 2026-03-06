@@ -75,90 +75,121 @@
         searchSubmitBtn: null
     };
 
-    // ==================== AUDIO MANAGER ====================
-    const AudioManager = {
-        enabled: true,
-        volume: 0.5,
-        basePath: '/order/sound/',
-        sounds: {
-            click: { file: 'click.mp3', instances: [], preloaded: false },
-            pop: { file: 'pop.mp3', instances: [], preloaded: false },
-            success: { file: 'success.mp3', instances: [], preloaded: false },
-            error: { file: 'error.mp3', instances: [], preloaded: false },
-            back: { file: 'back.mp3', instances: [], preloaded: false }
-        },
+    // ==================== AUDIO MANAGER (SINGLE INSTANCE) ====================
+    // Gunakan AudioManager dari window jika sudah ada, jika tidak buat baru
+    if (!window.AudioManager) {
+        window.AudioManager = {
+            enabled: true,
+            volume: 0.5,
+            basePath: '/order/sound/',
+            sounds: {
+                click: { file: 'click.mp3', instances: [], preloaded: false },
+                pop: { file: 'pop.mp3', instances: [], preloaded: false },
+                success: { file: 'success.mp3', instances: [], preloaded: false },
+                error: { file: 'error.mp3', instances: [], preloaded: false },
+                back: { file: 'back.mp3', instances: [], preloaded: false }
+            },
 
-        init: function() {
-            console.log('🔊 Initializing Audio Manager...');
-            if (!window.AudioContext && !HTMLAudioElement) {
-                console.warn('⚠️ Audio not supported');
-                this.enabled = false;
-                return;
-            }
-            this.preloadAllSounds();
-            this.enableAudioOnUserInteraction();
-            console.log('✅ Audio Manager initialized');
-        },
-
-        preloadAllSounds: function() {
-            for (let name in this.sounds) {
-                this.preloadSound(name);
-            }
-        },
-
-        preloadSound: function(name) {
-            const sound = this.sounds[name];
-            if (!sound || sound.preloaded) return;
-            
-            for (let i = 0; i < 2; i++) {
-                const audio = new Audio();
-                audio.src = this.basePath + sound.file;
-                audio.volume = this.volume;
-                audio.preload = 'auto';
-                audio.onerror = () => console.warn(`⚠️ Failed to load: ${name}`);
-                sound.instances.push(audio);
-            }
-            sound.preloaded = true;
-        },
-
-        enableAudioOnUserInteraction: function() {
-            const enable = () => {
-                if (window.AudioContext) {
-                    const context = new AudioContext();
-                    if (context.state === 'suspended') context.resume();
+            init: function() {
+                console.log('🔊 Initializing Audio Manager...');
+                if (!window.AudioContext && !HTMLAudioElement) {
+                    console.warn('⚠️ Audio not supported');
+                    this.enabled = false;
+                    return;
                 }
-                this.play('click', 0.1);
-                document.removeEventListener('touchstart', enable);
-                document.removeEventListener('click', enable);
-            };
-            document.addEventListener('touchstart', enable, { once: true });
-            document.addEventListener('click', enable, { once: true });
-        },
+                this.preloadAllSounds();
+                this.enableAudioOnUserInteraction();
+                console.log('✅ Audio Manager initialized');
+            },
 
-        play: function(name, vol) {
-            if (!this.enabled) return;
-            const sound = this.sounds[name];
-            if (!sound) return;
-            
-            const audio = sound.instances.find(a => a.paused || a.ended);
-            if (!audio) {
-                const newAudio = new Audio();
-                newAudio.src = this.basePath + sound.file;
-                newAudio.volume = vol || this.volume;
-                sound.instances.push(newAudio);
-                this.playWithOptions(newAudio, vol);
+            preloadAllSounds: function() {
+                for (let name in this.sounds) {
+                    this.preloadSound(name);
+                }
+            },
+
+            preloadSound: function(name) {
+                const sound = this.sounds[name];
+                if (!sound || sound.preloaded) return;
+                
+                for (let i = 0; i < 2; i++) {
+                    const audio = new Audio();
+                    audio.src = this.basePath + sound.file;
+                    audio.volume = this.volume;
+                    audio.preload = 'auto';
+                    audio.onerror = () => console.warn(`⚠️ Failed to load: ${name}`);
+                    sound.instances.push(audio);
+                }
+                sound.preloaded = true;
+            },
+
+            enableAudioOnUserInteraction: function() {
+                const enable = () => {
+                    if (window.AudioContext) {
+                        const context = new AudioContext();
+                        if (context.state === 'suspended') context.resume();
+                    }
+                    this.play('click', 0.1);
+                    document.removeEventListener('touchstart', enable);
+                    document.removeEventListener('click', enable);
+                };
+                document.addEventListener('touchstart', enable, { once: true });
+                document.addEventListener('click', enable, { once: true });
+            },
+
+            play: function(name, vol) {
+                if (!this.enabled) return;
+                const sound = this.sounds[name];
+                if (!sound) return;
+                
+                const audio = sound.instances.find(a => a.paused || a.ended);
+                if (!audio) {
+                    const newAudio = new Audio();
+                    newAudio.src = this.basePath + sound.file;
+                    newAudio.volume = vol || this.volume;
+                    sound.instances.push(newAudio);
+                    this.playWithOptions(newAudio, vol);
+                    return;
+                }
+                this.playWithOptions(audio, vol);
+            },
+
+            playWithOptions: function(audio, vol) {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = vol || this.volume;
+                audio.play().catch(() => {});
+            }
+        };
+    }
+
+    // ==================== ANTI-DOUBLE FEEDBACK ====================
+    // Map untuk melacak elemen yang sudah diproses
+    const processedElements = new WeakMap();
+    
+    // Tracking terakhir feedback global
+    let lastFeedbackTime = 0;
+    const FEEDBACK_COOLDOWN = 150; // ms
+
+    // Fungsi untuk memastikan feedback hanya dipanggil sekali per interaksi
+    function safeFeedback(element, hapticStyle = 'light', soundName = 'click') {
+        if (!element) return;
+        
+        // Cek apakah elemen ini sudah diproses dalam 300ms terakhir
+        if (processedElements.has(element)) {
+            const lastTime = processedElements.get(element);
+            if (Date.now() - lastTime < 300) {
+                console.log('⚠️ Mencegah double feedback untuk elemen yang sama');
                 return;
             }
-            this.playWithOptions(audio, vol);
-        },
-
-        playWithOptions: function(audio, vol) {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.volume = vol || this.volume;
-            audio.play().catch(() => {});
         }
-    };
+        
+        // Catat waktu pemrosesan untuk elemen ini
+        processedElements.set(element, Date.now());
+        
+        // Panggil feedback dengan proteksi global
+        playFeedback(hapticStyle, soundName);
+    }
 
     // ==================== HAPTIC FEEDBACK ====================
     let telegramHaptic = null;
@@ -173,7 +204,16 @@
         return false;
     }
 
-    function combinedFeedback(hapticStyle = 'light', soundName = 'click') {
+    // FUNGSI UTAMA - SATU FUNGSI UNTUK SEMUA FEEDBACK DENGAN GLOBAL DEBOUNCE
+    function playFeedback(hapticStyle = 'light', soundName = 'click') {
+        // Cegah double trigger dalam 150ms (GLOBAL)
+        const now = Date.now();
+        if (now - lastFeedbackTime < FEEDBACK_COOLDOWN) {
+            console.log('⚠️ Global debounce mencegah double');
+            return;
+        }
+        lastFeedbackTime = now;
+        
         // Haptic
         if (window.Telegram?.WebApp?.HapticFeedback) {
             try {
@@ -191,48 +231,16 @@
                     case 'selection':
                         window.Telegram.WebApp.HapticFeedback.selectionChanged();
                         break;
+                    default:
+                        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
                 }
             } catch (e) {}
         }
         
         // Audio
-        AudioManager.play(soundName);
-    }
-
-    function hapticFeedback(style = 'light') {
-        if (!window.Telegram?.WebApp?.HapticFeedback) return;
-        try {
-            switch (style) {
-                case 'light':
-                    window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-                    AudioManager.play('click');
-                    break;
-                case 'medium':
-                    window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-                    AudioManager.play('pop');
-                    break;
-                case 'heavy':
-                    window.Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
-                    AudioManager.play('success');
-                    break;
-                case 'success':
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                    AudioManager.play('success');
-                    break;
-                case 'error':
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-                    AudioManager.play('error');
-                    break;
-                case 'warning':
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
-                    AudioManager.play('pop');
-                    break;
-                case 'selection':
-                    window.Telegram.WebApp.HapticFeedback.selectionChanged();
-                    AudioManager.play('click');
-                    break;
-            }
-        } catch (e) {}
+        if (window.AudioManager) {
+            window.AudioManager.play(soundName);
+        }
     }
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -393,8 +401,14 @@
       
         const userProfileCard = document.querySelector('.user-profile-card');
         if (userProfileCard) {
-            userProfileCard.addEventListener('click', () => {
-                hapticFeedback('light');
+            // Hapus event listener lama dengan clone
+            const newCard = userProfileCard.cloneNode(true);
+            userProfileCard.parentNode.replaceChild(newCard, userProfileCard);
+            
+            newCard.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
                 document.querySelector('.nav-item[data-page="profile"]')?.click();
             });
         }
@@ -403,7 +417,7 @@
     // ==================== DATA LOADING ====================
     async function loadMarketData() {
         showLoading(true);
-        hapticFeedback('medium');
+        playFeedback('medium', 'pop');
       
         try {
             const usernames = await fetchWithRetry(`${API_BASE_URL}/api/market`, {
@@ -412,11 +426,11 @@
       
             allUsernames = usernames || [];
             applyFilters();
-            hapticFeedback('success');
+            playFeedback('success', 'success');
         } catch (error) {
             console.error('Error loading market data:', error);
             showToast('Gagal memuat data market', 'error');
-            hapticFeedback('error');
+            playFeedback('error', 'error');
             allUsernames = [];
         } finally {
             showLoading(false);
@@ -666,10 +680,17 @@
       
             updateSearchButtons();
             elements.marketSearch.addEventListener('input', updateSearchButtons);
+            
+            // Hapus event listener lama dengan clone untuk input
+            const newSearchInput = elements.marketSearch.cloneNode(true);
+            elements.marketSearch.parentNode.replaceChild(newSearchInput, elements.marketSearch);
+            elements.marketSearch = newSearchInput;
+            
             elements.marketSearch.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    hapticFeedback('medium');
+                    e.stopPropagation();
+                    playFeedback('medium', 'pop');
                     filters.search = elements.marketSearch.value;
                     applyFilters();
                     elements.marketSearch.blur();
@@ -677,10 +698,17 @@
             });
         }
       
+        // Clear button
         if (elements.searchClearBtn) {
+            const newClearBtn = elements.searchClearBtn.cloneNode(true);
+            elements.searchClearBtn.parentNode.replaceChild(newClearBtn, elements.searchClearBtn);
+            elements.searchClearBtn = newClearBtn;
+            
             elements.searchClearBtn.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
-                hapticFeedback('light');
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
                 if (elements.marketSearch) {
                     elements.marketSearch.value = '';
                     filters.search = '';
@@ -692,10 +720,17 @@
             });
         }
       
+        // Submit button
         if (elements.searchSubmitBtn) {
+            const newSubmitBtn = elements.searchSubmitBtn.cloneNode(true);
+            elements.searchSubmitBtn.parentNode.replaceChild(newSubmitBtn, elements.searchSubmitBtn);
+            elements.searchSubmitBtn = newSubmitBtn;
+            
             elements.searchSubmitBtn.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
-                hapticFeedback('medium');
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'medium', 'pop');
+                
                 if (elements.marketSearch) {
                     filters.search = elements.marketSearch.value;
                     applyFilters();
@@ -704,13 +739,21 @@
             });
         }
       
+        // Filter toggle button
         if (elements.filterToggle) {
+            const newFilterToggle = elements.filterToggle.cloneNode(true);
+            elements.filterToggle.parentNode.replaceChild(newFilterToggle, elements.filterToggle);
+            elements.filterToggle = newFilterToggle;
+            
             elements.filterToggle.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'medium', 'pop');
                 toggleFilterPanel();
             });
         }
       
+        // Setup untuk username cards
         setTimeout(() => {
             if (typeof setupPanel === 'function' && !window.panelSetupDone) {
                 setupPanel();
@@ -724,18 +767,19 @@
                 newCard.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (e.hapticProcessed) return;
-                    e.hapticProcessed = true;
                     
-                    hapticFeedback('light');
+                    safeFeedback(e.currentTarget, 'light', 'click');
                     
                     const usernameElement = newCard.querySelector('.username');
                     if (usernameElement) {
                         const username = usernameElement.textContent.trim();
                         console.log('🔍 Card clicked - username:', username);
-                        if (typeof showUsernamePanel === 'function') {
-                            showUsernamePanel(username);
-                        }
+                        
+                        setTimeout(() => {
+                            if (typeof showUsernamePanel === 'function') {
+                                showUsernamePanel(username);
+                            }
+                        }, 50);
                     }
                 });
             });
@@ -744,12 +788,11 @@
             if (emptyMarket) {
                 const newEmptyMarket = emptyMarket.cloneNode(true);
                 emptyMarket.parentNode.replaceChild(newEmptyMarket, emptyMarket);
+                
                 newEmptyMarket.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (e.hapticProcessed) return;
-                    e.hapticProcessed = true;
-                    hapticFeedback('light');
+                    safeFeedback(e.currentTarget, 'light', 'click');
                 });
             }
         }, 100);
@@ -898,10 +941,18 @@
                 section.classList.remove('expanded');
             }
             
-            header.addEventListener('click', (e) => {
+            // Hapus event listener lama dengan clone
+            const newHeader = header.cloneNode(true);
+            header.parentNode.replaceChild(newHeader, header);
+            
+            newHeader.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
                 collapsibleState[sectionName] = !collapsibleState[sectionName];
                 
+                const section = newHeader.closest('.filter-section');
                 if (collapsibleState[sectionName]) {
                     section.classList.add('expanded');
                 } else {
@@ -913,7 +964,7 @@
 
     // ==================== FILTER PANEL ====================
     function toggleFilterPanel() { 
-        hapticFeedback('medium');
+        // Feedback sudah dipanggil dari tombol, jangan panggil lagi di sini
         isFilterPanelOpen = !isFilterPanelOpen;
         if (isFilterPanelOpen) {
             elements.filterPanel.classList.add('show');
@@ -927,64 +978,121 @@
     function setupFilterPanel() {
         if (!elements.filterPanel) return;
 
+        // Filter close button
         if (elements.filterClose) {
-            elements.filterClose.addEventListener('click', toggleFilterPanel);
+            const newFilterClose = elements.filterClose.cloneNode(true);
+            elements.filterClose.parentNode.replaceChild(newFilterClose, elements.filterClose);
+            elements.filterClose = newFilterClose;
+            
+            elements.filterClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'back');
+                toggleFilterPanel();
+            });
         }
 
         elements.filterPanel.addEventListener('click', (e) => {
             if (e.target.classList.contains('filter-panel-header') || 
                 e.target.classList.contains('filter-panel-handle')) {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'pop');
                 toggleFilterPanel();
             }
         });
 
+        // Type filter chips
         if (elements.typeFilterChips) {
+            // Gunakan event delegation dengan clone
+            const newChips = elements.typeFilterChips.cloneNode(true);
+            elements.typeFilterChips.parentNode.replaceChild(newChips, elements.typeFilterChips);
+            elements.typeFilterChips = newChips;
+            
             elements.typeFilterChips.addEventListener('click', (e) => {
                 const chip = e.target.closest('.chip');
                 if (!chip) return;
                 
-                hapticFeedback('selection');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                safeFeedback(chip, 'selection', 'click');
                 
                 const type = chip.dataset.type;
                 if (!type) return;
                 
                 document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
+                
                 filters.type = type;
             });
         }
 
+        // Price inputs
         if (elements.minPrice) {
+            const newMinPrice = elements.minPrice.cloneNode(true);
+            elements.minPrice.parentNode.replaceChild(newMinPrice, elements.minPrice);
+            elements.minPrice = newMinPrice;
+            
             elements.minPrice.addEventListener('input', (e) => {
                 filters.minPrice = parseInt(e.target.value) || 0;
             });
         }
 
         if (elements.maxPrice) {
+            const newMaxPrice = elements.maxPrice.cloneNode(true);
+            elements.maxPrice.parentNode.replaceChild(newMaxPrice, elements.maxPrice);
+            elements.maxPrice = newMaxPrice;
+            
             elements.maxPrice.addEventListener('input', (e) => {
                 filters.maxPrice = parseInt(e.target.value) || 999999999;
             });
         }
 
+        // Sort select
         if (elements.sortBy) {
+            const newSortBy = elements.sortBy.cloneNode(true);
+            elements.sortBy.parentNode.replaceChild(newSortBy, elements.sortBy);
+            elements.sortBy = newSortBy;
+            
             elements.sortBy.addEventListener('change', (e) => {
                 filters.sortBy = e.target.value;
             });
         }
 
+        // Reset filters button
         if (elements.resetFilters) {
-            elements.resetFilters.addEventListener('click', () => {
-                hapticFeedback('warning');
-                resetFilters();
-                toggleFilterPanel();
+            const newResetBtn = elements.resetFilters.cloneNode(true);
+            elements.resetFilters.parentNode.replaceChild(newResetBtn, elements.resetFilters);
+            elements.resetFilters = newResetBtn;
+            
+            elements.resetFilters.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'warning', 'pop');
+                
+                setTimeout(() => {
+                    resetFilters();
+                    toggleFilterPanel();
+                }, 50);
             });
         }
 
+        // Apply filters button
         if (elements.applyFilters) {
-            elements.applyFilters.addEventListener('click', () => {
-                hapticFeedback('success');
-                applyFilters();
-                toggleFilterPanel();
+            const newApplyBtn = elements.applyFilters.cloneNode(true);
+            elements.applyFilters.parentNode.replaceChild(newApplyBtn, elements.applyFilters);
+            elements.applyFilters = newApplyBtn;
+            
+            elements.applyFilters.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'success', 'success');
+                
+                setTimeout(() => {
+                    applyFilters();
+                    toggleFilterPanel();
+                }, 50);
             });
         }
 
@@ -998,16 +1106,21 @@
         updateNavIndicator('market');
 
         elements.navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+            
+            newItem.addEventListener('click', (e) => {
                 e.preventDefault();
-                hapticFeedback('light');
-                const page = item.dataset.page;
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
+                const page = newItem.dataset.page;
                 if (!page) return;
 
-                elements.navItems.forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                newItem.classList.add('active');
 
-                elements.pages.forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
                 const targetPage = document.getElementById(`${page}Page`);
                 if (targetPage) {
                     targetPage.classList.add('active');
@@ -1035,8 +1148,8 @@
         const activeItem = document.querySelector(`.nav-item[data-page="${page}"]`);
         if (!activeItem) return;
 
-        const index = Array.from(elements.navItems).indexOf(activeItem);
-        const itemWidth = 100 / elements.navItems.length;
+        const index = Array.from(document.querySelectorAll('.nav-item')).indexOf(activeItem);
+        const itemWidth = 100 / document.querySelectorAll('.nav-item').length;
         elements.navIndicator.style.left = `${index * itemWidth}%`;
     }
 
@@ -1080,9 +1193,16 @@
             }, 1500);
         });
 
+        // Scroll to top button
         if (elements.scrollTopBtn) {
-            elements.scrollTopBtn.addEventListener('click', () => {
-                hapticFeedback('selection');
+            const newScrollBtn = elements.scrollTopBtn.cloneNode(true);
+            elements.scrollTopBtn.parentNode.replaceChild(newScrollBtn, elements.scrollTopBtn);
+            elements.scrollTopBtn = newScrollBtn;
+            
+            elements.scrollTopBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'heavy', 'pop');
                 elements.marketMain.scrollTo({
                     top: 0,
                     behavior: 'smooth'
@@ -1091,29 +1211,54 @@
         }
     }
 
-    // ==================== AUTO HAPTIC FOR ALL BUTTONS ====================
+    // ==================== AUTO HAPTIC FOR ALL BUTTONS (DIPERBAIKI) ====================
     function setupHapticForButtons() {
         const clickableElements = document.querySelectorAll('button, .nav-item, .chip, .filter-section-header, .filter-close, .search-clear-btn, .search-submit-btn, .filter-toggle-btn, .filter-btn, .scroll-top-btn, .user-profile-card');
       
         clickableElements.forEach(element => {
+            // Hanya tambahkan jika belum memiliki event listener
+            if (element.getAttribute('data-haptic-processed')) return;
+            
+            element.setAttribute('data-haptic-processed', 'true');
+            
             element.addEventListener('click', (e) => {
+                // Cegah bubbling dan double
+                if (e.hapticProcessedByGlobal) return;
+                e.hapticProcessedByGlobal = true;
+                
+                // Hanya trigger jika belum ada handler spesifik
                 if (e.defaultPrevented) return;
+                
+                // Gunakan safeFeedback untuk mencegah double
                 if (element.classList.contains('nav-item')) {
-                    hapticFeedback('light');
+                    safeFeedback(element, 'light', 'click');
                 } else if (element.classList.contains('chip')) {
-                    hapticFeedback('selection');
+                    // Chips sudah dihandle di tempat lain
+                    return;
                 } else if (element.classList.contains('filter-btn') || element.classList.contains('apply')) {
-                    hapticFeedback('medium');
+                    // Filter buttons sudah dihandle
+                    return;
                 } else if (element.classList.contains('reset')) {
-                    hapticFeedback('warning');
+                    // Reset sudah dihandle
+                    return;
                 } else if (element.classList.contains('filter-close')) {
-                    hapticFeedback('light');
+                    // Close button sudah dihandle di panel
+                    return;
                 } else if (element.classList.contains('scroll-top-btn')) {
-                    hapticFeedback('heavy');
+                    safeFeedback(element, 'heavy', 'pop');
+                } else if (element.classList.contains('search-clear-btn') || element.classList.contains('search-submit-btn')) {
+                    // Search buttons sudah dihandle
+                    return;
+                } else if (element.classList.contains('filter-toggle-btn')) {
+                    // Filter toggle sudah dihandle
+                    return;
+                } else if (element.classList.contains('user-profile-card')) {
+                    // Profile card sudah dihandle
+                    return;
                 } else {
-                    hapticFeedback('light');
+                    safeFeedback(element, 'light', 'click');
                 }
-            });
+            }, { once: false });
         });
     }
 
@@ -1134,42 +1279,73 @@
         let isDragging = false;
         let panelHeight = 0;
         
+        // Panel close button
         if (elements.panelCloseBtn) {
+            const newCloseBtn = elements.panelCloseBtn.cloneNode(true);
+            elements.panelCloseBtn.parentNode.replaceChild(newCloseBtn, elements.panelCloseBtn);
+            elements.panelCloseBtn = newCloseBtn;
+            
             elements.panelCloseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                hapticFeedback('light');
-                hideUsernamePanel();
+                safeFeedback(e.currentTarget, 'light', 'back');
+                
+                setTimeout(() => {
+                    hideUsernamePanel();
+                }, 50);
             });
         }
         
+        // Panel cart button
         if (elements.panelCartBtn) {
+            const newCartBtn = elements.panelCartBtn.cloneNode(true);
+            elements.panelCartBtn.parentNode.replaceChild(newCartBtn, elements.panelCartBtn);
+            elements.panelCartBtn = newCartBtn;
+            
             elements.panelCartBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                hapticFeedback('medium');
+                safeFeedback(e.currentTarget, 'medium', 'click');
                 showToast('Fitur keranjang akan segera hadir!', 'info');
             });
         }
         
+        // Panel buy button
         if (elements.panelBuyBtn) {
+            const newBuyBtn = elements.panelBuyBtn.cloneNode(true);
+            elements.panelBuyBtn.parentNode.replaceChild(newBuyBtn, elements.panelBuyBtn);
+            elements.panelBuyBtn = newBuyBtn;
+            
             elements.panelBuyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                hapticFeedback('heavy');
+                safeFeedback(e.currentTarget, 'heavy', 'success');
                 showToast('Fitur pembelian akan segera hadir!', 'info');
             });
         }
         
+        // Panel offer button
         if (elements.panelOfferBtn) {
+            const newOfferBtn = elements.panelOfferBtn.cloneNode(true);
+            elements.panelOfferBtn.parentNode.replaceChild(newOfferBtn, elements.panelOfferBtn);
+            elements.panelOfferBtn = newOfferBtn;
+            
             elements.panelOfferBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                hapticFeedback('medium');
+                safeFeedback(e.currentTarget, 'medium', 'click');
                 showToast('Fitur penawaran akan segera hadir!', 'info');
             });
         }
         
-        overlay.addEventListener('click', () => {
+        // Overlay click
+        overlay.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             hideUsernamePanel();
         });
         
+        // Drag handling
         const handleTouchStart = (e) => {
             if (e.target.closest('button')) return;
             startY = e.touches[0].clientY;
@@ -1214,16 +1390,23 @@
         
         const panelHandle = document.querySelector('.panel-handle');
         if (panelHandle) {
-            panelHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
-            panelHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
-            panelHandle.addEventListener('touchend', handleTouchEnd);
-            panelHandle.addEventListener('touchcancel', () => {
+            const newHandle = panelHandle.cloneNode(true);
+            panelHandle.parentNode.replaceChild(newHandle, panelHandle);
+            
+            newHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
+            newHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
+            newHandle.addEventListener('touchend', handleTouchEnd);
+            newHandle.addEventListener('touchcancel', () => {
                 isDragging = false;
                 elements.usernamePanel.style.transition = '';
                 elements.usernamePanel.style.transform = '';
                 overlay.style.opacity = '1';
             });
         }
+        
+        const newPanel = elements.usernamePanel.cloneNode(true);
+        elements.usernamePanel.parentNode.replaceChild(newPanel, elements.usernamePanel);
+        elements.usernamePanel = newPanel;
         
         elements.usernamePanel.addEventListener('touchstart', handleTouchStart, { passive: false });
         elements.usernamePanel.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1245,7 +1428,7 @@
             return;
         }
         
-        hapticFeedback('medium');
+        playFeedback('medium', 'pop');
         
         elements.panelLoading.style.display = 'flex';
         elements.panelDetail.style.display = 'none';
@@ -1360,14 +1543,16 @@
             console.log('📳 Initializing haptic feedback...');
             
             // Inisialisasi Audio Manager
-            AudioManager.init();
+            if (window.AudioManager) {
+                window.AudioManager.init();
+            }
       
             if (window.Telegram?.WebApp) {
                 console.log('📱 Telegram WebApp detected, version:', window.Telegram.WebApp.version);
                 initHaptic();
                 setTimeout(() => {
-                    hapticImpact('light');
-                    console.log('📳 Haptic test successful');
+                    playFeedback('light', 'click');
+                    console.log('📳 Test feedback successful');
                 }, 500);
             } else {
                 console.log('⚠️ Telegram WebApp not detected - running in browser mode');
@@ -1412,7 +1597,7 @@
         } catch (error) {
             console.error('❌ Init error:', error);
             showToast('Gagal memuat aplikasi', 'error');
-            try { hapticNotification('error'); } catch (e) {}
+            try { playFeedback('error', 'error'); } catch (e) {}
         } finally {
             showLoading(false);
         }
