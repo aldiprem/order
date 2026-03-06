@@ -293,30 +293,31 @@
 
     // ==================== DATA LOADING ====================
     async function loadMarketData() {
-        showLoading(true);
-        hapticFeedback('medium');
-
-        try {
-            const usernames = await fetchWithRetry(`${API_BASE_URL}/api/market`, {
-                method: 'GET'
-            });
-
-            allUsernames = usernames || [];
-            
-            allUsernames.forEach(u => {
-                u.username_type = determineUsernameType(u.username, u.based_on);
-            });
-
-            applyFilters();
-            hapticFeedback('success');
-        } catch (error) {
-            console.error('Error loading market data:', error);
-            showToast('Gagal memuat data market', 'error');
-            hapticFeedback('error');
-            allUsernames = [];
-        } finally {
-            showLoading(false);
-        }
+      showLoading(true);
+      hapticFeedback('medium');
+    
+      try {
+        const usernames = await fetchWithRetry(`${API_BASE_URL}/api/market`, {
+          method: 'GET'
+        });
+    
+        allUsernames = usernames || [];
+    
+        // TIDAK PERLU hitung ulang karena shape sudah dari database
+        // allUsernames.forEach(u => {
+        //     u.username_type = determineUsernameType(u.username, u.based_on);
+        // });
+    
+        applyFilters();
+        hapticFeedback('success');
+      } catch (error) {
+        console.error('Error loading market data:', error);
+        showToast('Gagal memuat data market', 'error');
+        hapticFeedback('error');
+        allUsernames = [];
+      } finally {
+        showLoading(false);
+      }
     }
 
     // ==================== ACTIVITY FUNCTIONS (All Users) ====================
@@ -472,53 +473,53 @@
 
     // ==================== FILTER FUNCTIONS ====================
     function applyFilters() {
-        let filtered = [...allUsernames];
-
-        if (filters.search) {
-            const searchLower = filters.search.toLowerCase();
-            filtered = filtered.filter(u => 
-                u.username.toLowerCase().includes(searchLower) ||
-                (u.based_on && u.based_on.toLowerCase().includes(searchLower))
-            );
-        }
-
-        if (filters.type !== 'all') {
-            filtered = filtered.filter(u => u.username_type === filters.type);
-        }
-
-        filtered = filtered.filter(u => 
-            (u.price || 0) >= filters.minPrice && 
-            (u.price || 0) <= filters.maxPrice
+      let filtered = [...allUsernames];
+    
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filtered = filtered.filter(u =>
+          u.username.toLowerCase().includes(searchLower) ||
+          (u.based_on && u.based_on.toLowerCase().includes(searchLower))
         );
-
-        switch (filters.sortBy) {
-            case 'price_low':
-                filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-                break;
-            case 'price_high':
-                filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
-                break;
-            case 'char_asc':
-                filtered.sort((a, b) => (a.based_on?.length || 0) - (b.based_on?.length || 0));
-                break;
-            case 'char_desc':
-                filtered.sort((a, b) => (b.based_on?.length || 0) - (a.based_on?.length || 0));
-                break;
-            case 'alpha_asc':
-                filtered.sort((a, b) => (a.based_on || '').localeCompare(b.based_on || ''));
-                break;
-            case 'alpha_desc':
-                filtered.sort((a, b) => (b.based_on || '').localeCompare(a.based_on || ''));
-                break;
-            case 'latest':
-            default:
-                filtered.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
-                break;
-        }
-
-        filteredUsernames = filtered;
-        renderMarket();
-        updateFilterBadge();
+      }
+    
+      if (filters.type !== 'all') {
+        filtered = filtered.filter(u => u.username_type === filters.type); // Langsung pakai dari API
+      }
+    
+      filtered = filtered.filter(u =>
+        (u.price || 0) >= filters.minPrice &&
+        (u.price || 0) <= filters.maxPrice
+      );
+    
+      switch (filters.sortBy) {
+        case 'price_low':
+          filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+          break;
+        case 'price_high':
+          filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+          break;
+        case 'char_asc':
+          filtered.sort((a, b) => (a.based_on?.length || 0) - (b.based_on?.length || 0));
+          break;
+        case 'char_desc':
+          filtered.sort((a, b) => (b.based_on?.length || 0) - (a.based_on?.length || 0));
+          break;
+        case 'alpha_asc':
+          filtered.sort((a, b) => (a.based_on || '').localeCompare(b.based_on || ''));
+          break;
+        case 'alpha_desc':
+          filtered.sort((a, b) => (b.based_on || '').localeCompare(a.based_on || ''));
+          break;
+        case 'latest':
+        default:
+          filtered.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+          break;
+      }
+    
+      filteredUsernames = filtered;
+      renderMarket();
+      updateFilterBadge();
     }
 
     function updateFilterBadge() {
@@ -607,9 +608,16 @@
           const template = document.getElementById('marketUsernameTemplate');
           const clone = document.importNode(template.content, true);
     
+          // Username
           clone.querySelector('.username').textContent = username.username;
-          clone.querySelector('.username-type-badge').textContent = username.username_type;
+    
+          // Username Type (SHAPE) - langsung dari database
+          clone.querySelector('.username-type-badge').textContent = username.username_type || 'UNCOMMON';
+    
+          // Based On
           clone.querySelector('.based-on-value').textContent = username.based_on || '';
+    
+          // Price
           clone.querySelector('.price-value').textContent = formatRupiah(username.price);
     
           const div = document.createElement('div');
@@ -621,6 +629,7 @@
     
       marketPage.innerHTML = headerHtml + gridHtml;
     
+      // Re-assign elements
       elements.marketSearch = document.getElementById('marketSearchInput');
       elements.filterToggle = document.getElementById('filterToggleBtn');
       elements.filterBadge = document.getElementById('filterBadge');
@@ -632,26 +641,21 @@
         const updateSearchButtons = () => {
           const hasValue = elements.marketSearch.value.length > 0;
     
-          // Adjust padding based on button visibility
           if (hasValue) {
-            elements.marketSearch.style.paddingRight = '100px'; // Space for both buttons
+            elements.marketSearch.style.paddingRight = '100px';
             elements.searchClearBtn?.classList.add('visible');
             elements.searchSubmitBtn?.classList.add('visible');
           } else {
-            elements.marketSearch.style.paddingRight = '20px'; // Default padding
+            elements.marketSearch.style.paddingRight = '20px';
             elements.searchClearBtn?.classList.remove('visible');
             elements.searchSubmitBtn?.classList.remove('visible');
           }
         };
     
-        // Initial state
         updateSearchButtons();
     
-        elements.marketSearch.addEventListener('input', (e) => {
-          updateSearchButtons();
-        });
+        elements.marketSearch.addEventListener('input', updateSearchButtons);
     
-        // Enter key
         elements.marketSearch.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -666,14 +670,12 @@
       // Clear button
       if (elements.searchClearBtn) {
         elements.searchClearBtn.addEventListener('click', (e) => {
-          e.hapticProcessed = true; // Tandai sudah diproses untuk mencegah duplikasi
+          e.hapticProcessed = true;
           hapticFeedback('light');
           if (elements.marketSearch) {
             elements.marketSearch.value = '';
             filters.search = '';
             applyFilters();
-    
-            // Update button visibility
             elements.marketSearch.style.paddingRight = '20px';
             elements.searchClearBtn.classList.remove('visible');
             elements.searchSubmitBtn.classList.remove('visible');
@@ -684,7 +686,7 @@
       // Submit button
       if (elements.searchSubmitBtn) {
         elements.searchSubmitBtn.addEventListener('click', (e) => {
-          e.hapticProcessed = true; // Tandai sudah diproses
+          e.hapticProcessed = true;
           hapticFeedback('medium');
           if (elements.marketSearch) {
             filters.search = elements.marketSearch.value;
@@ -697,38 +699,27 @@
       // Filter toggle button
       if (elements.filterToggle) {
         elements.filterToggle.addEventListener('click', (e) => {
-          e.hapticProcessed = true; // Tandai sudah diproses
+          e.hapticProcessed = true;
           toggleFilterPanel();
         });
       }
     
-      // ===== TAMBAHAN: HAPTIC UNTUK USERNAME CARDS =====
-      // Gunakan setTimeout untuk memastikan DOM sudah terupdate
+      // Haptic untuk username cards
       setTimeout(() => {
         document.querySelectorAll('.username-card').forEach(card => {
           card.addEventListener('click', (e) => {
-            // Cegah duplikasi haptic
             if (e.hapticProcessed) return;
             e.hapticProcessed = true;
-    
-            // Getaran ringan saat klik card username
             hapticFeedback('light');
     
-            // OPTIONAL: Ambil data username dari card
             const usernameElement = card.querySelector('.username');
-            const basedOnElement = card.querySelector('.based-on-value');
-    
             if (usernameElement) {
               const username = usernameElement.textContent;
               console.log(`Username card clicked: @${username}`);
-    
-              // TODO: Tambahkan navigasi ke detail username jika diperlukan
-              // showUsernameDetail(username);
             }
           });
         });
     
-        // Juga tambahkan haptic untuk empty market (opsional)
         const emptyMarket = document.querySelector('.empty-market');
         if (emptyMarket) {
           emptyMarket.addEventListener('click', (e) => {
@@ -737,7 +728,7 @@
             hapticFeedback('light');
           });
         }
-      }, 100); // Delay 100ms untuk memastikan DOM siap
+      }, 100);
     }
 
     function renderActivities() {
@@ -1212,12 +1203,6 @@
           window.Telegram.WebApp.ready();
           console.log('📱 Telegram WebApp ready');
         }
-    
-        // ===== TEST HAPTIC LENGKAP (UNTUK DEBUG, BISA DIHAPUS NANTI) =====
-        setTimeout(() => {
-          console.log('🔍 Running haptic test sequence...');
-          testHaptic();
-        }, 1500);
     
         console.log('✅ INDOTAG MARKET initialized successfully');
     
