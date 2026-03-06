@@ -1,4 +1,4 @@
-// script.js - INDOTAG MARKET Main Script
+// script.js - INDOTAG MARKET Main Script (OPTIMIZED WITH HOWLER.JS)
 
 (function() {
     'use strict';
@@ -75,89 +75,203 @@
         searchSubmitBtn: null
     };
 
-    // ==================== AUDIO MANAGER ====================
+    // ==================== HOWLER.JS AUDIO MANAGER ====================
     if (!window.AudioManager) {
         window.AudioManager = {
+            sounds: {},
             enabled: true,
-            volume: 0.5,
-            basePath: '/order/sound/',
-            sounds: {
-                click: { file: 'click.mp3', instances: [], preloaded: false },
-                pop: { file: 'pop.mp3', instances: [], preloaded: false },
-                success: { file: 'success.mp3', instances: [], preloaded: false },
-                error: { file: 'error.mp3', instances: [], preloaded: false },
-                back: { file: 'back.mp3', instances: [], preloaded: false }
-            },
-
+            isReady: false,
+            pendingPlays: [],
+            
             init: function() {
-                console.log('🔊 Initializing Audio Manager...');
-                if (!window.AudioContext && !HTMLAudioElement) {
-                    console.warn('⚠️ Audio not supported');
-                    this.enabled = false;
+                console.log('🔊 Initializing Howler Audio Manager...');
+                
+                // Cek apakah Howler.js tersedia
+                if (typeof Howl === 'undefined') {
+                    console.warn('⚠️ Howler.js not loaded, using fallback');
+                    this.createFallback();
                     return;
                 }
-                this.preloadAllSounds();
-                this.enableAudioOnUserInteraction();
-                console.log('✅ Audio Manager initialized');
-            },
-
-            preloadAllSounds: function() {
-                for (let name in this.sounds) {
-                    this.preloadSound(name);
-                }
-            },
-
-            preloadSound: function(name) {
-                const sound = this.sounds[name];
-                if (!sound || sound.preloaded) return;
                 
-                for (let i = 0; i < 2; i++) {
-                    const audio = new Audio();
-                    audio.src = this.basePath + sound.file;
-                    audio.volume = this.volume;
-                    audio.preload = 'auto';
-                    audio.onerror = () => console.warn(`⚠️ Failed to load: ${name}`);
-                    sound.instances.push(audio);
-                }
-                sound.preloaded = true;
-            },
-
-            enableAudioOnUserInteraction: function() {
-                const enable = () => {
-                    if (window.AudioContext) {
-                        const context = new AudioContext();
-                        if (context.state === 'suspended') context.resume();
-                    }
-                    this.play('click', 0.1);
-                    document.removeEventListener('touchstart', enable);
-                    document.removeEventListener('click', enable);
+                // Daftar sound files
+                const soundFiles = {
+                    click: '/order/sound/click.mp3',
+                    pop: '/order/sound/pop.mp3',
+                    success: '/order/sound/success.mp3',
+                    error: '/order/sound/error.mp3',
+                    back: '/order/sound/back.mp3'
                 };
-                document.addEventListener('touchstart', enable, { once: true });
-                document.addEventListener('click', enable, { once: true });
-            },
-
-            play: function(name, vol) {
-                if (!this.enabled) return;
-                const sound = this.sounds[name];
-                if (!sound) return;
                 
-                const audio = sound.instances.find(a => a.paused || a.ended);
-                if (!audio) {
-                    const newAudio = new Audio();
-                    newAudio.src = this.basePath + sound.file;
-                    newAudio.volume = vol || this.volume;
-                    sound.instances.push(newAudio);
-                    this.playWithOptions(newAudio, vol);
-                    return;
-                }
-                this.playWithOptions(audio, vol);
+                // Load semua sound
+                let loadedCount = 0;
+                const totalSounds = Object.keys(soundFiles).length;
+                
+                Object.entries(soundFiles).forEach(([name, src]) => {
+                    try {
+                        this.sounds[name] = new Howl({
+                            src: [src],
+                            html5: true, // Penting untuk mobile
+                            volume: 0.5,
+                            preload: true,
+                            rate: 1.0,
+                            autoplay: false,
+                            onload: () => {
+                                loadedCount++;
+                                console.log(`✅ Sound loaded: ${name} (${loadedCount}/${totalSounds})`);
+                                
+                                if (loadedCount === totalSounds) {
+                                    this.isReady = true;
+                                    console.log('✅ All sounds ready');
+                                    this.processPendingPlays();
+                                }
+                            },
+                            onloaderror: (id, error) => {
+                                console.warn(`⚠️ Failed to load ${name}:`, error);
+                                loadedCount++;
+                                if (loadedCount === totalSounds) {
+                                    this.isReady = true;
+                                    this.processPendingPlays();
+                                }
+                            },
+                            onplayerror: (id, error) => {
+                                console.warn(`⚠️ Play error for ${name}:`, error);
+                                // Auto-unlock untuk mobile
+                                if (Howler.ctx && Howler.ctx.state === 'suspended') {
+                                    Howler.ctx.resume().then(() => {
+                                        this.play(name, this.sounds[name].volume());
+                                    });
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn(`⚠️ Error creating sound ${name}:`, e);
+                        loadedCount++;
+                    }
+                });
+                
+                // Setup auto-unlock untuk iOS
+                this.setupAutoUnlock();
+                
+                console.log('✅ Howler Audio Manager initialized');
             },
-
-            playWithOptions: function(audio, vol) {
-                audio.pause();
-                audio.currentTime = 0;
-                audio.volume = vol || this.volume;
-                audio.play().catch(() => {});
+            
+            createFallback: function() {
+                console.log('🔊 Using fallback AudioManager');
+                this.sounds = {
+                    click: { instances: [], preloaded: false },
+                    pop: { instances: [], preloaded: false },
+                    success: { instances: [], preloaded: false },
+                    error: { instances: [], preloaded: false },
+                    back: { instances: [], preloaded: false }
+                };
+                this.basePath = '/order/sound/';
+                this.volume = 0.5;
+                
+                // Preload semua sound
+                for (let name in this.sounds) {
+                    for (let i = 0; i < 2; i++) {
+                        const audio = new Audio();
+                        audio.src = this.basePath + name + '.mp3';
+                        audio.volume = this.volume;
+                        audio.preload = 'auto';
+                        this.sounds[name].instances.push(audio);
+                    }
+                    this.sounds[name].preloaded = true;
+                }
+                
+                this.isReady = true;
+                this.setupAutoUnlock();
+            },
+            
+            setupAutoUnlock: function() {
+                const unlockAudio = () => {
+                    if (Howler && Howler.ctx && Howler.ctx.state === 'suspended') {
+                        Howler.ctx.resume().then(() => {
+                            console.log('✅ AudioContext unlocked');
+                        }).catch(e => {
+                            console.warn('⚠️ Failed to unlock AudioContext:', e);
+                        });
+                    }
+                    
+                    // Test play dengan volume 0 untuk unlock
+                    this.play('click', 0);
+                    
+                    document.removeEventListener('touchstart', unlockAudio);
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('touchend', unlockAudio);
+                };
+                
+                document.addEventListener('touchstart', unlockAudio, { once: true });
+                document.addEventListener('click', unlockAudio, { once: true });
+                document.addEventListener('touchend', unlockAudio, { once: true });
+            },
+            
+            processPendingPlays: function() {
+                if (this.pendingPlays.length > 0) {
+                    console.log(`🎵 Processing ${this.pendingPlays.length} pending plays`);
+                    this.pendingPlays.forEach(pending => {
+                        this.play(pending.name, pending.volume);
+                    });
+                    this.pendingPlays = [];
+                }
+            },
+            
+            play: function(name, volume = 0.5) {
+                if (!this.enabled) return false;
+                
+                // Jika belum ready, queue dulu
+                if (!this.isReady) {
+                    this.pendingPlays.push({ name, volume });
+                    return false;
+                }
+                
+                try {
+                    // Cek apakah menggunakan Howl atau fallback
+                    if (this.sounds[name] instanceof Howl) {
+                        // Howler implementation
+                        const sound = this.sounds[name];
+                        sound.volume(volume);
+                        sound.play();
+                    } else if (this.sounds[name] && this.sounds[name].instances) {
+                        // Fallback implementation
+                        const sound = this.sounds[name];
+                        const audio = sound.instances.find(a => a.paused || a.ended);
+                        if (audio) {
+                            audio.volume = volume;
+                            audio.currentTime = 0;
+                            audio.play().catch(() => {});
+                        } else {
+                            const newAudio = new Audio(this.basePath + name + '.mp3');
+                            newAudio.volume = volume;
+                            sound.instances.push(newAudio);
+                            newAudio.play().catch(() => {});
+                        }
+                    }
+                    return true;
+                } catch (e) {
+                    console.warn(`⚠️ Error playing ${name}:`, e);
+                    return false;
+                }
+            },
+            
+            stopAll: function() {
+                if (Howler) {
+                    Howler.stop();
+                }
+            },
+            
+            mute: function(mute = true) {
+                if (Howler) {
+                    Howler.mute(mute);
+                }
+                this.enabled = !mute;
+            },
+            
+            setVolume: function(volume) {
+                if (Howler) {
+                    Howler.volume(volume);
+                }
+                this.volume = volume;
             }
         };
     }
@@ -173,6 +287,7 @@
         }
         lastFeedbackTime = now;
         
+        // Haptic feedback
         if (window.Telegram?.WebApp?.HapticFeedback) {
             try {
                 switch(hapticStyle) {
@@ -195,12 +310,13 @@
             } catch (e) {}
         }
         
+        // Audio feedback
         if (window.AudioManager) {
             window.AudioManager.play(soundName);
         }
     }
 
-    // ==================== HAPTIC FEEDBACK (LEGACY - TETAP PERTAHANKAN) ====================
+    // ==================== HAPTIC FEEDBACK (LEGACY) ====================
     let telegramHaptic = null;
     
     function initHaptic() {
@@ -1330,8 +1446,12 @@
         try {
             console.log('📳 Initializing haptic feedback...');
             
+            // Inisialisasi AudioManager dengan Howler.js
             if (window.AudioManager) {
-                window.AudioManager.init();
+                // Delay sedikit agar Howler.js siap
+                setTimeout(() => {
+                    window.AudioManager.init();
+                }, 100);
             }
       
             if (window.Telegram?.WebApp) {
