@@ -713,707 +713,702 @@
         });
       }
     
-      setTimeout(() => {
-        if (typeof setupPanel === 'function' && !window.panelSetupDone) {
-          setupPanel();
-          window.panelSetupDone = true;
+          setTimeout(() => {
+            if (typeof setupPanel === 'function' && !window.panelSetupDone) {
+              setupPanel();
+              window.panelSetupDone = true;
+            }
+          
+            document.querySelectorAll('.username-card').forEach(card => {
+              // Hapus event listener lama dengan clone node
+              const newCard = card.cloneNode(true);
+              card.parentNode.replaceChild(newCard, card);
+          
+              newCard.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+          
+                if (e.hapticProcessed) return;
+                e.hapticProcessed = true;
+          
+                // Haptic feedback
+                if (typeof hapticFeedback === 'function') {
+                  hapticFeedback('light');
+                }
+          
+                // Ambil username dari elemen dengan class 'username'
+                const usernameElement = newCard.querySelector('.username');
+                if (usernameElement) {
+                  const username = usernameElement.textContent.trim();
+                  console.log('🔍 Card clicked - username:', username);
+          
+                  // TAMPILKAN PANEL - pastikan fungsi showUsernamePanel ada
+                  if (typeof showUsernamePanel === 'function') {
+                    showUsernamePanel(username);
+                  } else {
+                    console.error('showUsernamePanel function not found!');
+                  }
+                } else {
+                  console.error('Username element not found in card');
+                }
+              });
+            });
+          
+            // Handle empty market click
+            const emptyMarket = document.querySelector('.empty-market');
+            if (emptyMarket) {
+              const newEmptyMarket = emptyMarket.cloneNode(true);
+              emptyMarket.parentNode.replaceChild(newEmptyMarket, emptyMarket);
+          
+              newEmptyMarket.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+          
+                if (e.hapticProcessed) return;
+                e.hapticProcessed = true;
+          
+                if (typeof hapticFeedback === 'function') {
+                  hapticFeedback('light');
+                }
+              });
+            }
+          }, 100);
         }
-      
-        document.querySelectorAll('.username-card').forEach(card => {
-          // Hapus event listener lama dengan clone node
-          const newCard = card.cloneNode(true);
-          card.parentNode.replaceChild(newCard, card);
-      
-          newCard.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-      
-            if (e.hapticProcessed) return;
-            e.hapticProcessed = true;
-      
-            // Haptic feedback
-            if (typeof hapticFeedback === 'function') {
-              hapticFeedback('light');
+    
+        function renderActivities() {
+            const activityPage = document.getElementById('activityPage');
+            if (!activityPage) return;
+    
+            if (!activities || activities.length === 0) {
+                activityPage.innerHTML = `
+                    <div class="empty-market">
+                        <i class="fas fa-history"></i>
+                        <h3>Belum Ada Aktivitas</h3>
+                        <p>Aktivitas username akan muncul di sini</p>
+                    </div>
+                `;
+                return;
             }
-      
-            // Ambil username dari elemen dengan class 'username'
-            const usernameElement = newCard.querySelector('.username');
-            if (usernameElement) {
-              const username = usernameElement.textContent.trim();
-              console.log('🔍 Card clicked - username:', username);
-      
-              // TAMPILKAN PANEL - pastikan fungsi showUsernamePanel ada
-              if (typeof showUsernamePanel === 'function') {
-                showUsernamePanel(username);
-              } else {
-                console.error('showUsernamePanel function not found!');
-              }
-            } else {
-              console.error('Username element not found in card');
-            }
-          });
-        });
-      
-        // Handle empty market click
-        const emptyMarket = document.querySelector('.empty-market');
-        if (emptyMarket) {
-          const newEmptyMarket = emptyMarket.cloneNode(true);
-          emptyMarket.parentNode.replaceChild(newEmptyMarket, emptyMarket);
-      
-          newEmptyMarket.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-      
-            if (e.hapticProcessed) return;
-            e.hapticProcessed = true;
-      
-            if (typeof hapticFeedback === 'function') {
-              hapticFeedback('light');
-            }
-          });
-        }
-      }, 100);
-    }
-
-    function renderActivities() {
-        const activityPage = document.getElementById('activityPage');
-        if (!activityPage) return;
-
-        if (!activities || activities.length === 0) {
-            activityPage.innerHTML = `
-                <div class="empty-market">
-                    <i class="fas fa-history"></i>
-                    <h3>Belum Ada Aktivitas</h3>
-                    <p>Aktivitas username akan muncul di sini</p>
-                </div>
-            `;
-            return;
-        }
-
-        let html = '<div class="activity-list">';
-
-        activities.forEach(activity => {
-            const template = document.getElementById('activityItemTemplate');
-            const clone = document.importNode(template.content, true);
-
-            let icon = 'fas fa-info-circle';
-            if (activity.action?.includes('LISTED')) icon = 'fas fa-tag';
-            else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
-            else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
-            else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
-            else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
-
-            clone.querySelector('.activity-icon i').className = icon;
-            clone.querySelector('.activity-title').textContent = activity.details || 'Aktivitas baru';
-            
-            // Extract username from details if available
-            const usernameMatch = activity.details?.match(/@(\w+)/);
-            if (usernameMatch) {
-                clone.querySelector('.activity-username').textContent = usernameMatch[0];
-            } else if (activity.username) {
-                clone.querySelector('.activity-username').textContent = `@${activity.username}`;
-            } else {
-                clone.querySelector('.activity-username').textContent = '';
-            }
-            
-            clone.querySelector('.activity-time').textContent = formatDate(activity.created_at);
-
-            const div = document.createElement('div');
-            div.appendChild(clone);
-            html += div.innerHTML;
-        });
-
-        html += '</div>';
-        activityPage.innerHTML = html;
-    }
-
-    function renderProfile() {
-        const profilePage = document.getElementById('profilePage');
-        if (!profilePage || !currentUser) return;
-
-        const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || 'User';
-        const username = currentUser.username ? `@${currentUser.username}` : '@user';
-        const avatarUrl = currentUser.photo_url || generateAvatarUrl(fullName, currentUser.id);
-
-        let usernamesHtml = '';
-        if (userUsernames.length === 0) {
-            usernamesHtml = `
-                <div class="empty-market" style="margin-top: 16px;">
-                    <i class="fas fa-tag"></i>
-                    <p>Belum ada username tersimpan</p>
-                </div>
-            `;
-        } else {
-            usernamesHtml = '<div class="profile-usernames-list">';
-            userUsernames.forEach(u => {
-                const template = document.getElementById('profileUsernameTemplate');
+    
+            let html = '<div class="activity-list">';
+    
+            activities.forEach(activity => {
+                const template = document.getElementById('activityItemTemplate');
                 const clone = document.importNode(template.content, true);
-
-                clone.querySelector('.profile-username-name').textContent = u.username;
-                clone.querySelector('.profile-username-type').textContent = u.listed_status === 'listed' ? 'LISTED' : 'UNLISTED';
-                clone.querySelector('.profile-username-price').textContent = formatRupiah(u.price);
-
+    
+                let icon = 'fas fa-info-circle';
+                if (activity.action?.includes('LISTED')) icon = 'fas fa-tag';
+                else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
+                else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
+                else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
+                else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
+    
+                clone.querySelector('.activity-icon i').className = icon;
+                clone.querySelector('.activity-title').textContent = activity.details || 'Aktivitas baru';
+                
+                // Extract username from details if available
+                const usernameMatch = activity.details?.match(/@(\w+)/);
+                if (usernameMatch) {
+                    clone.querySelector('.activity-username').textContent = usernameMatch[0];
+                } else if (activity.username) {
+                    clone.querySelector('.activity-username').textContent = `@${activity.username}`;
+                } else {
+                    clone.querySelector('.activity-username').textContent = '';
+                }
+                
+                clone.querySelector('.activity-time').textContent = formatDate(activity.created_at);
+    
                 const div = document.createElement('div');
                 div.appendChild(clone);
-                usernamesHtml += div.innerHTML;
+                html += div.innerHTML;
             });
-            usernamesHtml += '</div>';
+    
+            html += '</div>';
+            activityPage.innerHTML = html;
         }
-
-        profilePage.innerHTML = `
-            <div class="profile-card">
-                <div class="profile-header">
-                    <div class="profile-avatar-large">
-                        <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
+    
+        function renderProfile() {
+            const profilePage = document.getElementById('profilePage');
+            if (!profilePage || !currentUser) return;
+    
+            const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || 'User';
+            const username = currentUser.username ? `@${currentUser.username}` : '@user';
+            const avatarUrl = currentUser.photo_url || generateAvatarUrl(fullName, currentUser.id);
+    
+            let usernamesHtml = '';
+            if (userUsernames.length === 0) {
+                usernamesHtml = `
+                    <div class="empty-market" style="margin-top: 16px;">
+                        <i class="fas fa-tag"></i>
+                        <p>Belum ada username tersimpan</p>
                     </div>
-                    <div class="profile-info-large">
-                        <div class="profile-name-large">${escapeHtml(fullName)}</div>
-                        <div class="profile-username-large">
-                            <i class="fas fa-at"></i>
-                            ${escapeHtml(username)}
+                `;
+            } else {
+                usernamesHtml = '<div class="profile-usernames-list">';
+                userUsernames.forEach(u => {
+                    const template = document.getElementById('profileUsernameTemplate');
+                    const clone = document.importNode(template.content, true);
+    
+                    clone.querySelector('.profile-username-name').textContent = u.username;
+                    clone.querySelector('.profile-username-type').textContent = u.listed_status === 'listed' ? 'LISTED' : 'UNLISTED';
+                    clone.querySelector('.profile-username-price').textContent = formatRupiah(u.price);
+    
+                    const div = document.createElement('div');
+                    div.appendChild(clone);
+                    usernamesHtml += div.innerHTML;
+                });
+                usernamesHtml += '</div>';
+            }
+    
+            profilePage.innerHTML = `
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="profile-avatar-large">
+                            <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
+                        </div>
+                        <div class="profile-info-large">
+                            <div class="profile-name-large">${escapeHtml(fullName)}</div>
+                            <div class="profile-username-large">
+                                <i class="fas fa-at"></i>
+                                ${escapeHtml(username)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-stats-large">
+                        <div class="profile-stat-item">
+                            <div class="profile-stat-value">${userUsernames.length}</div>
+                            <div class="profile-stat-label">Username</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div class="profile-stat-value">${userUsernames.filter(u => u.listed_status === 'listed').length}</div>
+                            <div class="profile-stat-label">Listed</div>
                         </div>
                     </div>
                 </div>
-                <div class="profile-stats-large">
-                    <div class="profile-stat-item">
-                        <div class="profile-stat-value">${userUsernames.length}</div>
-                        <div class="profile-stat-label">Username</div>
-                    </div>
-                    <div class="profile-stat-item">
-                        <div class="profile-stat-value">${userUsernames.filter(u => u.listed_status === 'listed').length}</div>
-                        <div class="profile-stat-label">Listed</div>
-                    </div>
+    
+                <div class="profile-section-title">
+                    <i class="fas fa-tag"></i>
+                    <h3>Username Saya</h3>
                 </div>
-            </div>
-
-            <div class="profile-section-title">
-                <i class="fas fa-tag"></i>
-                <h3>Username Saya</h3>
-            </div>
-
-            ${usernamesHtml}
-        `;
-    }
-
-    function renderGames() {
-        const gamesPage = document.getElementById('gamesPage');
-        if (!gamesPage) return;
-
-        const template = document.getElementById('gamesPlaceholderTemplate');
-        const clone = document.importNode(template.content, true);
-        
-        gamesPage.innerHTML = '';
-        gamesPage.appendChild(clone);
-    }
-
-    // ==================== COLLAPSIBLE FILTER SECTIONS ====================
-    function setupCollapsibleSections() {
-        const sections = document.querySelectorAll('.filter-section.collapsible');
-        
-        sections.forEach(section => {
-            const header = section.querySelector('.filter-section-header');
-            const sectionName = header?.dataset.section;
+    
+                ${usernamesHtml}
+            `;
+        }
+    
+        function renderGames() {
+            const gamesPage = document.getElementById('gamesPage');
+            if (!gamesPage) return;
+    
+            const template = document.getElementById('gamesPlaceholderTemplate');
+            const clone = document.importNode(template.content, true);
             
-            if (!header || !sectionName) return;
+            gamesPage.innerHTML = '';
+            gamesPage.appendChild(clone);
+        }
+    
+        // ==================== COLLAPSIBLE FILTER SECTIONS ====================
+        function setupCollapsibleSections() {
+            const sections = document.querySelectorAll('.filter-section.collapsible');
             
-            if (collapsibleState[sectionName]) {
-                section.classList.add('expanded');
-            } else {
-                section.classList.remove('expanded');
-            }
-            
-            header.addEventListener('click', (e) => {
-                e.stopPropagation();
-                collapsibleState[sectionName] = !collapsibleState[sectionName];
+            sections.forEach(section => {
+                const header = section.querySelector('.filter-section-header');
+                const sectionName = header?.dataset.section;
+                
+                if (!header || !sectionName) return;
                 
                 if (collapsibleState[sectionName]) {
                     section.classList.add('expanded');
                 } else {
                     section.classList.remove('expanded');
                 }
-            });
-        });
-    }
-
-    // ==================== FILTER PANEL ====================
-    function toggleFilterPanel() { 
-        hapticFeedback('medium');
-        isFilterPanelOpen = !isFilterPanelOpen;
-        if (isFilterPanelOpen) {
-            elements.filterPanel.classList.add('show');
-            if (elements.filterToggle) elements.filterToggle.classList.add('active');
-        } else {
-            elements.filterPanel.classList.remove('show');
-            if (elements.filterToggle) elements.filterToggle.classList.remove('active');
-        }
-    }
-
-    function setupFilterPanel() {
-        if (!elements.filterPanel) return;
-
-        if (elements.filterClose) {
-            elements.filterClose.addEventListener('click', toggleFilterPanel);
-        }
-
-        elements.filterPanel.addEventListener('click', (e) => {
-            if (e.target.classList.contains('filter-panel-header') || 
-                e.target.classList.contains('filter-panel-handle')) {
-                toggleFilterPanel();
-            }
-        });
-
-        if (elements.typeFilterChips) {
-            elements.typeFilterChips.addEventListener('click', (e) => {
-                const chip = e.target.closest('.chip');
-                if (!chip) return;
-
-                const type = chip.dataset.type;
-                if (!type) return;
                 
-                document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-
-                filters.type = type;
-            });
-        }
-
-        if (elements.minPrice) {
-            elements.minPrice.addEventListener('input', (e) => {
-                filters.minPrice = parseInt(e.target.value) || 0;
-            });
-        }
-
-        if (elements.maxPrice) {
-            elements.maxPrice.addEventListener('input', (e) => {
-                filters.maxPrice = parseInt(e.target.value) || 999999999;
-            });
-        }
-
-        if (elements.sortBy) {
-            elements.sortBy.addEventListener('change', (e) => {
-                filters.sortBy = e.target.value;
-            });
-        }
-
-        if (elements.resetFilters) {
-            elements.resetFilters.addEventListener('click', () => {
-                hapticFeedback('warning');
-                resetFilters();
-                toggleFilterPanel();
-            });
-        }
-
-        if (elements.applyFilters) {
-            elements.applyFilters.addEventListener('click', () => {
-                hapticFeedback('success');
-                applyFilters();
-                toggleFilterPanel();
-            });
-        }
-
-        setupCollapsibleSections();
-    }
-
-    // ==================== NAVIGATION ====================
-    function setupNavigation() {
-        if (!elements.navItems.length) return;
-
-        updateNavIndicator('market');
-
-        elements.navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                hapticFeedback('light');
-                const page = item.dataset.page;
-                if (!page) return;
-
-                elements.navItems.forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
-
-                elements.pages.forEach(p => p.classList.remove('active'));
-                const targetPage = document.getElementById(`${page}Page`);
-                if (targetPage) {
-                    targetPage.classList.add('active');
-                    currentPage = page;
-                }
-
-                updateNavIndicator(page);
-
-                if (page === 'market' && allUsernames.length === 0) {
-                    loadMarketData();
-                } else if (page === 'activity') {
-                    // Always load activities when switching to activity page
-                    loadActivities();
-                } else if (page === 'profile' && currentUser) {
-                    loadUserUsernames();
-                } else if (page === 'games') {
-                    renderGames();
-                }
-            });
-        });
-    }
-
-    function updateNavIndicator(page) {
-        if (!elements.navIndicator || !elements.navItems.length) return;
-
-        const activeItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-        if (!activeItem) return;
-
-        const index = Array.from(elements.navItems).indexOf(activeItem);
-        const itemWidth = 100 / elements.navItems.length;
-        elements.navIndicator.style.left = `${index * itemWidth}%`;
-    }
-
-    // ==================== SCROLL HANDLING ====================
-    function setupScrollHandling() {
-        if (!elements.marketMain) return;
-
-        elements.marketMain.addEventListener('scroll', () => {
-            const scrollTop = elements.marketMain.scrollTop;
-
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                elements.bottomNav.classList.add('hide');
-            } else {
-                elements.bottomNav.classList.remove('hide');
-            }
-
-            if (scrollTop > 300) {
-                if (elements.scrollTopBtn.classList.contains('show')) {
-                    // Already showing
-                } else {
-                    elements.scrollTopBtn.classList.remove('hide');
-                    elements.scrollTopBtn.classList.add('show');
-                }
-            } else {
-                if (elements.scrollTopBtn.classList.contains('show')) {
-                    elements.scrollTopBtn.classList.remove('show');
-                    elements.scrollTopBtn.classList.add('hide');
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    collapsibleState[sectionName] = !collapsibleState[sectionName];
                     
-                    setTimeout(() => {
-                        elements.scrollTopBtn.classList.remove('hide');
-                    }, 300);
-                }
-            }
-
-            lastScrollTop = scrollTop;
-
-            if (scrollTimeout) clearTimeout(scrollTimeout);
-
-            scrollTimeout = setTimeout(() => {
-                elements.bottomNav.classList.remove('hide');
-            }, 1500);
-        });
-
-        if (elements.scrollTopBtn) {
-            elements.scrollTopBtn.addEventListener('click', () => {
-                hapticFeedback('selection');
-                elements.marketMain.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
+                    if (collapsibleState[sectionName]) {
+                        section.classList.add('expanded');
+                    } else {
+                        section.classList.remove('expanded');
+                    }
                 });
             });
         }
-    }
-
-    // ==================== HAPTIC FEEDBACK ====================
-    function hapticFeedback(style = 'light') {
-      if (!window.Telegram?.WebApp?.HapticFeedback) return;
     
-      try {
-        switch (style) {
-          case 'light':
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-            break;
-          case 'medium':
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-            break;
-          case 'heavy':
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
-            break;
-          case 'success':
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-            break;
-          case 'error':
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-            break;
-          case 'warning':
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
-            break;
-          case 'selection':
-            window.Telegram.WebApp.HapticFeedback.selectionChanged();
-            break;
-          default:
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-        }
-      } catch (e) {
-        console.log('Haptic feedback not supported');
-      }
-    }
-    
-    // ==================== AUTO HAPTIC FOR ALL BUTTONS ====================
-    function setupHapticForButtons() {
-      const clickableElements = document.querySelectorAll('button, .nav-item, .chip, .filter-section-header, .filter-close, .search-clear-btn, .search-submit-btn, .filter-toggle-btn, .filter-btn, .scroll-top-btn, .user-profile-card');
-    
-      clickableElements.forEach(element => {
-        element.addEventListener('click', (e) => {
-          if (e.defaultPrevented) return;
-    
-          if (element.classList.contains('nav-item')) {
-            hapticFeedback('light');
-          } else if (element.classList.contains('chip')) {
-            hapticFeedback('selection');
-          } else if (element.classList.contains('filter-btn') || element.classList.contains('apply')) {
+        // ==================== FILTER PANEL ====================
+        function toggleFilterPanel() { 
             hapticFeedback('medium');
-          } else if (element.classList.contains('reset')) {
-            hapticFeedback('warning');
-          } else if (element.classList.contains('filter-close')) {
-            hapticFeedback('light');
-          } else if (element.classList.contains('scroll-top-btn')) {
-            hapticFeedback('heavy');
-          } else {
-            hapticFeedback('light');
-          }
-        });
-      });
-    }
-    
-    async function loadUsernameDetail(username) {
-        try {
-            // Cari data dari allUsernames yang sudah ada
-            const userData = allUsernames.find(u => u.username === username);
-            
-            if (!userData) {
-                showToast('Data username tidak ditemukan', 'error');
-                hideUsernamePanel();
-                return;
+            isFilterPanelOpen = !isFilterPanelOpen;
+            if (isFilterPanelOpen) {
+                elements.filterPanel.classList.add('show');
+                if (elements.filterToggle) elements.filterToggle.classList.add('active');
+            } else {
+                elements.filterPanel.classList.remove('show');
+                if (elements.filterToggle) elements.filterToggle.classList.remove('active');
             }
-            
-            renderUsernamePanel(userData);
-            
-        } catch (error) {
-            console.error('Error loading username detail:', error);
-            showToast('Gagal memuat detail username', 'error');
-            hideUsernamePanel();
         }
-    }
     
-    function renderUsernamePanel(data) {
-        if (!elements.panelUsername || !elements.panelInfoGrid) return;
+        function setupFilterPanel() {
+            if (!elements.filterPanel) return;
+    
+            if (elements.filterClose) {
+                elements.filterClose.addEventListener('click', toggleFilterPanel);
+            }
+    
+            elements.filterPanel.addEventListener('click', (e) => {
+                if (e.target.classList.contains('filter-panel-header') || 
+                    e.target.classList.contains('filter-panel-handle')) {
+                    toggleFilterPanel();
+                }
+            });
+    
+            if (elements.typeFilterChips) {
+                elements.typeFilterChips.addEventListener('click', (e) => {
+                    const chip = e.target.closest('.chip');
+                    if (!chip) return;
+    
+                    const type = chip.dataset.type;
+                    if (!type) return;
+                    
+                    document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+    
+                    filters.type = type;
+                });
+            }
+    
+            if (elements.minPrice) {
+                elements.minPrice.addEventListener('input', (e) => {
+                    filters.minPrice = parseInt(e.target.value) || 0;
+                });
+            }
+    
+            if (elements.maxPrice) {
+                elements.maxPrice.addEventListener('input', (e) => {
+                    filters.maxPrice = parseInt(e.target.value) || 999999999;
+                });
+            }
+    
+            if (elements.sortBy) {
+                elements.sortBy.addEventListener('change', (e) => {
+                    filters.sortBy = e.target.value;
+                });
+            }
+    
+            if (elements.resetFilters) {
+                elements.resetFilters.addEventListener('click', () => {
+                    hapticFeedback('warning');
+                    resetFilters();
+                    toggleFilterPanel();
+                });
+            }
+    
+            if (elements.applyFilters) {
+                elements.applyFilters.addEventListener('click', () => {
+                    hapticFeedback('success');
+                    applyFilters();
+                    toggleFilterPanel();
+                });
+            }
+    
+            setupCollapsibleSections();
+        }
+    
+        // ==================== NAVIGATION ====================
+        function setupNavigation() {
+            if (!elements.navItems.length) return;
+    
+            updateNavIndicator('market');
+    
+            elements.navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    hapticFeedback('light');
+                    const page = item.dataset.page;
+                    if (!page) return;
+    
+                    elements.navItems.forEach(nav => nav.classList.remove('active'));
+                    item.classList.add('active');
+    
+                    elements.pages.forEach(p => p.classList.remove('active'));
+                    const targetPage = document.getElementById(`${page}Page`);
+                    if (targetPage) {
+                        targetPage.classList.add('active');
+                        currentPage = page;
+                    }
+    
+                    updateNavIndicator(page);
+    
+                    if (page === 'market' && allUsernames.length === 0) {
+                        loadMarketData();
+                    } else if (page === 'activity') {
+                        // Always load activities when switching to activity page
+                        loadActivities();
+                    } else if (page === 'profile' && currentUser) {
+                        loadUserUsernames();
+                    } else if (page === 'games') {
+                        renderGames();
+                    }
+                });
+            });
+        }
+    
+        function updateNavIndicator(page) {
+            if (!elements.navIndicator || !elements.navItems.length) return;
+    
+            const activeItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+            if (!activeItem) return;
+    
+            const index = Array.from(elements.navItems).indexOf(activeItem);
+            const itemWidth = 100 / elements.navItems.length;
+            elements.navIndicator.style.left = `${index * itemWidth}%`;
+        }
+    
+        // ==================== SCROLL HANDLING ====================
+        function setupScrollHandling() {
+            if (!elements.marketMain) return;
+    
+            elements.marketMain.addEventListener('scroll', () => {
+                const scrollTop = elements.marketMain.scrollTop;
+    
+                if (scrollTop > lastScrollTop && scrollTop > 100) {
+                    elements.bottomNav.classList.add('hide');
+                } else {
+                    elements.bottomNav.classList.remove('hide');
+                }
+    
+                if (scrollTop > 300) {
+                    if (elements.scrollTopBtn.classList.contains('show')) {
+                        // Already showing
+                    } else {
+                        elements.scrollTopBtn.classList.remove('hide');
+                        elements.scrollTopBtn.classList.add('show');
+                    }
+                } else {
+                    if (elements.scrollTopBtn.classList.contains('show')) {
+                        elements.scrollTopBtn.classList.remove('show');
+                        elements.scrollTopBtn.classList.add('hide');
+                        
+                        setTimeout(() => {
+                            elements.scrollTopBtn.classList.remove('hide');
+                        }, 300);
+                    }
+                }
+    
+                lastScrollTop = scrollTop;
+    
+                if (scrollTimeout) clearTimeout(scrollTimeout);
+    
+                scrollTimeout = setTimeout(() => {
+                    elements.bottomNav.classList.remove('hide');
+                }, 1500);
+            });
+    
+            if (elements.scrollTopBtn) {
+                elements.scrollTopBtn.addEventListener('click', () => {
+                    hapticFeedback('selection');
+                    elements.marketMain.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+        }
+    
+        // ==================== HAPTIC FEEDBACK ====================
+        function hapticFeedback(style = 'light') {
+          if (!window.Telegram?.WebApp?.HapticFeedback) return;
         
-        // Set username
-        elements.panelUsername.textContent = `@${data.username}`;
+          try {
+            switch (style) {
+              case 'light':
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                break;
+              case 'medium':
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                break;
+              case 'heavy':
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+                break;
+              case 'success':
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                break;
+              case 'error':
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                break;
+              case 'warning':
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+                break;
+              case 'selection':
+                window.Telegram.WebApp.HapticFeedback.selectionChanged();
+                break;
+              default:
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+          } catch (e) {
+            console.log('Haptic feedback not supported');
+          }
+        }
         
-        // Format kind dengan emoji
-        const kindEmoji = {
-            "MULCHAR INDO": "🇮🇩",
-            "MULCHAR ENG": "🇬🇧",
-            "IDOL MALE": "👨",
-            "IDOL FEMALE": "👩",
-            "NSFW": "🔞",
-            "2D": "🎮",
-            "ANIME": "🌸",
-            "ANOTHER": "❓"
-        }[data.kind] || "❓";
+        // ==================== AUTO HAPTIC FOR ALL BUTTONS ====================
+        function setupHapticForButtons() {
+          const clickableElements = document.querySelectorAll('button, .nav-item, .chip, .filter-section-header, .filter-close, .search-clear-btn, .search-submit-btn, .filter-toggle-btn, .filter-btn, .scroll-top-btn, .user-profile-card');
         
-        // Format type
-        const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
+          clickableElements.forEach(element => {
+            element.addEventListener('click', (e) => {
+              if (e.defaultPrevented) return;
         
-        // Format tanggal
-        const date = data.updated_at ? new Date(data.updated_at) : new Date();
-        const formattedDate = date.toLocaleDateString('id-ID', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
+              if (element.classList.contains('nav-item')) {
+                hapticFeedback('light');
+              } else if (element.classList.contains('chip')) {
+                hapticFeedback('selection');
+              } else if (element.classList.contains('filter-btn') || element.classList.contains('apply')) {
+                hapticFeedback('medium');
+              } else if (element.classList.contains('reset')) {
+                hapticFeedback('warning');
+              } else if (element.classList.contains('filter-close')) {
+                hapticFeedback('light');
+              } else if (element.classList.contains('scroll-top-btn')) {
+                hapticFeedback('heavy');
+              } else {
+                hapticFeedback('light');
+              }
+            });
+          });
+        }
         
-        // Buat info grid
-        const infoGrid = `
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-at"></i> Based on</span>
-                <span class="info-value">${data.based_on || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
-                <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
-                <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-user"></i> Type</span>
-                <span class="info-value">${typeText}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
-                <span class="info-value price">${formatRupiah(data.price)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
-                <span class="info-value date">${formattedDate}</span>
-            </div>
-        `;
+        async function loadUsernameDetail(username) {
+            try {
+                // Cari data dari allUsernames yang sudah ada
+                const userData = allUsernames.find(u => u.username === username);
+                
+                if (!userData) {
+                    showToast('Data username tidak ditemukan', 'error');
+                    hideUsernamePanel();
+                    return;
+                }
+                
+                renderUsernamePanel(userData);
+                
+            } catch (error) {
+                console.error('Error loading username detail:', error);
+                showToast('Gagal memuat detail username', 'error');
+                hideUsernamePanel();
+            }
+        }
         
-        elements.panelInfoGrid.innerHTML = infoGrid;
-        
-        // Sembunyikan loading, tampilkan detail
-        elements.panelLoading.style.display = 'none';
-        elements.panelDetail.style.display = 'block';
-    }
-
+        function renderUsernamePanel(data) {
+            if (!elements.panelUsername || !elements.panelInfoGrid) return;
+            
+            // Set username
+            elements.panelUsername.textContent = `@${data.username}`;
+            
+            // Format kind dengan emoji
+            const kindEmoji = {
+                "MULCHAR INDO": "🇮🇩",
+                "MULCHAR ENG": "🇬🇧",
+                "IDOL MALE": "👨",
+                "IDOL FEMALE": "👩",
+                "NSFW": "🔞",
+                "2D": "🎮",
+                "ANIME": "🌸",
+                "ANOTHER": "❓"
+            }[data.kind] || "❓";
+            
+            // Format type
+            const typeText = data.type === 'channel' ? '📢 Channel' : '👤 User';
+            
+            // Format tanggal
+            const date = data.updated_at ? new Date(data.updated_at) : new Date();
+            const formattedDate = date.toLocaleDateString('id-ID', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            
+            // Buat info grid
+            const infoGrid = `
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-at"></i> Based on</span>
+                    <span class="info-value">${data.based_on || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-shapes"></i> Bentuk</span>
+                    <span class="info-value"><span class="badge">${data.username_type || 'OP'}</span></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-tag"></i> Jenis</span>
+                    <span class="info-value">${kindEmoji} ${data.kind || 'MULCHAR INDO'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-user"></i> Type</span>
+                    <span class="info-value">${typeText}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-credit-card"></i> Harga</span>
+                    <span class="info-value price">${formatRupiah(data.price)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-calendar-alt"></i> Added</span>
+                    <span class="info-value date">${formattedDate}</span>
+                </div>
+            `;
+            
+            elements.panelInfoGrid.innerHTML = infoGrid;
+            
+            // Sembunyikan loading, tampilkan detail
+            elements.panelLoading.style.display = 'none';
+            elements.panelDetail.style.display = 'block';
+        }
+    
     // ==================== SETUP PANEL ====================
     function setupPanel() {
-      if (!elements.usernamePanel) return;
-    
-      // Variabel untuk drag
-      let startY = 0;
-      let currentY = 0;
-      let isDragging = false;
-    
-      // Tombol close
-      if (elements.panelCloseBtn) {
-        elements.panelCloseBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          hapticFeedback('light');
-          hideUsernamePanel();
-        });
-      }
-    
-      // Tombol cart
-      if (elements.panelCartBtn) {
-        elements.panelCartBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          hapticFeedback('medium');
-          showToast('Fitur keranjang akan segera hadir!', 'info');
-        });
-      }
-    
-      // Tombol buy
-      if (elements.panelBuyBtn) {
-        elements.panelBuyBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          hapticFeedback('heavy');
-          showToast('Fitur pembelian akan segera hadir!', 'info');
-        });
-      }
-    
-      // Tombol offer
-      if (elements.panelOfferBtn) {
-        elements.panelOfferBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          hapticFeedback('medium');
-          showToast('Fitur penawaran akan segera hadir!', 'info');
-        });
-      }
-    
-      // Klik di luar panel (background)
-      elements.usernamePanel.addEventListener('click', (e) => {
-        if (e.target === elements.usernamePanel) {
-          hideUsernamePanel();
+        if (!elements.usernamePanel) return;
+        
+        // Buat overlay jika belum ada
+        let overlay = document.getElementById('panelOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'panelOverlay';
+            overlay.className = 'panel-overlay';
+            document.body.appendChild(overlay);
         }
-      });
-    
-      // Drag to close - handle (panel handle)
-      const panelHandle = document.querySelector('.panel-handle');
-      if (panelHandle) {
-        panelHandle.addEventListener('touchstart', (e) => {
-          startY = e.touches[0].clientY;
-          isDragging = true;
-          elements.usernamePanel.style.transition = 'none';
-        }, { passive: true });
-    
-        panelHandle.addEventListener('touchmove', (e) => {
-          if (!isDragging) return;
-          e.preventDefault();
-    
-          currentY = e.touches[0].clientY;
-          const deltaY = currentY - startY;
-    
-          if (deltaY > 0) {
-            // Hanya drag ke bawah
-            const translateY = Math.min(deltaY, window.innerHeight);
-            elements.usernamePanel.style.transform = `translateY(${translateY}px)`;
-          }
-        }, { passive: false });
-    
-        panelHandle.addEventListener('touchend', (e) => {
-          if (!isDragging) return;
-    
-          isDragging = false;
-          elements.usernamePanel.style.transition = '';
-    
-          const deltaY = currentY - startY;
-    
-          // Jika drag lebih dari 100px, tutup panel
-          if (deltaY > 100) {
+        
+        // Variabel untuk drag
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let panelHeight = 0;
+        
+        // Tombol close
+        if (elements.panelCloseBtn) {
+            elements.panelCloseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                hapticFeedback('light');
+                hideUsernamePanel();
+            });
+        }
+        
+        // Tombol cart
+        if (elements.panelCartBtn) {
+            elements.panelCartBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                hapticFeedback('medium');
+                showToast('Fitur keranjang akan segera hadir!', 'info');
+            });
+        }
+        
+        // Tombol buy
+        if (elements.panelBuyBtn) {
+            elements.panelBuyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                hapticFeedback('heavy');
+                showToast('Fitur pembelian akan segera hadir!', 'info');
+            });
+        }
+        
+        // Tombol offer
+        if (elements.panelOfferBtn) {
+            elements.panelOfferBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                hapticFeedback('medium');
+                showToast('Fitur penawaran akan segera hadir!', 'info');
+            });
+        }
+        
+        // Klik overlay untuk menutup panel
+        overlay.addEventListener('click', () => {
             hideUsernamePanel();
-          } else {
-            // Kembali ke posisi semula
+        });
+        
+        // Fungsi untuk menangani drag start
+        const handleTouchStart = (e) => {
+            // Jangan start drag jika menyentuh button
+            if (e.target.closest('button')) return;
+            
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            panelHeight = elements.usernamePanel.offsetHeight;
+            
+            // Nonaktifkan transisi selama drag
+            elements.usernamePanel.style.transition = 'none';
+            e.preventDefault();
+        };
+        
+        // Fungsi untuk menangani drag move
+        const handleTouchMove = (e) => {
+            if (!isDragging) return;
+            
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            
+            // Hanya drag ke bawah (positif)
+            if (deltaY > 0) {
+                // Batasi drag maksimal setengah panel
+                const maxDrag = panelHeight * 0.8;
+                const translateY = Math.min(deltaY, maxDrag);
+                elements.usernamePanel.style.transform = `translateY(${translateY}px)`;
+                
+                // Update opacity overlay berdasarkan jarak drag
+                const opacity = Math.max(0, 1 - (deltaY / maxDrag));
+                overlay.style.opacity = opacity;
+            }
+            
+            e.preventDefault();
+        };
+        
+        // Fungsi untuk menangani drag end
+        const handleTouchEnd = () => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            
+            // Hitung seberapa jauh drag
+            const deltaY = currentY - startY;
+            const panelHeight = elements.usernamePanel.offsetHeight;
+            
+            // Kembalikan transisi
+            elements.usernamePanel.style.transition = '';
+            
+            // Jika drag lebih dari 25% tinggi panel, tutup panel
+            if (deltaY > panelHeight * 0.25) {
+                hideUsernamePanel();
+            } else {
+                // Kembali ke posisi semula
+                elements.usernamePanel.style.transform = '';
+                overlay.style.opacity = '1';
+            }
+            
+            // Reset nilai
+            startY = 0;
+            currentY = 0;
+        };
+        
+        // Handle untuk drag di handle
+        const panelHandle = document.querySelector('.panel-handle');
+        if (panelHandle) {
+            panelHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
+            panelHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
+            panelHandle.addEventListener('touchend', handleTouchEnd);
+            panelHandle.addEventListener('touchcancel', () => {
+                isDragging = false;
+                elements.usernamePanel.style.transition = '';
+                elements.usernamePanel.style.transform = '';
+                overlay.style.opacity = '1';
+            });
+        }
+        
+        // Handle untuk drag di seluruh panel
+        elements.usernamePanel.addEventListener('touchstart', handleTouchStart, { passive: false });
+        elements.usernamePanel.addEventListener('touchmove', handleTouchMove, { passive: false });
+        elements.usernamePanel.addEventListener('touchend', handleTouchEnd);
+        elements.usernamePanel.addEventListener('touchcancel', () => {
+            isDragging = false;
+            elements.usernamePanel.style.transition = '';
             elements.usernamePanel.style.transform = '';
-          }
-    
-          startY = 0;
-          currentY = 0;
+            overlay.style.opacity = '1';
         });
-    
-        panelHandle.addEventListener('touchcancel', () => {
-          isDragging = false;
-          elements.usernamePanel.style.transition = '';
-          elements.usernamePanel.style.transform = '';
-          startY = 0;
-          currentY = 0;
-        });
-      }
-    
-      // Drag to close - seluruh panel (untuk swipe dari tengah)
-      elements.usernamePanel.addEventListener('touchstart', (e) => {
-        // Only start drag if touching the panel content area (not buttons)
-        if (e.target.closest('button')) return;
-    
-        startY = e.touches[0].clientY;
-        isDragging = true;
-        elements.usernamePanel.style.transition = 'none';
-      }, { passive: true });
-    
-      elements.usernamePanel.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-    
-        currentY = e.touches[0].clientY;
-        const deltaY = currentY - startY;
-    
-        if (deltaY > 0) {
-          const translateY = Math.min(deltaY, window.innerHeight);
-          elements.usernamePanel.style.transform = `translateY(${translateY}px)`;
-        }
-      }, { passive: false });
-    
-      elements.usernamePanel.addEventListener('touchend', (e) => {
-        if (!isDragging) return;
-    
-        isDragging = false;
-        elements.usernamePanel.style.transition = '';
-    
-        const deltaY = currentY - startY;
-    
-        if (deltaY > 100) {
-          hideUsernamePanel();
-        } else {
-          elements.usernamePanel.style.transform = '';
-        }
-    
-        startY = 0;
-        currentY = 0;
-      });
-    
-      elements.usernamePanel.addEventListener('touchcancel', () => {
-        isDragging = false;
-        elements.usernamePanel.style.transition = '';
-        elements.usernamePanel.style.transform = '';
-        startY = 0;
-        currentY = 0;
-      });
     }
-
+    
     // ==================== PANEL FUNCTIONS ====================
     function showUsernamePanel(username) {
         console.log('🔍 showUsernamePanel called with:', username);
@@ -1429,42 +1424,40 @@
         elements.panelLoading.style.display = 'flex';
         elements.panelDetail.style.display = 'none';
         
+        // Reset transform panel
+        elements.usernamePanel.style.transform = '';
+        
         // Buka panel
         elements.usernamePanel.classList.add('show');
-        document.body.classList.add('panel-open'); // Untuk mencegah scroll background
+        
+        // Tampilkan overlay
+        const overlay = document.getElementById('panelOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+            overlay.style.opacity = '1';
+        }
+        
+        document.body.classList.add('panel-open'); // Mencegah scroll background
         
         // Load data username dari API
         loadUsernameDetailFromAPI(username);
-    }
-    
-    async function loadUsernameDetailFromAPI(username) {
-        try {
-            console.log('🔍 Fetching detail for:', username);
-            
-            const response = await fetchWithRetry(`${API_BASE_URL}/api/username/${username}`, {
-                method: 'GET'
-            });
-            
-            console.log('✅ API Response:', response);
-            
-            if (response.error) {
-                throw new Error(response.error);
-            }
-            
-            renderUsernamePanel(response);
-            
-        } catch (error) {
-            console.error('Error loading username detail:', error);
-            showToast('Gagal memuat detail username', 'error');
-            hideUsernamePanel();
-        }
     }
     
     function hideUsernamePanel() {
         if (!elements.usernamePanel) return;
         
         elements.usernamePanel.classList.remove('show');
+        
+        // Sembunyikan overlay
+        const overlay = document.getElementById('panelOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+        
         document.body.classList.remove('panel-open');
+        
+        // Reset transform jika ada
+        elements.usernamePanel.style.transform = '';
     }
     
     function renderUsernamePanel(data) {
@@ -1500,7 +1493,7 @@
             hour: '2-digit', minute: '2-digit'
         });
         
-        // Buat info grid
+        // Buat info grid - DALAM SATU KOLOM (container sudah dari HTML)
         const infoGrid = `
             <div class="info-row">
                 <span class="info-label"><i class="fas fa-at"></i> Based on</span>
@@ -1536,7 +1529,30 @@
         
         console.log('✅ Panel rendered successfully');
     }
-
+    
+    async function loadUsernameDetailFromAPI(username) {
+        try {
+            console.log('🔍 Fetching detail for:', username);
+            
+            const response = await fetchWithRetry(`${API_BASE_URL}/api/username/${username}`, {
+                method: 'GET'
+            });
+            
+            console.log('✅ API Response:', response);
+            
+            if (response.error) {
+                throw new Error(response.error);
+            }
+            
+            renderUsernamePanel(response);
+            
+        } catch (error) {
+            console.error('Error loading username detail:', error);
+            showToast('Gagal memuat detail username', 'error');
+            hideUsernamePanel();
+        }
+    }
+    
     async function init() {
       showLoading(true);
     
