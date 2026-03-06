@@ -14,12 +14,13 @@ class BotProcessor:
         self.task = None
         print("✅ BotProcessor initialized")
         
-    def start(self):
+    async def start(self):
         """Start the processor - panggil setelah loop berjalan"""
         print("🔄 BotProcessor is now monitoring for webapp requests...")
         # Gunakan loop yang sudah ada dari bot
         self.task = asyncio.create_task(self._process_requests())
         print("✅ BotProcessor started and monitoring for webapp requests...")
+        return self.task
         
     async def _process_requests(self):
         """Process pending requests from web app"""
