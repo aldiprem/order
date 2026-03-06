@@ -108,6 +108,8 @@ class Database:
             self.cur.execute("SELECT id, username, based_on FROM added_usernames WHERE shape IS NULL OR shape = ''")
             rows = self.cur.fetchall()
             
+            print(f"\n🔍 Migrating {len(rows)} records...")
+            
             for row in rows:
                 usn_id = row[0]
                 username = row[1]
@@ -115,6 +117,8 @@ class Database:
                 
                 # Hitung type berdasarkan username dan based_on
                 shape = self.determine_shape_for_db(username, based_on)
+                
+                print(f"  - @{username} (based_on: '{based_on}') → shape: {shape}")
                 
                 self.cur.execute("UPDATE added_usernames SET shape = ? WHERE id = ?", (shape, usn_id))
             
@@ -125,67 +129,75 @@ class Database:
             print(f"Error during migration: {e}")
 
     def determine_shape_for_db(self, username, based_on):
-        """Determine username type based on rules (sama seperti di app.py)"""
+        """Determine username type based on rules (HARUS SAMA PERSIS dengan b.py)"""
         if not based_on or not username:
             return "UNCOMMON"
         
         username_lower = username.lower()
         based_on_lower = based_on.lower()
         
-        # Check for OP (exact match)
+        # 1. CEK OP (On Point) - tanpa perubahan
         if username_lower == based_on_lower:
             return "OP"
         
-        # Check for SCANON (adds 's' at end)
+        # 2. CEK SCANON - penambahan 's' di akhir
         if username_lower == based_on_lower + 's':
             return "SCANON"
         
-        # Check for SOP (double letters)
-        for i in range(len(based_on_lower)-1):
-            if based_on_lower[i] == based_on_lower[i+1]:
-                if username_lower == based_on_lower[:i+1] + based_on_lower[i+1:]:
+        # 3. CEK SOP (Semi On Point) - double letters
+        if len(based_on_lower) < len(username_lower):
+            for i in range(len(based_on_lower)):
+                if (based_on_lower[:i+1] + based_on_lower[i] + based_on_lower[i+1:]) == username_lower:
                     return "SOP"
         
-        # Check for CANON (i to l or l to i)
+        # 4. CEK CANON - penggantian i ke l atau l ke i
         if len(username_lower) == len(based_on_lower):
-            canon_possible = True
+            is_canon = True
+            diff_count = 0
             for a, b in zip(username_lower, based_on_lower):
-                if (a == 'l' and b == 'i') or (a == 'i' and b == 'l'):
-                    continue
-                elif a != b:
-                    canon_possible = False
-                    break
-            if canon_possible:
+                if a != b:
+                    # Cek apakah perbedaan adalah i↔l
+                    if (a == 'i' and b == 'l') or (a == 'l' and b == 'i'):
+                        diff_count += 1
+                    else:
+                        is_canon = False
+                        break
+            if is_canon and diff_count > 0:
                 return "CANON"
         
-        # Check for TAMPING (add letter at beginning or end)
+        # 5. CEK TAMPING (Tambah Pinggir)
         if len(username_lower) == len(based_on_lower) + 1:
             if username_lower.startswith(based_on_lower) or username_lower.endswith(based_on_lower):
                 return "TAMPING"
         
-        # Check for TAMDAL (add letter in middle)
+        # 6. CEK TAMDAL (Tambah Dalam)
         if len(username_lower) == len(based_on_lower) + 1:
             for i in range(len(based_on_lower)):
-                if username_lower.startswith(based_on_lower[:i]) and username_lower[i+1:].startswith(based_on_lower[i:]):
+                if (username_lower.startswith(based_on_lower[:i]) and 
+                    username_lower[i+1:].startswith(based_on_lower[i:])):
                     return "TAMDAL"
         
-        # Check for GANHUR (replace one letter)
+        # 7. CEK GANHUR (Ganti Huruf)
         if len(username_lower) == len(based_on_lower):
-            diff_count = sum(1 for a, b in zip(username_lower, based_on_lower) if a != b)
+            diff_count = 0
+            for a, b in zip(username_lower, based_on_lower):
+                if a != b:
+                    diff_count += 1
             if diff_count == 1:
                 return "GANHUR"
         
-        # Check for SWITCH (swap adjacent letters)
+        # 8. CEK SWITCH (Perpindahan Huruf)
         if len(username_lower) == len(based_on_lower):
-            for i in range(len(based_on_lower)-1):
+            for i in range(len(based_on_lower) - 1):
                 switched = based_on_lower[:i] + based_on_lower[i+1] + based_on_lower[i] + based_on_lower[i+2:]
                 if switched == username_lower:
                     return "SWITCH"
         
-        # Check for KURHUF (remove one letter)
+        # 9. CEK KURHUF (Kurang Huruf)
         if len(username_lower) == len(based_on_lower) - 1:
             for i in range(len(based_on_lower)):
-                if username_lower == based_on_lower[:i] + based_on_lower[i+1:]:
+                removed = based_on_lower[:i] + based_on_lower[i+1:]
+                if removed == username_lower:
                     return "KURHUF"
         
         return "UNCOMMON"
@@ -311,13 +323,21 @@ class Database:
             
             result = self.cur.fetchone()
             
-            # Debug: tampilkan hasil
+            # Debug: tampilkan hasil dengan detail
             if result:
-                print(f"get_username_detail for {username}:")
-                print(f"  listed_status = {result[10]} (index 10)")
-                print(f"  price = {result[11]} (index 11)")
-                print(f"  shape = {result[12]} (index 12)")  # KOLOM BARU
-                print(f"  updated_at = {result[13]} (index 13)")
+                print(f"\n🔍 DATABASE QUERY RESULT for @{username}:")
+                print(f"  id: {result[0]}")
+                print(f"  username: {result[1]}")
+                print(f"  type: {result[2]}")
+                print(f"  based_on: '{result[9]}'")
+                print(f"  shape: {result[12]} (index 12)")
+                print(f"  updated_at: {result[13]}")
+                
+                # Verifikasi apakah shape sesuai dengan aturan
+                calculated_shape = self.determine_shape_for_db(result[1], result[9])
+                print(f"  calculated_shape (should be): {calculated_shape}")
+                if calculated_shape != result[12]:
+                    print(f"  ⚠️ MISMATCH! Database shape '{result[12]}' should be '{calculated_shape}'")
             
             return result
         except Exception as e:
@@ -347,6 +367,12 @@ class Database:
                 usn = result[0]
                 # Hitung shape berdasarkan based_on yang baru
                 shape = self.determine_shape_for_db(usn, based_on)
+                
+                # DEBUG: Lihat perbandingan
+                print(f"\n🔍 DEBUG - Calculating shape for @{username}:")
+                print(f"  Username: {usn}")
+                print(f"  Based_on: '{based_on}'")
+                print(f"  Shape result: {shape}")
                 
                 # Update shape
                 self.cur.execute("""
