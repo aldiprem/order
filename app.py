@@ -330,11 +330,20 @@ def get_pending_requests(user_id):
         return '', 200
         
     try:
-        # Ambil pending requests dari database
-        # Ini perlu disesuaikan dengan struktur database Anda
-        pending = []  # Placeholder
+        pending = db.get_user_pending_requests(user_id)
         
-        return jsonify(pending)
+        # Format untuk response
+        result = []
+        for req in pending:
+            result.append({
+                'id': req[1],  # request_id
+                'username': req[2],
+                'status': req[4],
+                'created_at': str(req[5]) if req[5] else None,
+                'type': 'webapp'
+            })
+        
+        return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error in pending-requests: {e}")
@@ -358,6 +367,60 @@ def verify_otp():
     except Exception as e:
         logger.error(f"Error in verify-otp: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==================== ENDPOINT UNTUK ADD USERNAME DARI WEB APP ====================
+@app.route('/api/webapp/add-username', methods=['POST', 'OPTIONS'])
+def webapp_add_username():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.json
+        username = data.get('username')
+        user_id = data.get('user_id')
+        
+        if not username or not user_id:
+            return jsonify({'success': False, 'error': 'Username dan user_id diperlukan'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '').strip()
+        if not clean_username:
+            return jsonify({'success': False, 'error': 'Username tidak valid'}), 400
+        
+        # Panggil bot untuk memproses (via API internal atau langsung panggil fungsi)
+        # Ini akan mengirim permintaan ke bot untuk diproses
+        result = process_webapp_username_request(clean_username, user_id)
+        
+        if result.get('success'):
+            return jsonify({'success': True, 'message': 'Permintaan telah dikirim', 'request_id': result.get('request_id')})
+        else:
+            return jsonify({'success': False, 'error': result.get('error', 'Gagal memproses permintaan')}), 400
+        
+    except Exception as e:
+        logger.error(f"Error in webapp_add_username: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def process_webapp_username_request(username, requester_id):
+    """Proses permintaan username dari web app"""
+    try:
+        # Import fungsi yang diperlukan dari bot
+        # Note: Ini akan dijalankan di thread terpisah, perlu hati-hati dengan asyncio
+        
+        # Buat session ID untuk request ini
+        request_id = db.generate_verification_id()
+        
+        # Simpan di database sebagai pending request dari web app
+        db.create_webapp_request(request_id, username, requester_id)
+        
+        # Di sini kita perlu mengirim notifikasi ke bot untuk diproses
+        # Cara termudah: simpan di database dan bot akan mengecek secara periodik
+        # atau gunakan mekanisme queue/celery
+        
+        return {'success': True, 'request_id': request_id}
+        
+    except Exception as e:
+        logger.error(f"Error processing webapp request: {e}")
+        return {'success': False, 'error': str(e)}
 
 def determine_username_type(username, based_on):
     """Determine username type based on rules"""
