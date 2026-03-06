@@ -1726,7 +1726,6 @@
       });
     }
 
-    // ==================== MODAL ADD USERNAME ====================
     function showAddUsernameModal() {
       // Hapus modal lama jika ada
       const oldModal = document.getElementById('addUsernameModal');
@@ -1759,46 +1758,81 @@
         document.getElementById('usernameInput').focus();
       }, 10);
     
-      // Event listener
+      // Event listener untuk cancel
       document.getElementById('cancelAddUsername').addEventListener('click', () => {
         modal.classList.remove('show');
         setTimeout(() => modal.remove(), 300);
+        playFeedback('light', 'back');
       });
     
+      // Event listener untuk confirm
       document.getElementById('confirmAddUsername').addEventListener('click', async () => {
         const username = document.getElementById('usernameInput').value.trim();
         if (!username) {
           showToast('Masukkan username!', 'warning');
+          playFeedback('warning', 'error');
+          return;
+        }
+    
+        // Validasi format username
+        if (!username.startsWith('@')) {
+          showToast('Username harus diawali dengan @', 'warning');
+          playFeedback('warning', 'error');
           return;
         }
     
         playFeedback('medium', 'pop');
     
-        // Kirim permintaan ke API
+        // Tampilkan loading di tombol
+        const confirmBtn = document.getElementById('confirmAddUsername');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MENGIRIM...';
+        confirmBtn.disabled = true;
+    
         try {
-          const response = await fetchWithRetry(`${API_BASE_URL}/api/request-username`, {
+          // Kirim permintaan ke endpoint baru
+          const response = await fetchWithRetry(`${API_BASE_URL}/api/webapp/add-username`, {
             method: 'POST',
             body: JSON.stringify({
               username: username,
-              user_id: currentUser.id,
-              user_fullname: currentUser.first_name + ' ' + (currentUser.last_name || ''),
-              user_username: currentUser.username
+              user_id: currentUser.id
             })
           });
     
           if (response.success) {
-            showToast('Permintaan username dikirim!', 'success');
+            showToast('✅ Permintaan telah dikirim! Periksa bot untuk verifikasi', 'success');
+            playFeedback('success', 'success');
+    
             modal.classList.remove('show');
             setTimeout(() => modal.remove(), 300);
     
             // Refresh notifikasi
-            loadPendingNotifications();
+            setTimeout(() => {
+              loadPendingNotifications();
+            }, 1000);
+    
+            // Tampilkan info tambahan
+            showToast('📱 Buka bot @indotag_bot untuk verifikasi', 'info', 5000);
           } else {
             showToast(response.error || 'Gagal mengirim permintaan', 'error');
+            playFeedback('error', 'error');
           }
         } catch (error) {
           console.error('Error requesting username:', error);
           showToast('Gagal terhubung ke server', 'error');
+          playFeedback('error', 'error');
+        } finally {
+          // Kembalikan tombol ke keadaan semula
+          confirmBtn.innerHTML = originalText;
+          confirmBtn.disabled = false;
+        }
+      });
+    
+      // Event listener untuk Enter key
+      document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('confirmAddUsername').click();
         }
       });
     
