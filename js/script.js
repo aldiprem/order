@@ -75,104 +75,302 @@
         searchSubmitBtn: null
     };
 
-    // ==================== AUDIO MANAGER ====================
+    // ==================== AUDIO MANAGER (IMPROVED VERSION) ====================
     if (!window.AudioManager) {
-        window.AudioManager = {
-            enabled: true,
-            volume: 0.5,
-            basePath: '/order/sound/',
-            sounds: {
-                click: { file: 'click.mp3', instances: [], preloaded: false },
-                pop: { file: 'pop.mp3', instances: [], preloaded: false },
-                success: { file: 'success.mp3', instances: [], preloaded: false },
-                error: { file: 'error.mp3', instances: [], preloaded: false },
-                back: { file: 'back.mp3', instances: [], preloaded: false }
-            },
-
-            init: function() {
-                console.log('🔊 Initializing Audio Manager...');
-                if (!window.AudioContext && !HTMLAudioElement) {
-                    console.warn('⚠️ Audio not supported');
-                    this.enabled = false;
-                    return;
-                }
-                this.preloadAllSounds();
-                this.enableAudioOnUserInteraction();
-                console.log('✅ Audio Manager initialized');
-            },
-
-            preloadAllSounds: function() {
-                for (let name in this.sounds) {
-                    this.preloadSound(name);
-                }
-            },
-
-            preloadSound: function(name) {
-                const sound = this.sounds[name];
-                if (!sound || sound.preloaded) return;
-                
-                for (let i = 0; i < 2; i++) {
-                    const audio = new Audio();
-                    audio.src = this.basePath + sound.file;
-                    audio.volume = this.volume;
-                    audio.preload = 'auto';
-                    audio.onerror = () => console.warn(`⚠️ Failed to load: ${name}`);
-                    sound.instances.push(audio);
-                }
-                sound.preloaded = true;
-            },
-
-            enableAudioOnUserInteraction: function() {
-                const enable = () => {
-                    if (window.AudioContext) {
-                        const context = new AudioContext();
-                        if (context.state === 'suspended') context.resume();
-                    }
-                    this.play('click', 0.1);
-                    document.removeEventListener('touchstart', enable);
-                    document.removeEventListener('click', enable);
-                };
-                document.addEventListener('touchstart', enable, { once: true });
-                document.addEventListener('click', enable, { once: true });
-            },
-
-            play: function(name, vol) {
-                if (!this.enabled) return;
-                const sound = this.sounds[name];
-                if (!sound) return;
-                
-                const audio = sound.instances.find(a => a.paused || a.ended);
-                if (!audio) {
-                    const newAudio = new Audio();
-                    newAudio.src = this.basePath + sound.file;
-                    newAudio.volume = vol || this.volume;
-                    sound.instances.push(newAudio);
-                    this.playWithOptions(newAudio, vol);
-                    return;
-                }
-                this.playWithOptions(audio, vol);
-            },
-
-            playWithOptions: function(audio, vol) {
-                audio.pause();
-                audio.currentTime = 0;
-                audio.volume = vol || this.volume;
-                audio.play().catch(() => {});
+      window.AudioManager = {
+        enabled: true,
+        volume: 0.5,
+        basePath: '/order/sound/',
+        sounds: {
+          click: { file: 'click.mp3', instances: [], preloaded: false },
+          pop: { file: 'pop.mp3', instances: [], preloaded: false },
+          success: { file: 'success.mp3', instances: [], preloaded: false },
+          error: { file: 'error.mp3', instances: [], preloaded: false },
+          back: { file: 'back.mp3', instances: [], preloaded: false }
+        },
+        audioContext: null,
+        isUserInteracted: false,
+        pendingPlays: [],
+    
+        init: function() {
+          console.log('🔊 Initializing Audio Manager...');
+    
+          // Cek dukungan audio
+          if (!HTMLAudioElement) {
+            console.warn('⚠️ Audio not supported');
+            this.enabled = false;
+            return;
+          }
+    
+          // Buat AudioContext untuk iOS
+          try {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (window.AudioContext) {
+              this.audioContext = new AudioContext();
+              console.log('✅ AudioContext created, state:', this.audioContext.state);
             }
-        };
+          } catch (e) {
+            console.warn('⚠️ AudioContext not supported:', e);
+          }
+    
+          // Preload semua sound
+          this.preloadAllSounds();
+    
+          // Setup user interaction listeners
+          this.setupUserInteractionListeners();
+    
+          // Coba play silent sound untuk unlock audio (khusus iOS)
+          this.tryUnlockAudio();
+    
+          console.log('✅ Audio Manager initialized');
+        },
+    
+        setupUserInteractionListeners: function() {
+          const unlockAudio = () => {
+            if (this.isUserInteracted) return;
+    
+            console.log('👆 User interaction detected - unlocking audio');
+            this.isUserInteracted = true;
+    
+            // Resume AudioContext jika ada
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+              this.audioContext.resume().then(() => {
+                console.log('✅ AudioContext resumed');
+              }).catch(e => {
+                console.warn('❌ Failed to resume AudioContext:', e);
+              });
+            }
+    
+            // Play silent sound untuk unlock
+            this.playSilentSound();
+    
+            // Process pending plays
+            this.processPendingPlays();
+    
+            // Remove listeners setelah pertama kali
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+            document.removeEventListener('touchend', unlockAudio);
+          };
+    
+          // Multiple events untuk maksimalkan coverage
+          document.addEventListener('touchstart', unlockAudio, { once: true });
+          document.addEventListener('click', unlockAudio, { once: true });
+          document.addEventListener('keydown', unlockAudio, { once: true });
+          document.addEventListener('touchend', unlockAudio, { once: true });
+        },
+    
+        tryUnlockAudio: function() {
+          // Untuk iOS: coba play silent sound
+          try {
+            const silentAudio = new Audio();
+            silentAudio.src = 'data:audio/mp3;base64,SUQzBAAAAA...'; // Base64 silent MP3
+            silentAudio.volume = 0.01;
+            silentAudio.play().then(() => {
+              console.log('✅ Silent audio played for unlock');
+              silentAudio.pause();
+            }).catch(e => {
+              // Ignore - akan di-unlock oleh user interaction
+            });
+          } catch (e) {
+            // Ignore
+          }
+        },
+    
+        playSilentSound: function() {
+          // Play sound dengan volume sangat rendah untuk unlock
+          this.play('click', 0.01);
+        },
+    
+        processPendingPlays: function() {
+          if (this.pendingPlays.length > 0) {
+            console.log(`🎵 Processing ${this.pendingPlays.length} pending plays`);
+            this.pendingPlays.forEach(pending => {
+              this.play(pending.name, pending.volume);
+            });
+            this.pendingPlays = [];
+          }
+        },
+    
+        preloadAllSounds: function() {
+          for (let name in this.sounds) {
+            this.preloadSound(name);
+          }
+        },
+    
+        preloadSound: function(name) {
+          const sound = this.sounds[name];
+          if (!sound || sound.preloaded) return;
+    
+          // Buat multiple instances untuk pooling
+          for (let i = 0; i < 3; i++) {
+            try {
+              const audio = new Audio();
+              audio.src = this.basePath + sound.file;
+              audio.volume = this.volume;
+              audio.preload = 'auto';
+    
+              // Force load
+              audio.load();
+    
+              audio.onerror = (e) => {
+                console.warn(`⚠️ Failed to load sound: ${name}`, e);
+              };
+    
+              audio.oncanplaythrough = () => {
+                console.log(`✅ Sound ready: ${name} (instance ${i+1})`);
+              };
+    
+              sound.instances.push(audio);
+            } catch (e) {
+              console.warn(`⚠️ Error preloading ${name}:`, e);
+            }
+          }
+    
+          sound.preloaded = true;
+          console.log(`✅ Preloaded sound: ${name} (${sound.instances.length} instances)`);
+        },
+    
+        play: function(name, volume) {
+          if (!this.enabled) return;
+    
+          // Jika belum ada user interaction, queue untuk diputar nanti
+          if (!this.isUserInteracted) {
+            console.log(`⏳ User not interacted yet, queueing sound: ${name}`);
+            this.pendingPlays.push({ name, volume });
+            return;
+          }
+    
+          const sound = this.sounds[name];
+          if (!sound) {
+            console.warn(`⚠️ Sound not found: ${name}`);
+            return;
+          }
+    
+          // Cari audio instance yang available
+          let audio = sound.instances.find(a => a.paused || a.ended);
+    
+          if (!audio) {
+            // Buat instance baru jika semua busy
+            try {
+              audio = new Audio();
+              audio.src = this.basePath + sound.file;
+              audio.volume = volume || this.volume;
+              sound.instances.push(audio);
+              console.log(`🔄 Created new audio instance for ${name}`);
+            } catch (e) {
+              console.warn(`⚠️ Failed to create audio instance:`, e);
+              return;
+            }
+          }
+    
+          this.playWithOptions(audio, volume);
+        },
+    
+        playWithOptions: function(audio, volume) {
+          if (!audio) return;
+    
+          try {
+            // Reset audio
+            audio.pause();
+            audio.currentTime = 0;
+    
+            // Set volume
+            audio.volume = volume || this.volume;
+    
+            // Play promise
+            const playPromise = audio.play();
+    
+            if (playPromise !== undefined) {
+              playPromise.catch(error => {
+                // AbortError adalah normal (multiple plays cepat)
+                if (error.name !== 'AbortError') {
+                  console.warn(`⚠️ Audio play failed:`, error);
+    
+                  // Coba unlock lagi
+                  if (error.name === 'NotAllowedError') {
+                    console.log('🔄 Play not allowed, waiting for user interaction...');
+                    this.isUserInteracted = false;
+                    this.setupUserInteractionListeners();
+                  }
+                }
+              });
+            }
+          } catch (e) {
+            console.warn(`⚠️ Error playing sound:`, e);
+          }
+        },
+    
+        setVolume: function(volume) {
+          this.volume = Math.max(0, Math.min(1, volume));
+    
+          // Update semua instances
+          for (let sound of Object.values(this.sounds)) {
+            sound.instances.forEach(audio => {
+              audio.volume = this.volume;
+            });
+          }
+        },
+    
+        setEnabled: function(enabled) {
+          this.enabled = enabled;
+        }
+      };
     }
 
     // ==================== ANTI-DOUBLE FEEDBACK ====================
+    // Map untuk melacak elemen yang sudah diproses
+    const processedElements = new WeakMap();
+    
+    // Tracking terakhir feedback global
     let lastFeedbackTime = 0;
     const FEEDBACK_COOLDOWN = 150; // ms
 
+    // Fungsi untuk memastikan feedback hanya dipanggil sekali per interaksi
+    function safeFeedback(element, hapticStyle = 'light', soundName = 'click') {
+        if (!element) return;
+        
+        // Cek apakah elemen ini sudah diproses dalam 300ms terakhir
+        if (processedElements.has(element)) {
+            const lastTime = processedElements.get(element);
+            if (Date.now() - lastTime < 300) {
+                console.log('⚠️ Mencegah double feedback untuk elemen yang sama');
+                return;
+            }
+        }
+        
+        // Catat waktu pemrosesan untuk elemen ini
+        processedElements.set(element, Date.now());
+        
+        // Panggil feedback dengan proteksi global
+        playFeedback(hapticStyle, soundName);
+    }
+
+    // ==================== HAPTIC FEEDBACK ====================
+    let telegramHaptic = null;
+    
+    function initHaptic() {
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+            telegramHaptic = window.Telegram.WebApp.HapticFeedback;
+            console.log('✅ Haptic feedback initialized');
+            return true;
+        }
+        console.log('⚠️ Haptic feedback not available');
+        return false;
+    }
+
+    // FUNGSI UTAMA - SATU FUNGSI UNTUK SEMUA FEEDBACK DENGAN GLOBAL DEBOUNCE
     function playFeedback(hapticStyle = 'light', soundName = 'click') {
+        // Cegah double trigger dalam 150ms (GLOBAL)
         const now = Date.now();
         if (now - lastFeedbackTime < FEEDBACK_COOLDOWN) {
+            console.log('⚠️ Global debounce mencegah double');
             return;
         }
         lastFeedbackTime = now;
         
+        // Haptic
         if (window.Telegram?.WebApp?.HapticFeedback) {
             try {
                 switch(hapticStyle) {
@@ -195,22 +393,10 @@
             } catch (e) {}
         }
         
+        // Audio
         if (window.AudioManager) {
             window.AudioManager.play(soundName);
         }
-    }
-
-    // ==================== HAPTIC FEEDBACK (LEGACY - TETAP PERTAHANKAN) ====================
-    let telegramHaptic = null;
-    
-    function initHaptic() {
-        if (window.Telegram?.WebApp?.HapticFeedback) {
-            telegramHaptic = window.Telegram.WebApp.HapticFeedback;
-            console.log('✅ Haptic feedback initialized');
-            return true;
-        }
-        console.log('⚠️ Haptic feedback not available');
-        return false;
     }
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -371,8 +557,14 @@
       
         const userProfileCard = document.querySelector('.user-profile-card');
         if (userProfileCard) {
-            userProfileCard.addEventListener('click', () => {
-                playFeedback('light', 'click');
+            // Hapus event listener lama dengan clone
+            const newCard = userProfileCard.cloneNode(true);
+            userProfileCard.parentNode.replaceChild(newCard, userProfileCard);
+            
+            newCard.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
                 document.querySelector('.nav-item[data-page="profile"]')?.click();
             });
         }
@@ -644,9 +836,16 @@
       
             updateSearchButtons();
             elements.marketSearch.addEventListener('input', updateSearchButtons);
+            
+            // Hapus event listener lama dengan clone untuk input
+            const newSearchInput = elements.marketSearch.cloneNode(true);
+            elements.marketSearch.parentNode.replaceChild(newSearchInput, elements.marketSearch);
+            elements.marketSearch = newSearchInput;
+            
             elements.marketSearch.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    e.stopPropagation();
                     playFeedback('medium', 'pop');
                     filters.search = elements.marketSearch.value;
                     applyFilters();
@@ -655,10 +854,17 @@
             });
         }
       
+        // Clear button
         if (elements.searchClearBtn) {
+            const newClearBtn = elements.searchClearBtn.cloneNode(true);
+            elements.searchClearBtn.parentNode.replaceChild(newClearBtn, elements.searchClearBtn);
+            elements.searchClearBtn = newClearBtn;
+            
             elements.searchClearBtn.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
-                playFeedback('light', 'click');
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
                 if (elements.marketSearch) {
                     elements.marketSearch.value = '';
                     filters.search = '';
@@ -670,10 +876,17 @@
             });
         }
       
+        // Submit button
         if (elements.searchSubmitBtn) {
+            const newSubmitBtn = elements.searchSubmitBtn.cloneNode(true);
+            elements.searchSubmitBtn.parentNode.replaceChild(newSubmitBtn, elements.searchSubmitBtn);
+            elements.searchSubmitBtn = newSubmitBtn;
+            
             elements.searchSubmitBtn.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
-                playFeedback('medium', 'pop');
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'medium', 'pop');
+                
                 if (elements.marketSearch) {
                     filters.search = elements.marketSearch.value;
                     applyFilters();
@@ -682,14 +895,21 @@
             });
         }
       
+        // Filter toggle button
         if (elements.filterToggle) {
+            const newFilterToggle = elements.filterToggle.cloneNode(true);
+            elements.filterToggle.parentNode.replaceChild(newFilterToggle, elements.filterToggle);
+            elements.filterToggle = newFilterToggle;
+            
             elements.filterToggle.addEventListener('click', (e) => {
-                e.hapticProcessed = true;
-                playFeedback('medium', 'pop');
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'medium', 'pop');
                 toggleFilterPanel();
             });
         }
       
+        // Setup untuk username cards
         setTimeout(() => {
             if (typeof setupPanel === 'function' && !window.panelSetupDone) {
                 setupPanel();
@@ -697,29 +917,38 @@
             }
           
             document.querySelectorAll('.username-card').forEach(card => {
-                card.addEventListener('click', (e) => {
+                const newCard = card.cloneNode(true);
+                card.parentNode.replaceChild(newCard, card);
+          
+                newCard.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    playFeedback('light', 'click');
+                    safeFeedback(e.currentTarget, 'light', 'click');
                     
-                    const usernameElement = card.querySelector('.username');
+                    const usernameElement = newCard.querySelector('.username');
                     if (usernameElement) {
                         const username = usernameElement.textContent.trim();
                         console.log('🔍 Card clicked - username:', username);
-                        if (typeof showUsernamePanel === 'function') {
-                            showUsernamePanel(username);
-                        }
+                        
+                        setTimeout(() => {
+                            if (typeof showUsernamePanel === 'function') {
+                                showUsernamePanel(username);
+                            }
+                        }, 50);
                     }
                 });
             });
           
             const emptyMarket = document.querySelector('.empty-market');
             if (emptyMarket) {
-                emptyMarket.addEventListener('click', (e) => {
+                const newEmptyMarket = emptyMarket.cloneNode(true);
+                emptyMarket.parentNode.replaceChild(newEmptyMarket, emptyMarket);
+                
+                newEmptyMarket.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    playFeedback('light', 'click');
+                    safeFeedback(e.currentTarget, 'light', 'click');
                 });
             }
         }, 100);
@@ -868,10 +1097,18 @@
                 section.classList.remove('expanded');
             }
             
-            header.addEventListener('click', (e) => {
+            // Hapus event listener lama dengan clone
+            const newHeader = header.cloneNode(true);
+            header.parentNode.replaceChild(newHeader, header);
+            
+            newHeader.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
                 collapsibleState[sectionName] = !collapsibleState[sectionName];
                 
+                const section = newHeader.closest('.filter-section');
                 if (collapsibleState[sectionName]) {
                     section.classList.add('expanded');
                 } else {
@@ -883,7 +1120,7 @@
 
     // ==================== FILTER PANEL ====================
     function toggleFilterPanel() { 
-        playFeedback('medium', 'pop');
+        // Feedback sudah dipanggil dari tombol, jangan panggil lagi di sini
         isFilterPanelOpen = !isFilterPanelOpen;
         if (isFilterPanelOpen) {
             elements.filterPanel.classList.add('show');
@@ -897,64 +1134,121 @@
     function setupFilterPanel() {
         if (!elements.filterPanel) return;
 
+        // Filter close button
         if (elements.filterClose) {
-            elements.filterClose.addEventListener('click', toggleFilterPanel);
+            const newFilterClose = elements.filterClose.cloneNode(true);
+            elements.filterClose.parentNode.replaceChild(newFilterClose, elements.filterClose);
+            elements.filterClose = newFilterClose;
+            
+            elements.filterClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'back');
+                toggleFilterPanel();
+            });
         }
 
         elements.filterPanel.addEventListener('click', (e) => {
             if (e.target.classList.contains('filter-panel-header') || 
                 e.target.classList.contains('filter-panel-handle')) {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'pop');
                 toggleFilterPanel();
             }
         });
 
+        // Type filter chips
         if (elements.typeFilterChips) {
+            // Gunakan event delegation dengan clone
+            const newChips = elements.typeFilterChips.cloneNode(true);
+            elements.typeFilterChips.parentNode.replaceChild(newChips, elements.typeFilterChips);
+            elements.typeFilterChips = newChips;
+            
             elements.typeFilterChips.addEventListener('click', (e) => {
                 const chip = e.target.closest('.chip');
                 if (!chip) return;
                 
-                playFeedback('selection', 'click');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                safeFeedback(chip, 'selection', 'click');
                 
                 const type = chip.dataset.type;
                 if (!type) return;
                 
                 document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
+                
                 filters.type = type;
             });
         }
 
+        // Price inputs
         if (elements.minPrice) {
+            const newMinPrice = elements.minPrice.cloneNode(true);
+            elements.minPrice.parentNode.replaceChild(newMinPrice, elements.minPrice);
+            elements.minPrice = newMinPrice;
+            
             elements.minPrice.addEventListener('input', (e) => {
                 filters.minPrice = parseInt(e.target.value) || 0;
             });
         }
 
         if (elements.maxPrice) {
+            const newMaxPrice = elements.maxPrice.cloneNode(true);
+            elements.maxPrice.parentNode.replaceChild(newMaxPrice, elements.maxPrice);
+            elements.maxPrice = newMaxPrice;
+            
             elements.maxPrice.addEventListener('input', (e) => {
                 filters.maxPrice = parseInt(e.target.value) || 999999999;
             });
         }
 
+        // Sort select
         if (elements.sortBy) {
+            const newSortBy = elements.sortBy.cloneNode(true);
+            elements.sortBy.parentNode.replaceChild(newSortBy, elements.sortBy);
+            elements.sortBy = newSortBy;
+            
             elements.sortBy.addEventListener('change', (e) => {
                 filters.sortBy = e.target.value;
             });
         }
 
+        // Reset filters button
         if (elements.resetFilters) {
-            elements.resetFilters.addEventListener('click', () => {
-                playFeedback('warning', 'pop');
-                resetFilters();
-                toggleFilterPanel();
+            const newResetBtn = elements.resetFilters.cloneNode(true);
+            elements.resetFilters.parentNode.replaceChild(newResetBtn, elements.resetFilters);
+            elements.resetFilters = newResetBtn;
+            
+            elements.resetFilters.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'warning', 'pop');
+                
+                setTimeout(() => {
+                    resetFilters();
+                    toggleFilterPanel();
+                }, 50);
             });
         }
 
+        // Apply filters button
         if (elements.applyFilters) {
-            elements.applyFilters.addEventListener('click', () => {
-                playFeedback('success', 'success');
-                applyFilters();
-                toggleFilterPanel();
+            const newApplyBtn = elements.applyFilters.cloneNode(true);
+            elements.applyFilters.parentNode.replaceChild(newApplyBtn, elements.applyFilters);
+            elements.applyFilters = newApplyBtn;
+            
+            elements.applyFilters.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'success', 'success');
+                
+                setTimeout(() => {
+                    applyFilters();
+                    toggleFilterPanel();
+                }, 50);
             });
         }
 
@@ -968,16 +1262,21 @@
         updateNavIndicator('market');
 
         elements.navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+            
+            newItem.addEventListener('click', (e) => {
                 e.preventDefault();
-                playFeedback('light', 'click');
-                const page = item.dataset.page;
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'light', 'click');
+                
+                const page = newItem.dataset.page;
                 if (!page) return;
 
-                elements.navItems.forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                newItem.classList.add('active');
 
-                elements.pages.forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
                 const targetPage = document.getElementById(`${page}Page`);
                 if (targetPage) {
                     targetPage.classList.add('active');
@@ -1005,8 +1304,8 @@
         const activeItem = document.querySelector(`.nav-item[data-page="${page}"]`);
         if (!activeItem) return;
 
-        const index = Array.from(elements.navItems).indexOf(activeItem);
-        const itemWidth = 100 / elements.navItems.length;
+        const index = Array.from(document.querySelectorAll('.nav-item')).indexOf(activeItem);
+        const itemWidth = 100 / document.querySelectorAll('.nav-item').length;
         elements.navIndicator.style.left = `${index * itemWidth}%`;
     }
 
@@ -1050,9 +1349,16 @@
             }, 1500);
         });
 
+        // Scroll to top button
         if (elements.scrollTopBtn) {
-            elements.scrollTopBtn.addEventListener('click', () => {
-                playFeedback('selection', 'pop');
+            const newScrollBtn = elements.scrollTopBtn.cloneNode(true);
+            elements.scrollTopBtn.parentNode.replaceChild(newScrollBtn, elements.scrollTopBtn);
+            elements.scrollTopBtn = newScrollBtn;
+            
+            elements.scrollTopBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                safeFeedback(e.currentTarget, 'heavy', 'pop');
                 elements.marketMain.scrollTo({
                     top: 0,
                     behavior: 'smooth'
@@ -1061,30 +1367,54 @@
         }
     }
 
-    // ==================== AUTO HAPTIC FOR ALL BUTTONS ====================
+    // ==================== AUTO HAPTIC FOR ALL BUTTONS (DIPERBAIKI) ====================
     function setupHapticForButtons() {
         const clickableElements = document.querySelectorAll('button, .nav-item, .chip, .filter-section-header, .filter-close, .search-clear-btn, .search-submit-btn, .filter-toggle-btn, .filter-btn, .scroll-top-btn, .user-profile-card');
       
         clickableElements.forEach(element => {
+            // Hanya tambahkan jika belum memiliki event listener
+            if (element.getAttribute('data-haptic-processed')) return;
+            
+            element.setAttribute('data-haptic-processed', 'true');
+            
             element.addEventListener('click', (e) => {
+                // Cegah bubbling dan double
+                if (e.hapticProcessedByGlobal) return;
+                e.hapticProcessedByGlobal = true;
+                
+                // Hanya trigger jika belum ada handler spesifik
                 if (e.defaultPrevented) return;
                 
+                // Gunakan safeFeedback untuk mencegah double
                 if (element.classList.contains('nav-item')) {
-                    playFeedback('light', 'click');
+                    safeFeedback(element, 'light', 'click');
                 } else if (element.classList.contains('chip')) {
-                    playFeedback('selection', 'click');
+                    // Chips sudah dihandle di tempat lain
+                    return;
                 } else if (element.classList.contains('filter-btn') || element.classList.contains('apply')) {
-                    playFeedback('medium', 'pop');
+                    // Filter buttons sudah dihandle
+                    return;
                 } else if (element.classList.contains('reset')) {
-                    playFeedback('warning', 'pop');
+                    // Reset sudah dihandle
+                    return;
                 } else if (element.classList.contains('filter-close')) {
-                    playFeedback('light', 'back');
+                    // Close button sudah dihandle di panel
+                    return;
                 } else if (element.classList.contains('scroll-top-btn')) {
-                    playFeedback('heavy', 'pop');
+                    safeFeedback(element, 'heavy', 'pop');
+                } else if (element.classList.contains('search-clear-btn') || element.classList.contains('search-submit-btn')) {
+                    // Search buttons sudah dihandle
+                    return;
+                } else if (element.classList.contains('filter-toggle-btn')) {
+                    // Filter toggle sudah dihandle
+                    return;
+                } else if (element.classList.contains('user-profile-card')) {
+                    // Profile card sudah dihandle
+                    return;
                 } else {
-                    playFeedback('light', 'click');
+                    safeFeedback(element, 'light', 'click');
                 }
-            });
+            }, { once: false });
         });
     }
 
@@ -1105,42 +1435,73 @@
         let isDragging = false;
         let panelHeight = 0;
         
+        // Panel close button
         if (elements.panelCloseBtn) {
+            const newCloseBtn = elements.panelCloseBtn.cloneNode(true);
+            elements.panelCloseBtn.parentNode.replaceChild(newCloseBtn, elements.panelCloseBtn);
+            elements.panelCloseBtn = newCloseBtn;
+            
             elements.panelCloseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                playFeedback('light', 'back');
-                hideUsernamePanel();
+                safeFeedback(e.currentTarget, 'light', 'back');
+                
+                setTimeout(() => {
+                    hideUsernamePanel();
+                }, 50);
             });
         }
         
+        // Panel cart button
         if (elements.panelCartBtn) {
+            const newCartBtn = elements.panelCartBtn.cloneNode(true);
+            elements.panelCartBtn.parentNode.replaceChild(newCartBtn, elements.panelCartBtn);
+            elements.panelCartBtn = newCartBtn;
+            
             elements.panelCartBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                playFeedback('medium', 'click');
+                safeFeedback(e.currentTarget, 'medium', 'click');
                 showToast('Fitur keranjang akan segera hadir!', 'info');
             });
         }
         
+        // Panel buy button
         if (elements.panelBuyBtn) {
+            const newBuyBtn = elements.panelBuyBtn.cloneNode(true);
+            elements.panelBuyBtn.parentNode.replaceChild(newBuyBtn, elements.panelBuyBtn);
+            elements.panelBuyBtn = newBuyBtn;
+            
             elements.panelBuyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                playFeedback('heavy', 'success');
+                safeFeedback(e.currentTarget, 'heavy', 'success');
                 showToast('Fitur pembelian akan segera hadir!', 'info');
             });
         }
         
+        // Panel offer button
         if (elements.panelOfferBtn) {
+            const newOfferBtn = elements.panelOfferBtn.cloneNode(true);
+            elements.panelOfferBtn.parentNode.replaceChild(newOfferBtn, elements.panelOfferBtn);
+            elements.panelOfferBtn = newOfferBtn;
+            
             elements.panelOfferBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                playFeedback('medium', 'click');
+                safeFeedback(e.currentTarget, 'medium', 'click');
                 showToast('Fitur penawaran akan segera hadir!', 'info');
             });
         }
         
-        overlay.addEventListener('click', () => {
+        // Overlay click
+        overlay.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             hideUsernamePanel();
         });
         
+        // Drag handling
         const handleTouchStart = (e) => {
             if (e.target.closest('button')) return;
             startY = e.touches[0].clientY;
@@ -1185,16 +1546,23 @@
         
         const panelHandle = document.querySelector('.panel-handle');
         if (panelHandle) {
-            panelHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
-            panelHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
-            panelHandle.addEventListener('touchend', handleTouchEnd);
-            panelHandle.addEventListener('touchcancel', () => {
+            const newHandle = panelHandle.cloneNode(true);
+            panelHandle.parentNode.replaceChild(newHandle, panelHandle);
+            
+            newHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
+            newHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
+            newHandle.addEventListener('touchend', handleTouchEnd);
+            newHandle.addEventListener('touchcancel', () => {
                 isDragging = false;
                 elements.usernamePanel.style.transition = '';
                 elements.usernamePanel.style.transform = '';
                 overlay.style.opacity = '1';
             });
         }
+        
+        const newPanel = elements.usernamePanel.cloneNode(true);
+        elements.usernamePanel.parentNode.replaceChild(newPanel, elements.usernamePanel);
+        elements.usernamePanel = newPanel;
         
         elements.usernamePanel.addEventListener('touchstart', handleTouchStart, { passive: false });
         elements.usernamePanel.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1330,8 +1698,14 @@
         try {
             console.log('📳 Initializing haptic feedback...');
             
+            // Inisialisasi Audio Manager
             if (window.AudioManager) {
-                window.AudioManager.init();
+              window.AudioManager.init();
+    
+              setTimeout(() => {
+                window.AudioManager.play('click', 0.2);
+                console.log('🎵 Test sound queued');
+              }, 1000);
             }
       
             if (window.Telegram?.WebApp) {
