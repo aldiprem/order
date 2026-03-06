@@ -209,6 +209,8 @@ class Database:
             print(f"Error getting username detail: {e}")
             return None
     
+    # Di file data.py, perbarui method update_based_on:
+    
     def update_based_on(self, username, based_on):
         """Update based_on value for a username"""
         try:
@@ -216,6 +218,7 @@ class Database:
                 username = username[1:]
             
             now = get_jakarta_time()
+            
             self.cur.execute("""
             UPDATE added_usernames 
             SET based_on = ?, updated_at = ? 
@@ -229,6 +232,7 @@ class Database:
             if result:
                 self.add_activity_log(result[0], "BASED_ON_SET", f"Mengatur based_on untuk @{username}: {based_on}")
             
+            print(f"✅ Based_on saved with spaces: '{based_on}'")  # Debug log
             return True
         except Exception as e:
             print(f"Error updating based_on: {e}")
