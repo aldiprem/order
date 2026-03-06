@@ -18,7 +18,7 @@
     --text-secondary: #e0e0e0;
     --text-muted: #a0a0a0;
     
-    --header-height: 80px;
+    --header-height: 100px;
     --nav-height: 70px;
     --filter-panel-height: 70vh;
     
@@ -222,16 +222,17 @@ body {
 
 /* ===== HEADER CARD ===== */
 .market-header {
-    height: var(--header-height);
+    height: 160px !important;
     background: rgba(20, 20, 20, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0 20px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     position: relative;
     z-index: 100;
     box-shadow: var(--shadow-3d);
+    padding-bottom: 12px;
 }
 
 .header-left {
