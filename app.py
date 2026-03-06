@@ -300,6 +300,65 @@ def after_request(response):
     
     return response
 
+# ==================== ENDPOINT UNTUK REQUEST USERNAME ====================
+@app.route('/api/request-username', methods=['POST', 'OPTIONS'])
+def request_username():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.json
+        username = data.get('username')
+        user_id = data.get('user_id')
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '')
+        
+        # Panggil bot untuk memproses (via API internal)
+        # Ini akan memanggil fungsi yang sama seperti di b.py
+        
+        # Untuk sementara, return sukses
+        return jsonify({'success': True, 'message': 'Request sent'})
+        
+    except Exception as e:
+        logger.error(f"Error in request-username: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/pending-requests/<int:user_id>', methods=['GET', 'OPTIONS'])
+def get_pending_requests(user_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        # Ambil pending requests dari database
+        # Ini perlu disesuaikan dengan struktur database Anda
+        pending = []  # Placeholder
+        
+        return jsonify(pending)
+        
+    except Exception as e:
+        logger.error(f"Error in pending-requests: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/verify-otp', methods=['POST', 'OPTIONS'])
+def verify_otp():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.json
+        request_id = data.get('request_id')
+        otp_code = data.get('otp_code')
+        
+        # Verifikasi OTP
+        # Ini perlu diintegrasikan dengan database
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error in verify-otp: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def determine_username_type(username, based_on):
     """Determine username type based on rules"""
     if not based_on:
