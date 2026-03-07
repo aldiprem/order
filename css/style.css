@@ -30,7 +30,9 @@
     --safe-area-right: 0px;
     --content-safe-area-top: 0px;
     --content-safe-area-bottom: 0px;
-    --header-total-height: 80px;
+    
+    --header-base-height: 80px;
+    --header-total-height: calc(var(--header-base-height) + var(--content-safe-area-top));
 }
 
 * {
@@ -194,7 +196,7 @@ body {
 /* ===== HEADER CARD ===== */
 .market-header {
     height: var(--header-total-height) !important;
-    padding-top: var(--safe-area-top);
+    padding-top: var(--content-safe-area-top);
     background: rgba(20, 20, 20, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-left: 20px;
