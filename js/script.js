@@ -2211,250 +2211,28 @@
       });
     }
 
-    function showAddUsernameModal() {
-      // Hapus modal lama jika ada
-      const oldModal = document.getElementById('addUsernameModal');
-      if (oldModal) oldModal.remove();
-    
-      // Buat modal
-      const modal = document.createElement('div');
-      modal.id = 'addUsernameModal';
-      modal.className = 'modal-overlay';
-      modal.innerHTML = `
-            <div class="modal-container">
-                <div class="modal-title">ADD USERNAME</div>
-                <input type="text" class="modal-input" id="usernameInput" placeholder="@username" autocomplete="off">
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" id="cancelAddUsername">
-                        <i class="fas fa-times"></i> BATAL
-                    </button>
-                    <button class="modal-btn confirm" id="confirmAddUsername">
-                        <i class="fas fa-check"></i> KONFIRMASI
-                    </button>
-                </div>
-            </div>
-        `;
-    
-      document.body.appendChild(modal);
-    
-      // Tampilkan modal
-      setTimeout(() => {
-        modal.classList.add('show');
-        document.getElementById('usernameInput').focus();
-      }, 10);
-    
-      // Event listener untuk cancel
-      document.getElementById('cancelAddUsername').addEventListener('click', () => {
-        modal.classList.remove('show');
-        setTimeout(() => modal.remove(), 300);
-        playFeedback('light', 'back');
-      });
-    
-      // Event listener untuk confirm
-      document.getElementById('confirmAddUsername').addEventListener('click', async () => {
-        const username = document.getElementById('usernameInput').value.trim();
-        if (!username) {
-          showToast('Masukkan username!', 'warning');
-          playFeedback('warning', 'error');
-          return;
-        }
-    
-        // Validasi format username
-        if (!username.startsWith('@')) {
-          showToast('Username harus diawali dengan @', 'warning');
-          playFeedback('warning', 'error');
-          return;
-        }
-    
-        playFeedback('medium', 'pop');
-    
-        // Tampilkan loading di tombol
-        const confirmBtn = document.getElementById('confirmAddUsername');
-        const originalText = confirmBtn.innerHTML;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MENGIRIM...';
-        confirmBtn.disabled = true;
-    
-        try {
-          // PERBAIKAN: Gunakan endpoint /api/webapp/add-username, bukan /api/request-username
-          const response = await fetchWithRetry(`${API_BASE_URL}/api/webapp/add-username`, {
-            method: 'POST',
-            body: JSON.stringify({
-              username: username,
-              user_id: currentUser.id
-            })
-          });
-    
-          if (response.success) {
-            showToast('✅ Permintaan telah dikirim! Periksa bot untuk verifikasi', 'success');
-            playFeedback('success', 'success');
-    
-            modal.classList.remove('show');
-            setTimeout(() => modal.remove(), 300);
-    
-            // Refresh notifikasi
-            setTimeout(() => {
-              loadPendingNotifications();
-            }, 1000);
-    
-            // Tampilkan info tambahan dengan username bot yang benar
-            showToast('📱 Buka bot @indotag_bot untuk verifikasi', 'info', 5000);
-          } else {
-            showToast(response.error || 'Gagal mengirim permintaan', 'error');
-            playFeedback('error', 'error');
-          }
-        } catch (error) {
-          console.error('Error requesting username:', error);
-          showToast('Gagal terhubung ke server', 'error');
-          playFeedback('error', 'error');
-        } finally {
-          // Kembalikan tombol ke keadaan semula
-          confirmBtn.innerHTML = originalText;
-          confirmBtn.disabled = false;
-        }
-      });
-    
-      // Event listener untuk Enter key
-      document.getElementById('usernameInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          document.getElementById('confirmAddUsername').click();
-        }
-      });
-    
-      // Klik di luar modal
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.classList.remove('show');
-          setTimeout(() => modal.remove(), 300);
-        }
-      });
-    }
-
-    // ==================== FUNGSI UNTUK ADD USERNAME (SEMUA DI WEBSITE) ====================
-    
-  async function checkUsername(username) {
-    try {
-      // PERBAIKAN: Hapus /proxy/ dari URL
-      const response = await fetchWithRetry(`${API_BASE_URL}/api/bot/get-entity`, {
-        method: 'POST',
-        body: JSON.stringify({ username: username })
-      });
-  
-      return response;
-    } catch (error) {
-      console.error('Error checking username:', error);
-      return { success: false, error: error.message };
-    }
-  }
-    
-    async function getChannelCreator(username, chatId) {
-      try {
-        const response = await fetchWithRetry(`${API_BASE_URL}/api/bot/get-channel-creator`, {
-          method: 'POST',
-          body: JSON.stringify({ username: username, chat_id: chatId })
-        });
-        return response;
-      } catch (error) {
-        console.error('Error getting channel creator:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    
-    async function requestUserVerification(username, userId) {
-      try {
-        const createSessionResponse = await fetchWithRetry(`${API_BASE_URL}/api/create-verification-session`, {
-          method: 'POST',
-          body: JSON.stringify({
-            username: username,
-            type: 'user',
-            requester_id: currentUser.id
-          })
-        });
-    
-        if (!createSessionResponse.success) {
-          return { success: false, error: createSessionResponse.error };
-        }
-    
-        const sessionId = createSessionResponse.session_id;
-        const otpCode = createSessionResponse.otp_code;
-    
-        const sendOtpResponse = await fetchWithRetry(`${API_BASE_URL}/api/bot/send-otp`, {
-          method: 'POST',
-          body: JSON.stringify({
-            user_id: userId,
-            username: username,
-            otp_code: otpCode,
-            requester_id: currentUser.id
-          })
-        });
-    
-        if (!sendOtpResponse.success) {
-          return { success: false, error: sendOtpResponse.error };
-        }
-    
-        showOtpInputModal(sessionId, username);
-        return { success: true, session_id: sessionId };
-    
-      } catch (error) {
-        console.error('Error requesting user verification:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    
-    async function requestChannelVerification(username, channelUsername, isAdminVerification = false) {
-      try {
-        const createSessionResponse = await fetchWithRetry(`${API_BASE_URL}/api/create-verification-session`, {
-          method: 'POST',
-          body: JSON.stringify({
-            username: username,
-            type: 'channel',
-            requester_id: currentUser.id
-          })
-        });
-    
-        if (!createSessionResponse.success) {
-          return { success: false, error: createSessionResponse.error };
-        }
-    
-        const sessionId = createSessionResponse.session_id;
-    
-        const sendVerificationResponse = await fetchWithRetry(`${API_BASE_URL}/api/bot/send-channel-verification`, {
-          method: 'POST',
-          body: JSON.stringify({
-            username: username,
-            channel_username: channelUsername,
-            requester_id: currentUser.id,
-            requester_name: currentUser.first_name,
-            verification_id: sessionId,
-            is_admin_verification: isAdminVerification
-          })
-        });
-    
-        if (!sendVerificationResponse.success) {
-          return { success: false, error: sendVerificationResponse.error };
-        }
-    
-        showToast(`✅ Pesan verifikasi telah dikirim ke channel @${channelUsername}`, 'success');
-        return { success: true, session_id: sessionId };
-    
-      } catch (error) {
-        console.error('Error requesting channel verification:', error);
-        return { success: false, error: error.message };
-      }
-    }
-    
-    // Modifikasi showAddUsernameModal
+    // MODAL ADD USERNAME - DENGAN TAMPILAN LEBIH BAIK
     function showAddUsernameModal() {
         const oldModal = document.getElementById('addUsernameModal');
         if (oldModal) oldModal.remove();
-      
+    
         const modal = document.createElement('div');
         modal.id = 'addUsernameModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-container">
-                <div class="modal-title">ADD USERNAME</div>
-                <input type="text" class="modal-input" id="usernameInput" placeholder="@username" autocomplete="off">
+                <div class="modal-title">
+                    <i class="fas fa-plus-circle"></i>
+                    ADD USERNAME
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-at"></i> USERNAME TELEGRAM
+                    </label>
+                    <input type="text" class="modal-input" id="usernameInput" placeholder="@username" autocomplete="off">
+                </div>
+                
                 <div class="modal-actions">
                     <button class="modal-btn cancel" id="cancelAddUsername">
                         <i class="fas fa-times"></i> BATAL
@@ -2463,55 +2241,86 @@
                         <i class="fas fa-check"></i> CEK USERNAME
                     </button>
                 </div>
-                <div id="usernameCheckResult" style="margin-top: 16px; display: none;"></div>
+                
+                <div id="usernameCheckResult" style="margin-top: 20px; display: none;"></div>
             </div>
         `;
-      
+    
         document.body.appendChild(modal);
-      
+    
         setTimeout(() => {
             modal.classList.add('show');
             document.getElementById('usernameInput').focus();
         }, 10);
-      
+    
         document.getElementById('cancelAddUsername').addEventListener('click', () => {
             modal.classList.remove('show');
             setTimeout(() => modal.remove(), 300);
             playFeedback('light', 'back');
         });
-      
+    
         document.getElementById('confirmAddUsername').addEventListener('click', async () => {
             const username = document.getElementById('usernameInput').value.trim();
             if (!username) {
                 showToast('Masukkan username!', 'warning');
                 return;
             }
-      
+    
             if (!username.startsWith('@')) {
                 showToast('Username harus diawali dengan @', 'warning');
                 return;
             }
-      
+    
             playFeedback('medium', 'pop');
-      
+    
             const confirmBtn = document.getElementById('confirmAddUsername');
             const originalText = confirmBtn.innerHTML;
             confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MENGECEK...';
             confirmBtn.disabled = true;
-      
+    
+            const resultDiv = document.getElementById('usernameCheckResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; margin: 0 auto 16px;"></div>
+                    <p style="color: var(--text-muted);">Memeriksa username @${username.replace('@', '')}...</p>
+                </div>
+            `;
+    
             try {
+                console.log('🔍 Memeriksa username:', username);
+                
                 // Cek entity via bot API
                 const result = await checkUsername(username);
                 
+                console.log('📦 Hasil pengecekan:', result);
+                
                 if (!result.success) {
+                    // Tampilkan error dengan styling yang lebih baik
+                    resultDiv.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 16px; padding: 24px; text-align: center;">
+                            <i class="fas fa-exclamation-circle" style="color: #ef4444; font-size: 48px; margin-bottom: 16px;"></i>
+                            <h3 style="color: #ef4444; margin-bottom: 12px; font-size: 18px;">Username Tidak Ditemukan!</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">${result.error || 'Username tidak valid'}</p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; margin-bottom: 20px;">
+                                <code style="color: #ef4444; font-size: 14px;">${username}</code>
+                            </div>
+                            <button class="filter-btn reset" id="closeErrorBtn" style="width: 100%;">
+                                <i class="fas fa-times"></i> TUTUP
+                            </button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('closeErrorBtn').addEventListener('click', () => {
+                        modal.classList.remove('show');
+                        setTimeout(() => modal.remove(), 300);
+                    });
+                    
                     showToast(result.error || 'Username tidak ditemukan!', 'error');
                     return;
                 }
                 
-                // Tampilkan hasil pengecekan
-                const resultDiv = document.getElementById('usernameCheckResult');
-                resultDiv.style.display = 'block';
-                
+                // Tampilkan hasil pengecekan berdasarkan tipe
                 if (result.type === 'user') {
                     // Cek apakah user sudah menggunakan bot
                     const userCheck = await fetchWithRetry(`${API_BASE_URL}/api/check-user-exists`, {
@@ -2521,19 +2330,73 @@
                     
                     if (!userCheck.exists) {
                         resultDiv.innerHTML = `
-                            <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 16px;">
-                                <i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 8px;"></i>
-                                <strong>User @${result.username} belum menggunakan bot ini!</strong>
-                                <p style="margin-top: 8px; font-size: 13px;">User tersebut harus memulai bot @indotag_bot terlebih dahulu.</p>
+                            <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 16px; padding: 20px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                                    <div style="width: 40px; height: 40px; border-radius: 40px; background: rgba(239,68,68,0.2); display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-exclamation-triangle" style="color: #ef4444; font-size: 20px;"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--text-muted);">STATUS</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #ef4444;">User Belum Menggunakan Bot</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                        <i class="fas fa-id-card" style="color: #40a7e3; width: 20px;"></i>
+                                        <span style="color: var(--text-muted);">User ID:</span>
+                                        <span style="color: white; font-family: monospace;">${result.id}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <i class="fas fa-at" style="color: #40a7e3; width: 20px;"></i>
+                                        <span style="color: var(--text-muted);">Username:</span>
+                                        <span style="color: #40a7e3;">@${result.username}</span>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: rgba(239,68,68,0.1); border-left: 4px solid #ef4444; padding: 12px; margin-bottom: 16px; border-radius: 8px;">
+                                    <i class="fas fa-info-circle" style="color: #ef4444; margin-right: 8px;"></i>
+                                    <span style="color: var(--text-muted); font-size: 13px;">User @${result.username} harus memulai bot @indotag_bot terlebih dahulu.</span>
+                                </div>
+                                
+                                <button class="filter-btn reset" id="closeUserErrorBtn" style="width: 100%;">
+                                    <i class="fas fa-times"></i> TUTUP
+                                </button>
                             </div>
                         `;
+                        
+                        document.getElementById('closeUserErrorBtn').addEventListener('click', () => {
+                            modal.classList.remove('show');
+                            setTimeout(() => modal.remove(), 300);
+                        });
+                        
                     } else {
                         resultDiv.innerHTML = `
-                            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 16px;">
-                                <i class="fas fa-check-circle" style="color: #10b981; margin-right: 8px;"></i>
-                                <strong>User @${result.username} ditemukan!</strong>
-                                <p style="margin-top: 8px;">Klik tombol di bawah untuk meminta verifikasi.</p>
-                                <button class="filter-btn apply" style="margin-top: 12px; width: 100%;" id="requestUserVerificationBtn">
+                            <div style="background: rgba(16, 185, 129, 0.15); border: 2px solid #10b981; border-radius: 16px; padding: 20px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                                    <div style="width: 40px; height: 40px; border-radius: 40px; background: rgba(16,185,129,0.2); display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-check-circle" style="color: #10b981; font-size: 20px;"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 12px; color: var(--text-muted);">STATUS</div>
+                                        <div style="font-size: 16px; font-weight: 700; color: #10b981;">User Ditemukan!</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                        <i class="fas fa-id-card" style="color: #40a7e3; width: 20px;"></i>
+                                        <span style="color: var(--text-muted);">User ID:</span>
+                                        <span style="color: white; font-family: monospace;">${result.id}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <i class="fas fa-at" style="color: #40a7e3; width: 20px;"></i>
+                                        <span style="color: var(--text-muted);">Username:</span>
+                                        <span style="color: #40a7e3;">@${result.username}</span>
+                                    </div>
+                                </div>
+                                
+                                <button class="filter-btn apply" style="width: 100%;" id="requestUserVerificationBtn">
                                     <i class="fas fa-paper-plane"></i> MINTA VERIFIKASI
                                 </button>
                             </div>
@@ -2541,30 +2404,67 @@
                         
                         document.getElementById('requestUserVerificationBtn').addEventListener('click', async () => {
                             await requestUserVerification(result.username, result.id);
+                            modal.classList.remove('show');
+                            setTimeout(() => modal.remove(), 300);
                         });
                     }
+                    
                 } else if (result.type === 'channel') {
                     // Cek creator channel
                     const creatorResult = await getChannelCreator(username, result.id);
                     
-                    let creatorHtml = '';
-                    if (creatorResult.creator_id) {
-                        creatorHtml = `
-                            <p>Creator: @${creatorResult.creator_username || 'unknown'} (ID: ${creatorResult.creator_id})</p>
-                        `;
-                    } else {
-                        creatorHtml = `
-                            <p style="color: #f59e0b;">⚠️ Creator tidak dapat dideteksi otomatis. Verifikasi sebagai admin akan dilakukan.</p>
-                        `;
-                    }
+                    // Tentukan status verifikasi
+                    const hasCreator = creatorResult.success && creatorResult.creator_id;
+                    const statusColor = hasCreator ? '#10b981' : '#f59e0b';
+                    const statusText = hasCreator ? 'Owner Terdeteksi' : 'Verifikasi Admin';
+                    const statusIcon = hasCreator ? 'fa-crown' : 'fa-shield-alt';
                     
                     resultDiv.innerHTML = `
-                        <div style="background: rgba(64, 167, 227, 0.2); border: 1px solid rgba(64, 167, 227, 0.3); border-radius: 12px; padding: 16px;">
-                            <i class="fas fa-dragon" style="color: #40a7e3; margin-right: 8px;"></i>
-                            <strong>Channel @${result.username} ditemukan!</strong>
-                            <div style="margin: 12px 0; font-size: 13px;">
-                                ${creatorHtml}
+                        <div style="background: rgba(64, 167, 227, 0.15); border: 2px solid #40a7e3; border-radius: 16px; padding: 20px;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                                <div style="width: 40px; height: 40px; border-radius: 40px; background: rgba(64,167,227,0.2); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-dragon" style="color: #40a7e3; font-size: 20px;"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: var(--text-muted);">STATUS</div>
+                                    <div style="font-size: 16px; font-weight: 700; color: #40a7e3;">Channel Ditemukan!</div>
+                                </div>
                             </div>
+                            
+                            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <i class="fas fa-id-card" style="color: #40a7e3; width: 20px;"></i>
+                                    <span style="color: var(--text-muted);">Channel ID:</span>
+                                    <span style="color: white; font-family: monospace;">${result.id}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <i class="fas fa-at" style="color: #40a7e3; width: 20px;"></i>
+                                    <span style="color: var(--text-muted);">Username:</span>
+                                    <span style="color: #40a7e3;">@${result.username}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <i class="fas ${statusIcon}" style="color: ${statusColor}; width: 20px;"></i>
+                                    <span style="color: var(--text-muted);">Creator:</span>
+                                    <span style="color: ${statusColor}; font-weight: 600;">
+                                        ${hasCreator ? `@${creatorResult.creator_username || 'unknown'}` : 'Tidak terdeteksi'}
+                                    </span>
+                                </div>
+                                ${hasCreator ? `
+                                <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+                                    <i class="fas fa-id-card" style="color: #ffd700; width: 20px;"></i>
+                                    <span style="color: var(--text-muted);">Creator ID:</span>
+                                    <span style="color: white; font-family: monospace;">${creatorResult.creator_id}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            ${!hasCreator ? `
+                                <div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; padding: 12px; margin-bottom: 16px; border-radius: 8px;">
+                                    <i class="fas fa-info-circle" style="color: #f59e0b; margin-right: 8px;"></i>
+                                    <span style="color: var(--text-muted); font-size: 13px;">Creator tidak terdeteksi. Verifikasi sebagai admin akan dilakukan.</span>
+                                </div>
+                            ` : ''}
+                            
                             <button class="filter-btn apply" style="width: 100%;" id="requestChannelVerificationBtn">
                                 <i class="fas fa-paper-plane"></i> KIRIM VERIFIKASI KE CHANNEL
                             </button>
@@ -2572,109 +2472,45 @@
                     `;
                     
                     document.getElementById('requestChannelVerificationBtn').addEventListener('click', async () => {
-                        await requestChannelVerification(result.username, result.username, !creatorResult.creator_id);
+                        await requestChannelVerification(result.username, result.username, !hasCreator);
+                        modal.classList.remove('show');
+                        setTimeout(() => modal.remove(), 300);
                     });
                 }
                 
             } catch (error) {
-                console.error('Error:', error);
-                showToast('Gagal memproses username', 'error');
+                console.error('❌ Fatal error:', error);
+                resultDiv.innerHTML = `
+                    <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 16px; padding: 20px; text-align: center;">
+                        <i class="fas fa-bug" style="color: #ef4444; font-size: 48px; margin-bottom: 16px;"></i>
+                        <h3 style="color: #ef4444; margin-bottom: 12px; font-size: 18px;">Terjadi Kesalahan!</h3>
+                        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">${error.message || 'Silakan coba lagi nanti'}</p>
+                        <button class="filter-btn reset" id="closeFatalErrorBtn" style="width: 100%;">
+                            <i class="fas fa-times"></i> TUTUP
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('closeFatalErrorBtn').addEventListener('click', () => {
+                    modal.classList.remove('show');
+                    setTimeout(() => modal.remove(), 300);
+                });
+                
+                showToast('Gagal memproses username: ' + error.message, 'error');
+                
             } finally {
                 confirmBtn.innerHTML = originalText;
                 confirmBtn.disabled = false;
             }
         });
-      
+    
         document.getElementById('usernameInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 document.getElementById('confirmAddUsername').click();
             }
         });
-      
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-                setTimeout(() => modal.remove(), 300);
-            }
-        });
-    }
     
-    // Modifikasi showOtpInputModal
-    function showOtpInputModal(sessionId, username) {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-container">
-                <div class="modal-title">MASUKKAN KODE OTP</div>
-                <div style="text-align: center; margin-bottom: 16px;">
-                    Kode OTP telah dikirim ke <strong>@${username}</strong>
-                </div>
-                <input type="text" class="modal-input" id="otpInput" placeholder="6 digit kode OTP" maxlength="6" autocomplete="off">
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" id="cancelOtp">
-                        <i class="fas fa-times"></i> BATAL
-                    </button>
-                    <button class="modal-btn confirm" id="confirmOtp">
-                        <i class="fas fa-check"></i> VERIFIKASI
-                    </button>
-                </div>
-            </div>
-        `;
-      
-        document.body.appendChild(modal);
-      
-        setTimeout(() => {
-            modal.classList.add('show');
-            document.getElementById('otpInput').focus();
-        }, 10);
-      
-        document.getElementById('cancelOtp').addEventListener('click', () => {
-            modal.classList.remove('show');
-            setTimeout(() => modal.remove(), 300);
-        });
-      
-        document.getElementById('confirmOtp').addEventListener('click', async () => {
-            const otp = document.getElementById('otpInput').value.trim();
-            if (!otp || otp.length !== 6) {
-                showToast('Masukkan 6 digit kode OTP!', 'warning');
-                return;
-            }
-      
-            playFeedback('medium', 'pop');
-      
-            try {
-                // Verifikasi OTP via endpoint di app.py
-                const response = await fetchWithRetry(`${API_BASE_URL}/api/verify-otp`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        request_id: sessionId,
-                        otp_code: otp,
-                        user_id: currentUser.id
-                    })
-                });
-      
-                if (response.success) {
-                    showToast('✅ Verifikasi berhasil! Username telah ditambahkan.', 'success');
-                    modal.classList.remove('show');
-                    setTimeout(() => modal.remove(), 300);
-                    
-                    // Hapus modal add username jika masih ada
-                    const addModal = document.getElementById('addUsernameModal');
-                    if (addModal) addModal.remove();
-                    
-                    // Refresh data
-                    loadMarketData();
-                    loadUserUsernames();
-                } else {
-                    showToast(response.error || 'Kode OTP salah', 'error');
-                }
-            } catch (error) {
-                console.error('Error verifying OTP:', error);
-                showToast('Gagal verifikasi OTP', 'error');
-            }
-        });
-      
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.classList.remove('show');
