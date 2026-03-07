@@ -22,15 +22,37 @@ logger = logging.getLogger(__name__)
 # ==================== FUNGSI BOT CORE ====================
 
 async def get_entity_info(username):
-    """Get entity info from username"""
+    """Get entity info from username dengan error handling lebih baik"""
     try:
         if not username.startswith('@'):
-            username = '@' + username
-        entity = await bot.get_entity(username)
-        return entity
+            username_with_at = '@' + username
+        else:
+            username_with_at = username
+            username = username[1:]  # Simpan username tanpa @ untuk response
+        
+        logger.info(f"🔍 Getting entity for: {username_with_at}")
+        
+        try:
+            entity = await bot.get_entity(username_with_at)
+            logger.info(f"✅ Entity found: {type(entity).__name__} - ID: {entity.id}")
+            
+            return entity
+        except Exception as e:
+            error_str = str(e)
+            logger.error(f"❌ Telethon error for {username_with_at}: {error_str}")
+            
+            # Kategorikan error
+            if "Cannot find any entity" in error_str or "username not found" in error_str.lower():
+                raise Exception("ENTITY_NOT_FOUND")
+            elif "FLOOD_WAIT" in error_str:
+                wait_time = error_str.split("_")[-1] if "_" in error_str else "beberapa"
+                raise Exception(f"FLOOD_WAIT:{wait_time}")
+            else:
+                raise Exception(f"TELEGRAM_ERROR:{error_str}")
+            
     except Exception as e:
-        logger.error(f"Error getting entity for {username}: {str(e)}")
-        return None
+        logger.error(f"Error in get_entity_info for {username}: {str(e)}")
+        raise e
 
 async def get_channel_creator(channel):
     """Get channel creator info"""
