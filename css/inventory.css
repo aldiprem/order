@@ -1,0 +1,771 @@
+/* css/inventory.css - Halaman Inventory INDOTAG MARKET */
+
+:root {
+    --inventory-primary: #40a7e3;
+    --inventory-success: #10b981;
+    --inventory-danger: #ef4444;
+    --inventory-warning: #f59e0b;
+    --inventory-bg: rgba(20, 20, 25, 0.98);
+    --inventory-card-bg: rgba(30, 30, 35, 0.95);
+    --inventory-border: rgba(255, 255, 255, 0.1);
+    --inventory-text-primary: #ffffff;
+    --inventory-text-secondary: #e0e0e0;
+    --inventory-text-muted: #a0a0a0;
+}
+
+/* ===== INVENTORY PAGE ===== */
+.inventory-page {
+    min-height: 100%;
+    padding-bottom: 20px;
+}
+
+/* ===== PROFILE HEADER CARD ===== */
+.inventory-profile-card {
+    background: linear-gradient(145deg, #1e1e24, #15151a);
+    border: 1px solid var(--inventory-border);
+    border-radius: 30px;
+    padding: 20px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+}
+
+.inventory-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.inventory-avatar-large {
+    width: 70px;
+    height: 70px;
+    border-radius: 35px;
+    overflow: hidden;
+    border: 3px solid var(--inventory-primary);
+    box-shadow: 0 0 20px rgba(64, 167, 227, 0.3);
+    flex-shrink: 0;
+}
+
+.inventory-avatar-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.inventory-info-large {
+    flex: 1;
+    min-width: 0;
+}
+
+.inventory-name-large {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, white, var(--inventory-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inventory-username-large {
+    color: var(--inventory-primary);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ===== STATS CARD ===== */
+.inventory-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.inventory-stat-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--inventory-border);
+    border-radius: 20px;
+    padding: 16px 12px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.inventory-stat-item:hover {
+    border-color: var(--inventory-primary);
+    transform: translateY(-2px);
+}
+
+.inventory-stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--inventory-primary);
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.inventory-stat-label {
+    font-size: 11px;
+    color: var(--inventory-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inventory-balance-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--inventory-border);
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inventory-balance-label {
+    color: var(--inventory-text-muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inventory-balance-value {
+    color: #ffd700;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.inventory-volume {
+    display: flex;
+    gap: 16px;
+    color: var(--inventory-text-muted);
+    font-size: 12px;
+}
+
+.inventory-volume span {
+    color: var(--inventory-text-secondary);
+    font-weight: 600;
+}
+
+/* ===== ADD USERNAME BUTTON ===== */
+.inventory-add-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--inventory-primary), #2d8bcb);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(64, 167, 227, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.inventory-add-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.inventory-add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(64, 167, 227, 0.5);
+}
+
+.inventory-add-btn:hover::before {
+    left: 100%;
+}
+
+.inventory-add-btn i {
+    font-size: 20px;
+}
+
+/* ===== SECTION TITLE ===== */
+.inventory-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0 4px;
+}
+
+.inventory-section-title i {
+    color: var(--inventory-primary);
+    font-size: 20px;
+}
+
+.inventory-section-title h3 {
+    font-size: 18px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #fff, var(--inventory-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ===== USERNAME ITEM (COLLAPSIBLE) ===== */
+.inventory-username-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--inventory-border);
+    border-radius: 20px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.inventory-username-item.expanded {
+    border-color: var(--inventory-primary);
+    box-shadow: 0 0 0 2px rgba(64, 167, 227, 0.2);
+}
+
+/* Header yang selalu terlihat (border yang dicoret merah) */
+.inventory-username-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.inventory-username-header:hover {
+    background: rgba(64, 167, 227, 0.1);
+}
+
+.inventory-username-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.inventory-username-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, var(--inventory-primary), #2d8bcb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+}
+
+/* USERNAME BESAR FULL KIRI-KANAN */
+.inventory-username-large {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffffff, var(--inventory-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inventory-username-badge {
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--inventory-primary), #2d8bcb);
+    color: white;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.inventory-username-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+}
+
+.inventory-header-price {
+    color: #ffd700;
+    font-weight: 700;
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+.inventory-expand-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--inventory-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--inventory-text-muted);
+    transition: all 0.3s ease;
+}
+
+.inventory-username-item.expanded .inventory-expand-icon {
+    transform: rotate(180deg);
+    color: var(--inventory-primary);
+    border-color: var(--inventory-primary);
+}
+
+/* Konten yang muncul saat di-expand */
+.inventory-username-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid transparent;
+}
+
+.inventory-username-item.expanded .inventory-username-content {
+    max-height: 500px;
+    border-top-color: var(--inventory-border);
+}
+
+.inventory-content-inner {
+    padding: 20px;
+}
+
+/* Data grid di dalam content */
+.inventory-data-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.inventory-data-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--inventory-border);
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.inventory-data-label {
+    font-size: 11px;
+    color: var(--inventory-text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.inventory-data-label i {
+    color: var(--inventory-primary);
+    font-size: 12px;
+}
+
+.inventory-data-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--inventory-text-secondary);
+    word-break: break-word;
+}
+
+.inventory-data-value.price {
+    color: #ffd700;
+}
+
+/* Action buttons di dalam content */
+.inventory-content-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.inventory-content-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.inventory-content-btn.edit {
+    background: linear-gradient(135deg, var(--inventory-primary), #2d8bcb);
+    color: white;
+}
+
+.inventory-content-btn.edit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(64, 167, 227, 0.3);
+}
+
+.inventory-content-btn.delete {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--inventory-danger);
+}
+
+.inventory-content-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Empty state */
+.inventory-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    background: rgba(20, 20, 20, 0.9);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
+    text-align: center;
+}
+
+.inventory-empty i {
+    font-size: 60px;
+    color: var(--inventory-primary);
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.inventory-empty h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.inventory-empty p {
+    color: var(--inventory-text-muted);
+}
+
+/* ===== EDIT MODAL ===== */
+.inventory-edit-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 30000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    padding: 20px;
+}
+
+.inventory-edit-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Modal dengan scroll dan keyboard handling */
+.inventory-edit-modal {
+    width: 100%;
+    max-width: 450px;
+    max-height: 85vh;
+    background: var(--inventory-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--inventory-border);
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.inventory-edit-modal-overlay.show .inventory-edit-modal {
+    transform: scale(1) translateY(0);
+}
+
+/* Keyboard will push this up */
+.inventory-edit-modal.keyboard-open {
+    transform: translateY(-100px);
+}
+
+.inventory-edit-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--inventory-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.inventory-edit-modal-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, var(--inventory-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.inventory-edit-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--inventory-border);
+    color: var(--inventory-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.inventory-edit-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--inventory-danger);
+    border-color: var(--inventory-danger);
+}
+
+.inventory-edit-modal-content {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Form Groups */
+.inventory-form-group {
+    margin-bottom: 20px;
+}
+
+.inventory-form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--inventory-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.inventory-form-label i {
+    color: var(--inventory-primary);
+    font-size: 14px;
+}
+
+.inventory-form-input {
+    width: 100%;
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--inventory-border);
+    border-radius: 20px;
+    color: white;
+    font-size: 16px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.inventory-form-input:focus {
+    border-color: var(--inventory-primary);
+    box-shadow: 0 0 0 3px rgba(64, 167, 227, 0.2);
+}
+
+.inventory-form-input::placeholder {
+    color: var(--inventory-text-muted);
+}
+
+/* Toggle Switch */
+.inventory-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--inventory-border);
+    border-radius: 30px;
+    padding: 6px;
+}
+
+.inventory-toggle-option {
+    flex: 1;
+    padding: 12px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.inventory-toggle-option.listed {
+    color: var(--inventory-text-muted);
+}
+
+.inventory-toggle-option.listed.active {
+    background: linear-gradient(135deg, var(--inventory-success), #0d9468);
+    color: white;
+}
+
+.inventory-toggle-option.unlisted {
+    color: var(--inventory-text-muted);
+}
+
+.inventory-toggle-option.unlisted.active {
+    background: linear-gradient(135deg, var(--inventory-danger), #dc2626);
+    color: white;
+}
+
+/* Select */
+.inventory-form-select {
+    width: 100%;
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--inventory-border);
+    border-radius: 20px;
+    color: white;
+    font-size: 16px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.inventory-select-wrapper {
+    position: relative;
+}
+
+.inventory-select-wrapper::after {
+    content: '\f078';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--inventory-text-muted);
+    pointer-events: none;
+}
+
+/* Modal Footer */
+.inventory-edit-modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--inventory-border);
+    display: flex;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.inventory-modal-btn {
+    flex: 1;
+    padding: 16px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.inventory-modal-btn.cancel {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--inventory-border);
+    color: var(--inventory-text-secondary);
+}
+
+.inventory-modal-btn.cancel:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--inventory-danger);
+    color: var(--inventory-danger);
+}
+
+.inventory-modal-btn.save {
+    background: linear-gradient(135deg, var(--inventory-primary), #2d8bcb);
+    color: white;
+}
+
+.inventory-modal-btn.save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(64, 167, 227, 0.3);
+}
+
+/* Loading Skeleton */
+.inventory-skeleton {
+    background: rgba(30, 30, 35, 0.95);
+    border: 1px solid var(--inventory-border);
+    border-radius: 20px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    animation: inventoryPulse 1.5s infinite;
+}
+
+.inventory-skeleton-line {
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.inventory-skeleton-line:last-child {
+    margin-bottom: 0;
+    width: 60%;
+}
+
+@keyframes inventoryPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .inventory-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .inventory-username-large {
+        font-size: 18px;
+    }
+    
+    .inventory-username-header {
+        flex-wrap: wrap;
+    }
+    
+    .inventory-username-header-right {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 8px;
+    }
+    
+    .inventory-data-grid {
+        grid-template-columns: 1fr;
+    }
+}
