@@ -217,6 +217,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
+    /* Gunakan content-safe-area-top untuk padding top */
     padding-top: calc(20px + var(--content-safe-area-top));
     padding-bottom: calc(var(--nav-height) + 30px + var(--safe-area-bottom));
     -webkit-overflow-scrolling: touch;
@@ -224,6 +225,24 @@ body {
     position: relative;
     overscroll-behavior-y: contain;
     transition: padding-top 0.3s ease, padding-bottom 0.3s ease;
+}
+
+/* ===== MARKET HEADER ACTIONS (SEARCH BOX) ===== */
+.market-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    position: relative;
+    /* Tidak perlu margin-top karena sudah dihandle oleh padding market-main */
+}
+
+/* ===== USERNAME GRID ===== */
+.username-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 0;
 }
 
 /* ===== BOTTOM NAVIGATION (Floating) ===== */
@@ -834,15 +853,6 @@ body {
     box-shadow: 0 8px 25px rgba(64, 167, 227, 0.5);
 }
 
-/* ===== MARKET PAGE - SEARCH BOX ===== */
-.market-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-    position: relative;
-}
-
 .market-search-box {
     flex: 1;
     background: rgba(0, 0, 0, 0.6);
@@ -1091,14 +1101,6 @@ body {
     position: relative;
     z-index: 5;
     text-shadow: 0 2px 5px rgba(255, 215, 0, 0.3);
-}
-
-/* Username Grid */
-.username-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    margin-top: 20px;
 }
 
 @keyframes cardAppear {
