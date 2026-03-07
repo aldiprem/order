@@ -1862,7 +1862,231 @@
             }
         });
     }
+
+    async function checkUsername(username) {
+      try {
+        console.log('🔍 Checking username:', username);
     
+        // Bersihkan username (hapus @ jika ada)
+        const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+    
+        const response = await fetchWithRetry(`${API_BASE_URL}/api/bot/get-entity`, {
+          method: 'POST',
+          body: JSON.stringify({ username: cleanUsername })
+        });
+    
+        console.log('✅ Check username response:', response);
+    
+        // Jika response.success false, tampilkan error yang lebih jelas
+        if (!response.success) {
+          let errorMessage = response.error || 'Username tidak ditemukan';
+    
+          // Handle berbagai tipe error
+          if (errorMessage.includes('ENTITY_NOT_FOUND') || errorMessage.includes('not found')) {
+            errorMessage = `Username @${cleanUsername} tidak ditemukan di Telegram. Pastikan username benar.`;
+          } else if (errorMessage.includes('FLOOD_WAIT')) {
+            errorMessage = 'Terlalu banyak permintaan. Silakan coba lagi nanti.';
+          }
+    
+          return {
+            success: false,
+            error: errorMessage
+          };
+        }
+    
+        return response;
+      } catch (error) {
+        console.error('❌ Error checking username:', error);
+    
+        // Handle network errors
+        if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
+          return {
+            success: false,
+            error: 'Gagal terhubung ke server. Periksa koneksi internet Anda.'
+          };
+        }
+    
+        return {
+          success: false,
+          error: error.message || 'Terjadi kesalahan saat memeriksa username'
+        };
+      }
+    }
+    
+    async function getChannelCreator(username, chatId) {
+      try {
+        const response = await fetchWithRetry(`${API_BASE_URL}/api/bot/get-channel-creator`, {
+          method: 'POST',
+          body: JSON.stringify({ username: username, chat_id: chatId })
+        });
+        return response;
+      } catch (error) {
+        console.error('Error getting channel creator:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function requestUserVerification(username, userId) {
+      try {
+        const createSessionResponse = await fetchWithRetry(`${API_BASE_URL}/api/create-verification-session`, {
+          method: 'POST',
+          body: JSON.stringify({
+            username: username,
+            type: 'user',
+            requester_id: currentUser.id
+          })
+        });
+    
+        if (!createSessionResponse.success) {
+          return { success: false, error: createSessionResponse.error };
+        }
+    
+        const sessionId = createSessionResponse.session_id;
+        const otpCode = createSessionResponse.otp_code;
+    
+        const sendOtpResponse = await fetchWithRetry(`${API_BASE_URL}/api/bot/send-otp`, {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: userId,
+            username: username,
+            otp_code: otpCode,
+            requester_id: currentUser.id
+          })
+        });
+    
+        if (!sendOtpResponse.success) {
+          return { success: false, error: sendOtpResponse.error };
+        }
+    
+        showOtpInputModal(sessionId, username);
+        return { success: true, session_id: sessionId };
+    
+      } catch (error) {
+        console.error('Error requesting user verification:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    async function requestChannelVerification(username, channelUsername, isAdminVerification = false) {
+      try {
+        const createSessionResponse = await fetchWithRetry(`${API_BASE_URL}/api/create-verification-session`, {
+          method: 'POST',
+          body: JSON.stringify({
+            username: username,
+            type: 'channel',
+            requester_id: currentUser.id
+          })
+        });
+    
+        if (!createSessionResponse.success) {
+          return { success: false, error: createSessionResponse.error };
+        }
+    
+        const sessionId = createSessionResponse.session_id;
+    
+        const sendVerificationResponse = await fetchWithRetry(`${API_BASE_URL}/api/bot/send-channel-verification`, {
+          method: 'POST',
+          body: JSON.stringify({
+            username: username,
+            channel_username: channelUsername,
+            requester_id: currentUser.id,
+            requester_name: currentUser.first_name,
+            verification_id: sessionId,
+            is_admin_verification: isAdminVerification
+          })
+        });
+    
+        if (!sendVerificationResponse.success) {
+          return { success: false, error: sendVerificationResponse.error };
+        }
+    
+        showToast(`✅ Pesan verifikasi telah dikirim ke channel @${channelUsername}`, 'success');
+        return { success: true, session_id: sessionId };
+    
+      } catch (error) {
+        console.error('Error requesting channel verification:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    function showOtpInputModal(sessionId, username) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+            <div class="modal-container">
+                <div class="modal-title">MASUKKAN KODE OTP</div>
+                <div style="text-align: center; margin-bottom: 16px;">
+                    Kode OTP telah dikirim ke <strong>@${username}</strong>
+                </div>
+                <input type="text" class="modal-input" id="otpInput" placeholder="6 digit kode OTP" maxlength="6" autocomplete="off">
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancelOtp">
+                        <i class="fas fa-times"></i> BATAL
+                    </button>
+                    <button class="modal-btn confirm" id="confirmOtp">
+                        <i class="fas fa-check"></i> VERIFIKASI
+                    </button>
+                </div>
+            </div>
+        `;
+    
+      document.body.appendChild(modal);
+    
+      setTimeout(() => {
+        modal.classList.add('show');
+        document.getElementById('otpInput').focus();
+      }, 10);
+    
+      document.getElementById('cancelOtp').addEventListener('click', () => {
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 300);
+      });
+    
+      document.getElementById('confirmOtp').addEventListener('click', async () => {
+        const otp = document.getElementById('otpInput').value.trim();
+        if (!otp || otp.length !== 6) {
+          showToast('Masukkan 6 digit kode OTP!', 'warning');
+          return;
+        }
+    
+        playFeedback('medium', 'pop');
+    
+        try {
+          // Verifikasi OTP via endpoint di app.py
+          const response = await fetchWithRetry(`${API_BASE_URL}/api/verify-otp`, {
+            method: 'POST',
+            body: JSON.stringify({
+              request_id: sessionId,
+              otp_code: otp,
+              user_id: currentUser.id
+            })
+          });
+    
+          if (response.success) {
+            showToast('✅ Verifikasi berhasil! Username telah ditambahkan.', 'success');
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+    
+            // Refresh data
+            loadMarketData();
+            loadUserUsernames();
+          } else {
+            showToast(response.error || 'Kode OTP salah', 'error');
+          }
+        } catch (error) {
+          console.error('Error verifying OTP:', error);
+          showToast('Gagal verifikasi OTP', 'error');
+        }
+      });
+    
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('show');
+          setTimeout(() => modal.remove(), 300);
+        }
+      });
+    }
+
     // MODAL ADD USERNAME - DENGAN TAMPILAN LEBIH BAIK
     function showAddUsernameModal() {
         const oldModal = document.getElementById('addUsernameModal');
