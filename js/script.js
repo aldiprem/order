@@ -1150,10 +1150,13 @@
                 } else if (page === 'games') {
                     renderGames();
                 } else if (page === 'inventory') {
+                      console.log('📦 Switching to inventory page');
                       if (typeof window.initInventory === 'function') {
                         window.initInventory();
+                      } else {
+                        console.error('❌ initInventory function not found');
                     }
-                }
+               }
             });
         });
     }
