@@ -3,11 +3,9 @@ from flask_cors import CORS
 from database.data import Database
 import os
 import logging
-import asyncio
 import threading
-import requests
 import sqlite3
-from b import process_bot_request, run_bot
+from b import call_bot_sync, run_bot  # Import call_bot_sync, bukan process_bot_request
 
 app = Flask(__name__, static_folder='.')
 
@@ -42,28 +40,6 @@ def start_bot_thread():
 
 # Panggil saat startup
 start_bot_thread()
-
-# ==================== FUNGSI UTILITY ====================
-
-def call_bot_sync(request_type, params, timeout=30):
-    """Panggil fungsi bot secara synchronous"""
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(
-            asyncio.wait_for(
-                process_bot_request(request_type, params),
-                timeout=timeout
-            )
-        )
-        loop.close()
-        return result
-    except asyncio.TimeoutError:
-        logger.error(f"Bot request timeout: {request_type}")
-        return {'success': False, 'error': 'Request timeout'}
-    except Exception as e:
-        logger.error(f"Error calling bot: {e}")
-        return {'success': False, 'error': str(e)}
 
 # ==================== SERVE STATIC FILES ====================
 
@@ -100,6 +76,7 @@ def bot_get_entity():
         username = data.get('username')
         logger.info(f"🔍 Checking username: {username}")
         
+        # Gunakan call_bot_sync dari b.py
         result = call_bot_sync('get_entity', data)
         logger.info(f"📤 GET ENTITY response: {result}")
         
@@ -111,30 +88,46 @@ def bot_get_entity():
 @app.route('/api/bot/get-channel-creator', methods=['POST'])
 def bot_get_channel_creator():
     """Endpoint untuk mendapatkan creator/owner channel"""
-    data = request.json
-    result = call_bot_sync('get_channel_creator', data)
-    return jsonify(result)
+    try:
+        data = request.json
+        result = call_bot_sync('get_channel_creator', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_get_channel_creator: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/bot/send-otp', methods=['POST'])
 def bot_send_otp():
     """Endpoint untuk mengirim OTP ke user"""
-    data = request.json
-    result = call_bot_sync('send_otp', data)
-    return jsonify(result)
+    try:
+        data = request.json
+        result = call_bot_sync('send_otp', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_send_otp: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/bot/send-channel-verification', methods=['POST'])
 def bot_send_channel_verification():
     """Endpoint untuk mengirim pesan verifikasi ke channel"""
-    data = request.json
-    result = call_bot_sync('send_channel_verification', data)
-    return jsonify(result)
+    try:
+        data = request.json
+        result = call_bot_sync('send_channel_verification', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_send_channel_verification: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/bot/notify-requester', methods=['POST'])
 def bot_notify_requester():
     """Endpoint untuk mengirim notifikasi ke requester"""
-    data = request.json
-    result = call_bot_sync('notify_requester', data)
-    return jsonify(result)
+    try:
+        data = request.json
+        result = call_bot_sync('notify_requester', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_notify_requester: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==================== API ENDPOINTS DATABASE ====================
 
