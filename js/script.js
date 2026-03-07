@@ -556,19 +556,19 @@
     }
 
     function renderActivitySkeleton() {
-        const activityPage = document.getElementById('activityPage');
-        if (!activityPage) return;
-        
-        let skeletonHtml = '<div class="activity-list">';
-        for (let i = 0; i < 5; i++) {
-            const template = document.getElementById('activitySkeletonTemplate');
-            const clone = document.importNode(template.content, true);
-            const div = document.createElement('div');
-            div.appendChild(clone);
-            skeletonHtml += div.innerHTML;
-        }
-        skeletonHtml += '</div>';
-        activityPage.innerHTML = skeletonHtml;
+      const activityPage = document.getElementById('activityPage');
+      if (!activityPage) return;
+    
+      let skeletonHtml = '<div class="content-wrapper"><div class="activity-list">';
+      for (let i = 0; i < 5; i++) {
+        const template = document.getElementById('activitySkeletonTemplate');
+        const clone = document.importNode(template.content, true);
+        const div = document.createElement('div');
+        div.appendChild(clone);
+        skeletonHtml += div.innerHTML;
+      }
+      skeletonHtml += '</div></div>';
+      activityPage.innerHTML = skeletonHtml;
     }
 
     async function loadUserUsernames() {
@@ -842,54 +842,56 @@
     }
 
     function renderActivities() {
-        const activityPage = document.getElementById('activityPage');
-        if (!activityPage) return;
-
-        if (!activities || activities.length === 0) {
-            activityPage.innerHTML = `
-                <div class="empty-market">
-                    <i class="fas fa-history"></i>
-                    <h3>Belum Ada Aktivitas</h3>
-                    <p>Aktivitas username akan muncul di sini</p>
+      const activityPage = document.getElementById('activityPage');
+      if (!activityPage) return;
+    
+      if (!activities || activities.length === 0) {
+        activityPage.innerHTML = `
+                <div class="content-wrapper">
+                    <div class="empty-market">
+                        <i class="fas fa-history"></i>
+                        <h3>Belum Ada Aktivitas</h3>
+                        <p>Aktivitas username akan muncul di sini</p>
+                    </div>
                 </div>
             `;
-            return;
+        return;
+      }
+    
+      let html = '<div class="content-wrapper"><div class="activity-list">';
+    
+      activities.forEach(activity => {
+        const template = document.getElementById('activityItemTemplate');
+        const clone = document.importNode(template.content, true);
+    
+        let icon = 'fas fa-info-circle';
+        if (activity.action?.includes('LISTED')) icon = 'fas fa-tag';
+        else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
+        else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
+        else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
+        else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
+    
+        clone.querySelector('.activity-icon i').className = icon;
+        clone.querySelector('.activity-title').textContent = activity.details || 'Aktivitas baru';
+    
+        const usernameMatch = activity.details?.match(/@(\w+)/);
+        if (usernameMatch) {
+          clone.querySelector('.activity-username').textContent = usernameMatch[0];
+        } else if (activity.username) {
+          clone.querySelector('.activity-username').textContent = `@${activity.username}`;
+        } else {
+          clone.querySelector('.activity-username').textContent = '';
         }
-
-        let html = '<div class="activity-list">';
-
-        activities.forEach(activity => {
-            const template = document.getElementById('activityItemTemplate');
-            const clone = document.importNode(template.content, true);
-
-            let icon = 'fas fa-info-circle';
-            if (activity.action?.includes('LISTED')) icon = 'fas fa-tag';
-            else if (activity.action?.includes('PRICE')) icon = 'fas fa-credit-card';
-            else if (activity.action?.includes('BASED_ON')) icon = 'fas fa-pencil-alt';
-            else if (activity.action?.includes('ADDED')) icon = 'fas fa-plus-circle';
-            else if (activity.action?.includes('VERIFY')) icon = 'fas fa-check-circle';
-
-            clone.querySelector('.activity-icon i').className = icon;
-            clone.querySelector('.activity-title').textContent = activity.details || 'Aktivitas baru';
-            
-            const usernameMatch = activity.details?.match(/@(\w+)/);
-            if (usernameMatch) {
-                clone.querySelector('.activity-username').textContent = usernameMatch[0];
-            } else if (activity.username) {
-                clone.querySelector('.activity-username').textContent = `@${activity.username}`;
-            } else {
-                clone.querySelector('.activity-username').textContent = '';
-            }
-            
-            clone.querySelector('.activity-time').textContent = formatDate(activity.created_at);
-
-            const div = document.createElement('div');
-            div.appendChild(clone);
-            html += div.innerHTML;
-        });
-
-        html += '</div>';
-        activityPage.innerHTML = html;
+    
+        clone.querySelector('.activity-time').textContent = formatDate(activity.created_at);
+    
+        const div = document.createElement('div');
+        div.appendChild(clone);
+        html += div.innerHTML;
+      });
+    
+      html += '</div></div>';
+      activityPage.innerHTML = html;
     }
 
     function renderProfile() {
@@ -929,51 +931,53 @@
       }
     
       profilePage.innerHTML = `
-            <div class="profile-actions" style="display: flex; gap: 10px; margin-bottom: 16px;">
-                <button class="filter-btn apply" id="addUsernameBtn" style="flex: 2;">
-                    <i class="fas fa-plus-circle"></i> ADD USERNAME
-                </button>
-                <button class="filter-btn reset" id="notificationsBtn" style="flex: 1;">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-                </button>
-            </div>
-    
-            <div class="profile-card">
-                <div class="profile-header">
-                    <div class="profile-avatar-large">
-                        <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
-                    </div>
-                    <div class="profile-info-large">
-                        <div class="profile-name-large">${escapeHtml(fullName)}</div>
-                        <div class="profile-username-large">
-                            <i class="fas fa-at"></i>
-                            ${escapeHtml(username)}
+            <div class="content-wrapper">
+                <div class="profile-actions" style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <button class="filter-btn apply" id="addUsernameBtn" style="flex: 2;">
+                        <i class="fas fa-plus-circle"></i> ADD USERNAME
+                    </button>
+                    <button class="filter-btn reset" id="notificationsBtn" style="flex: 1;">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                    </button>
+                </div>
+          
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="profile-avatar-large">
+                            <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
                         </div>
-                    </div>
-                    <div class="profile-stats-compact">
-                        <div class="profile-stats-row">
-                            <div class="stat-item">
-                                <i class="fas fa-tag"></i>
-                                <span class="stat-value">${totalUsernames}</span>
-                            </div>
-                            <span class="stat-separator">/</span>
-                            <div class="stat-item">
-                                <i class="fas fa-check-circle" style="color: #10b981;"></i>
-                                <span class="stat-value">${listedUsernames}</span>
+                        <div class="profile-info-large">
+                            <div class="profile-name-large">${escapeHtml(fullName)}</div>
+                            <div class="profile-username-large">
+                                <i class="fas fa-at"></i>
+                                ${escapeHtml(username)}
                             </div>
                         </div>
-                        <div class="listed-ratio">${listedUsernames}/${totalUsernames}</div>
-                        <div class="listed-label">LISTED</div>
+                        <div class="profile-stats-compact">
+                            <div class="profile-stats-row">
+                                <div class="stat-item">
+                                    <i class="fas fa-tag"></i>
+                                    <span class="stat-value">${totalUsernames}</span>
+                                </div>
+                                <span class="stat-separator">/</span>
+                                <div class="stat-item">
+                                    <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                                    <span class="stat-value">${listedUsernames}</span>
+                                </div>
+                            </div>
+                            <div class="listed-ratio">${listedUsernames}/${totalUsernames}</div>
+                            <div class="listed-label">LISTED</div>
+                        </div>
                     </div>
                 </div>
+          
+                <div class="profile-section-title">
+                    <i class="fas fa-tag"></i>
+                    <h3>Username Saya</h3>
+                </div>
+                ${usernamesHtml}
             </div>
-    
-            <div class="profile-section-title">
-                <i class="fas fa-tag"></i>
-                <h3>Username Saya</h3>
-            </div>
-            ${usernamesHtml}
         `;
     
       // Tambahkan event listener untuk tombol add username
@@ -991,13 +995,18 @@
     }
 
     function renderGames() {
-        const gamesPage = document.getElementById('gamesPage');
-        if (!gamesPage) return;
-
-        const template = document.getElementById('gamesPlaceholderTemplate');
-        const clone = document.importNode(template.content, true);
-        gamesPage.innerHTML = '';
-        gamesPage.appendChild(clone);
+      const gamesPage = document.getElementById('gamesPage');
+      if (!gamesPage) return;
+    
+      const template = document.getElementById('gamesPlaceholderTemplate');
+      const clone = document.importNode(template.content, true);
+    
+      // Bungkus dengan content-wrapper
+      gamesPage.innerHTML = `
+            <div class="content-wrapper">
+                ${clone.querySelector('.games-placeholder').outerHTML}
+            </div>
+        `;
     }
 
     // ==================== COLLAPSIBLE FILTER SECTIONS ====================
@@ -1138,10 +1147,12 @@
                     loadMarketData();
                 } else if (page === 'activity') {
                     loadActivities();
-                } else if (page === 'profile' && currentUser) {
-                    loadUserUsernames();
                 } else if (page === 'games') {
                     renderGames();
+                } else if (page === 'inventory') {
+                      if (typeof window.initInventory === 'function') {
+                        window.initInventory();
+                    }
                 }
             });
         });
