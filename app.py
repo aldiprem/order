@@ -6,7 +6,7 @@ import logging
 import threading
 import sqlite3
 import time
-from b import call_bot_sync, run_bot, is_bot_ready
+from b import call_bot_sync, run_bot, is_bot_ready, db
 
 app = Flask(__name__, static_folder='.')
 
