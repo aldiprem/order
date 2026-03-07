@@ -2746,19 +2746,36 @@
     // ==================== SAFE AREA HANDLING ====================
     
     function updateSafeAreaInsets() {
-      if (!window.Telegram?.WebApp) return;
+      if (!window.Telegram?.WebApp) {
+        console.warn('⚠️ Telegram WebApp not available');
+        return;
+      }
     
       const webApp = window.Telegram.WebApp;
     
-      // Dapatkan nilai safe area dari Telegram
+      // Log semua properti yang tersedia
+      console.log('📱 WebApp Object:', {
+        version: webApp.version,
+        isFullscreen: webApp.isFullscreen,
+        safeAreaInset: webApp.safeAreaInset,
+        contentSafeAreaInset: webApp.contentSafeAreaInset
+      });
+    
+      // Dapatkan nilai safe area dengan default 0
       const safeArea = webApp.safeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
       const contentSafeArea = webApp.contentSafeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
     
-      console.log('📐 Safe Area Insets:', safeArea);
-      console.log('📐 Content Safe Area Insets:', contentSafeArea);
+      console.log('📐 Safe Area Values:', {
+        safeAreaTop: safeArea.top,
+        safeAreaBottom: safeArea.bottom,
+        contentSafeAreaTop: contentSafeArea.top,
+        contentSafeAreaBottom: contentSafeArea.bottom
+      });
     
       // Hitung tinggi header baru (80px + safeArea.top)
       const headerTotalHeight = 80 + (safeArea.top || 0);
+    
+      console.log('📏 Header height will be:', headerTotalHeight, 'px (80px +', safeArea.top, 'px)');
     
       // Update CSS variables
       document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
@@ -2777,6 +2794,9 @@
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
         header.style.paddingTop = `${safeArea.top || 0}px`;
+        console.log('✅ Header height updated to:', headerTotalHeight, 'px');
+      } else {
+        console.warn('⚠️ Header element not found');
       }
     
       // Update main content padding top
@@ -2889,22 +2909,16 @@
             renderGames();
       
             if (window.Telegram?.WebApp) {
-              // 1. Expand dan ready seperti biasa
+              // 1. Expand dan ready
               window.Telegram.WebApp.expand();
               window.Telegram.WebApp.ready();
               console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
-              
+            
+              // 2. Setup safe area handling (langsung setelah ready)
               setupSafeAreaHandling();
             
-              // 2. Cek apakah versi mendukung fullscreen (Bot API 8.0 ke atas)
-              //    Versi 8.0 sesuai dokumentasi setara dengan Telegram.WebApp.version 8.0
+              // 3. Cek fullscreen support
               if (window.Telegram.WebApp.isVersionAtLeast('8.0')) {
-            
-                // Opsi A: Minta fullscreen langsung (mungkin但 butuh interaksi)
-                // window.Telegram.WebApp.requestFullscreen();
-            
-                // Opsi B (Rekomendasi): Minta fullscreen setelah app siap dan ada sedikit jeda
-                // atau lebih baik dipicu tombol "Fullscreen" di dalam app
                 setTimeout(() => {
                   try {
                     window.Telegram.WebApp.requestFullscreen();
@@ -2912,9 +2926,9 @@
                   } catch (e) {
                     console.warn('⚠️ Fullscreen request failed:', e);
                   }
-                }, 500); // Jeda 500ms setelah ready
+                }, 500);
             
-                // 3. Pantau perubahan status fullscreen
+                // Pantau perubahan fullscreen
                 window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
                   console.log('🔄 Fullscreen changed:', window.Telegram.WebApp.isFullscreen);
                 });
@@ -2922,9 +2936,8 @@
                 window.Telegram.WebApp.onEvent('fullscreenFailed', () => {
                   console.warn('❌ Fullscreen failed');
                 });
-            
               } else {
-                console.log('ℹ️ Fullscreen not supported in this Telegram version');
+                console.log('ℹ️ Fullscreen not supported');
               }
             }
             
