@@ -94,7 +94,7 @@ __Selamat datang di INDOTAG MARKET, Buka miniapp dan lakukan perdagangan yang ny
               [Button.url("📱 OPEN MINIAPP", "https://t.me/indotagbot/market")]
             ]
             
-            await event.respond(mesg, buttons=buttons)
+            await event.respond(msg, buttons=buttons)
             
             db.add_activity_log(
                 user_id, "BOT_START", f"@{username} Start bot!"
