@@ -32,7 +32,8 @@
     --content-safe-area-bottom: 0px;
     
     --header-base-height: 80px;
-    --header-total-height: calc(var(--header-base-height) + var(--content-safe-area-top));
+    --content-offset: 0px;
+    --header-total-height: calc(var(--header-base-height) + var(--content-offset));
 }
 
 * {
@@ -196,7 +197,7 @@ body {
 /* ===== HEADER CARD ===== */
 .market-header {
     height: var(--header-total-height) !important;
-    padding-top: var(--content-safe-area-top);
+    padding-top: var(--content-offset); /* Gunakan offset yang sudah dibatasi */
     background: rgba(20, 20, 20, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-left: 20px;
@@ -217,8 +218,6 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
-    /* Gunakan content-safe-area-top untuk padding top */
-    padding-top: calc(20px + var(--content-safe-area-top));
     padding-bottom: calc(var(--nav-height) + 30px + var(--safe-area-bottom));
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
