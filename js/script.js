@@ -2743,6 +2743,96 @@
         });
     }
 
+    // ==================== SAFE AREA HANDLING ====================
+    
+    function updateSafeAreaInsets() {
+      if (!window.Telegram?.WebApp) return;
+    
+      const webApp = window.Telegram.WebApp;
+    
+      // Dapatkan nilai safe area dari Telegram
+      const safeArea = webApp.safeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
+      const contentSafeArea = webApp.contentSafeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
+    
+      console.log('📐 Safe Area Insets:', safeArea);
+      console.log('📐 Content Safe Area Insets:', contentSafeArea);
+    
+      // Hitung tinggi header baru (80px + safeArea.top)
+      const headerTotalHeight = 80 + (safeArea.top || 0);
+    
+      // Update CSS variables
+      document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
+      document.documentElement.style.setProperty('--safe-area-bottom', `${safeArea.bottom}px`);
+      document.documentElement.style.setProperty('--safe-area-left', `${safeArea.left}px`);
+      document.documentElement.style.setProperty('--safe-area-right', `${safeArea.right}px`);
+    
+      document.documentElement.style.setProperty('--content-safe-area-top', `${contentSafeArea.top}px`);
+      document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
+    
+      // Set tinggi header total
+      document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
+    
+      // Update header height secara langsung juga
+      const header = document.querySelector('.market-header');
+      if (header) {
+        header.style.height = `${headerTotalHeight}px`;
+        header.style.paddingTop = `${safeArea.top || 0}px`;
+      }
+    
+      // Update main content padding top
+      const marketMain = document.getElementById('marketMain');
+      if (marketMain) {
+        marketMain.style.paddingTop = `calc(20px + ${contentSafeArea.top || 0}px)`;
+      }
+    
+      // Update bottom navigation position
+      const bottomNav = document.getElementById('bottomNav');
+      if (bottomNav) {
+        bottomNav.style.bottom = `calc(16px + ${safeArea.bottom || 0}px)`;
+      }
+    
+      // Update scroll to top button position
+      const scrollTopBtn = document.getElementById('scrollTopBtn');
+      if (scrollTopBtn) {
+        scrollTopBtn.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
+      }
+    
+      // Update toast container position
+      const toastContainer = document.getElementById('toastContainer');
+      if (toastContainer) {
+        toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
+      }
+    }
+    
+    // Panggil fungsi ini saat:
+    // 1. Setelah WebApp ready
+    // 2. Saat event safeAreaChanged
+    function setupSafeAreaHandling() {
+      if (!window.Telegram?.WebApp) return;
+    
+      const webApp = window.Telegram.WebApp;
+    
+      // Update initial safe area
+      updateSafeAreaInsets();
+    
+      // Listen for safe area changes
+      webApp.onEvent('safeAreaChanged', () => {
+        console.log('🔄 Safe area changed');
+        updateSafeAreaInsets();
+      });
+    
+      webApp.onEvent('contentSafeAreaChanged', () => {
+        console.log('🔄 Content safe area changed');
+        updateSafeAreaInsets();
+      });
+    
+      // Also update when fullscreen changes
+      webApp.onEvent('fullscreenChanged', () => {
+        console.log('🔄 Fullscreen changed, updating safe area');
+        setTimeout(updateSafeAreaInsets, 100); // Small delay for transition
+      });
+    }
+
     // ==================== INITIALIZATION ====================
     async function init() {
         showLoading(true);
@@ -2803,6 +2893,8 @@
               window.Telegram.WebApp.expand();
               window.Telegram.WebApp.ready();
               console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
+              
+              setupSafeAreaHandling();
             
               // 2. Cek apakah versi mendukung fullscreen (Bot API 8.0 ke atas)
               //    Versi 8.0 sesuai dokumentasi setara dengan Telegram.WebApp.version 8.0
