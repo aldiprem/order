@@ -1,3 +1,4 @@
+<!-- index.html (Updated version with INVENTORY instead of PROFILE) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,9 +76,8 @@
             <div class="page-content" id="activityPage">
                 <!-- Activity page content will be injected here -->
             </div>
-            <div class="page-content" id="profilePage" style="display: none;">
-            </div>
             <div class="page-content" id="inventoryPage">
+                <!-- Inventory page content will be injected here -->
             </div>
         </main>
 
@@ -149,66 +149,55 @@
         
           <div class="panel-footer">
             <button class="panel-btn btn-buy" id="panelBuyBtn">
-              <i class="fas fa-bolt"></i>
-              BUY NOW
+              <i class="fas fa-shopping-bag"></i>
+              BUY
             </button>
             <button class="panel-btn btn-offer" id="panelOfferBtn">
-              <i class="fas fa-hand-holding-usd"></i>
-              MAKE OFFER
+              <i class="fas fa-handshake"></i>
+              OFFER
             </button>
           </div>
         </div>
-        
-        <!-- Overlay untuk klik luar panel -->
-        <div class="panel-overlay" id="panelOverlay"></div>
 
-        <!-- Filter Panel (Sliding from bottom) -->
+        <!-- Filter Panel -->
         <div class="filter-panel" id="filterPanel">
             <div class="filter-panel-header">
-                <div class="filter-panel-handle"></div>
-                <h3>Filter Username</h3>
-                <button class="filter-close" id="filterClose">
+                <h2 class="filter-title">FILTER</h2>
+                <button class="filter-close-btn" id="filterClose">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
+
             <div class="filter-panel-content">
                 <!-- Type Filter - Collapsible -->
                 <div class="filter-section collapsible expanded" id="typeSection">
                     <div class="filter-section-header" data-section="type">
                         <label class="filter-label">
-                            <i class="fas fa-tag"></i>
-                            TYPE USERNAME
+                            <i class="fas fa-tags"></i>
+                            TYPE
                         </label>
                         <i class="fas fa-chevron-down section-arrow"></i>
                     </div>
                     <div class="filter-section-body" id="typeSectionBody">
                         <div class="filter-chips" id="typeFilterChips">
-                            <button class="chip active" data-type="all">Semua</button>
-                            <button class="chip" data-type="OP">OP</button>
-                            <button class="chip" data-type="CANON">CANON</button>
-                            <button class="chip" data-type="SCANON">SCANON</button>
-                            <button class="chip" data-type="SOP">SOP</button>
-                            <button class="chip" data-type="TAMPING">TAMPING</button>
-                            <button class="chip" data-type="TAMDAL">TAMDAL</button>
-                            <button class="chip" data-type="GANHUR">GANHUR</button>
-                            <button class="chip" data-type="SWITCH">SWITCH</button>
-                            <button class="chip" data-type="KURHUF">KURHUF</button>
+                            <button class="chip active" data-type="all">All</button>
+                            <button class="chip" data-type="channel">Channel</button>
+                            <button class="chip" data-type="user">User</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Price Range Filter - Collapsible -->
+                <!-- Price Filter - Collapsible -->
                 <div class="filter-section collapsible expanded" id="priceSection">
                     <div class="filter-section-header" data-section="price">
                         <label class="filter-label">
-                            <i class="fas fa-credit-card"></i>
-                            PRICE RANGE
+                            <i class="fas fa-dollar-sign"></i>
+                            PRICE
                         </label>
                         <i class="fas fa-chevron-down section-arrow"></i>
                     </div>
                     <div class="filter-section-body" id="priceSectionBody">
-                        <div class="price-range-inputs">
+                        <div class="price-range-input">
                             <div class="price-input-wrapper">
                                 <span class="price-prefix">Rp</span>
                                 <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
