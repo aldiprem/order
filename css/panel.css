@@ -57,6 +57,23 @@
   padding-bottom: var(--safe-area-bottom);
 }
 
+/* ===== MODAL CONTAINER ===== */
+.modal-container {
+  width: 90%;
+  max-width: 400px;
+  background: rgba(20, 20, 25, 0.98);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 24px;
+  padding-bottom: calc(24px + var(--safe-area-bottom));
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 .username-panel.show {
     transform: translateY(0);
 }
