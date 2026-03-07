@@ -2764,7 +2764,6 @@
       document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
     
       // HEADER: Base 80px + contentSafeArea.top
-      // Dengan ini, border header akan mengikuti area konten yang aman
       const headerBaseHeight = 80;
       const headerTotalHeight = headerBaseHeight + (contentSafeArea.top || 0);
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
@@ -2773,14 +2772,23 @@
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
-        header.style.paddingTop = `${contentSafeArea.top || 0}px`; // Gunakan contentSafeArea
+        header.style.paddingTop = `${contentSafeArea.top || 0}px`;
+    
+        // Log untuk debugging
+        console.log(`📏 Header height: ${headerTotalHeight}px, padding-top: ${contentSafeArea.top || 0}px`);
       }
     
-      // MAIN CONTENT: Padding top menyesuaikan contentSafeArea
+      // MAIN CONTENT: Padding top harus SAMA dengan header height
+      // Tapi karena header sudah termasuk padding-top, kita perlu menyesuaikan
       const marketMain = document.getElementById('marketMain');
       if (marketMain) {
-        marketMain.style.paddingTop = `calc(20px + ${contentSafeArea.top || 0}px)`;
+        // Padding top = headerBaseHeight (80px) + jarak tambahan (20px)
+        // Ini akan membuat konten pertama (search box) tepat di bawah header border
+        const mainPaddingTop = headerBaseHeight + 20 + (contentSafeArea.top || 0);
+        marketMain.style.paddingTop = `${mainPaddingTop}px`;
         marketMain.style.paddingBottom = `calc(var(--nav-height) + 30px + ${safeArea.bottom || 0}px)`;
+    
+        console.log(`📏 Main padding-top: ${mainPaddingTop}px`);
       }
     
       // BOTTOM NAV: Posisi bottom + safeArea.bottom
@@ -2813,7 +2821,7 @@
         filterPanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
       }
     
-      console.log('✅ Safe area updated - Header height:', headerTotalHeight, 'px');
+      console.log('✅ Safe area updated - Header should now be flush with search box');
     }
     
     function setupSafeAreaHandling() {
