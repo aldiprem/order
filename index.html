@@ -19,9 +19,10 @@
     <!-- CSS -->
     <link rel="stylesheet" href="/order/css/panel.css">
     <link rel="stylesheet" href="/order/css/style.css">
+    <link rel="stylesheet" href="/order/css/inventory.css">
     
     <!-- Config -->
-    <script src="/order/config.js"></script>
+    <script src="/config.js"></script>
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -74,8 +75,7 @@
             <div class="page-content" id="activityPage">
                 <!-- Activity page content will be injected here -->
             </div>
-            <div class="page-content" id="profilePage">
-                <!-- Profile page content will be injected here -->
+            <div class="page-content" id="inventorypage">
             </div>
         </main>
 
@@ -100,11 +100,11 @@
                     </div>
                     <span>ACTIVITY</span>
                 </button>
-                <button class="nav-item" data-page="profile">
-                    <div class="nav-icon">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <span>PROFIL</span>
+                <button class="nav-item" data-page="inventory">
+                  <div class="nav-icon">
+                    <i class="fas fa-box"></i>
+                  </div>
+                  <span>INVENTORY</span>
                 </button>
             </div>
             <div class="nav-indicator" id="navIndicator"></div>
@@ -340,6 +340,6 @@
 
     <!-- JavaScript -->
     <script src="/order/js/script.js"></script>
-    <script src="/order/js/sound.js"></script>
+    <script src="/order/js/inventory.js"></script>
 </body>
 </html>
