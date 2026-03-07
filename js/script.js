@@ -2755,32 +2755,73 @@
       console.log('📐 Safe Area:', safeArea);
       console.log('📐 Content Safe Area:', contentSafeArea);
     
+      // Gunakan contentSafeArea.top untuk header (biar turun)
+      // Tapi batasi maksimal 40px agar tidak terlalu ekstrem
+      const maxOffset = 40;
+      let topOffset = contentSafeArea.top || 0;
+    
+      if (topOffset > maxOffset) {
+        console.log(`⚠️ Content safe area top too large (${topOffset}px), capping to ${maxOffset}px`);
+        topOffset = maxOffset;
+      }
+    
       // Update CSS variables
-      document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
+      document.documentElement.style.setProperty('--safe-area-top', `${topOffset}px`);
       document.documentElement.style.setProperty('--safe-area-bottom', `${safeArea.bottom}px`);
     
-      // Gunakan safeArea.top (biasanya lebih kecil) bukan contentSafeArea.top
+      // HEADER: Base 80px + topOffset
       const headerBaseHeight = 80;
-      const headerTotalHeight = headerBaseHeight + (safeArea.top || 0);
+      const headerTotalHeight = headerBaseHeight + topOffset;
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
     
       // Update header langsung
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
-        header.style.paddingTop = `${safeArea.top || 0}px`;
+        header.style.paddingTop = `${topOffset}px`;
     
-        console.log(`📏 Header height: ${headerTotalHeight}px (using safeArea.top: ${safeArea.top}px)`);
+        console.log(`📏 Header height: ${headerTotalHeight}px (${headerBaseHeight}px + contentSafeArea.top ${topOffset}px)`);
       }
     
-      // MAIN CONTENT: Padding top menyesuaikan
+      // MAIN CONTENT: Tidak perlu padding top, karena header sudah turun
+      // dan market-header-actions punya margin-top 20px
       const marketMain = document.getElementById('marketMain');
       if (marketMain) {
-        marketMain.style.paddingTop = `calc(20px + ${safeArea.top || 0}px)`;
+        marketMain.style.paddingTop = '0';
         marketMain.style.paddingBottom = `calc(var(--nav-height) + 30px + ${safeArea.bottom || 0}px)`;
       }
     
-      // ... sisanya sama ...
+      // BOTTOM NAV
+      const bottomNav = document.getElementById('bottomNav');
+      if (bottomNav) {
+        bottomNav.style.bottom = `calc(16px + ${safeArea.bottom || 0}px)`;
+      }
+    
+      // SCROLL TOP BUTTON
+      const scrollTopBtn = document.getElementById('scrollTopBtn');
+      if (scrollTopBtn) {
+        scrollTopBtn.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
+      }
+    
+      // TOAST CONTAINER
+      const toastContainer = document.getElementById('toastContainer');
+      if (toastContainer) {
+        toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
+      }
+    
+      // USERNAME PANEL
+      const usernamePanel = document.getElementById('usernamePanel');
+      if (usernamePanel) {
+        usernamePanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
+      }
+    
+      // FILTER PANEL
+      const filterPanel = document.getElementById('filterPanel');
+      if (filterPanel) {
+        filterPanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
+      }
+    
+      console.log('✅ Safe area updated with contentSafeArea.top =', topOffset, 'px');
     }
     
     function setupSafeAreaHandling() {
