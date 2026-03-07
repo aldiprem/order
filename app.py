@@ -1,12 +1,11 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from database.data import Database
 import os
 import logging
 import threading
 import sqlite3
 import time
-from b import call_bot_sync, run_bot, is_bot_ready, db
+from b import call_bot_sync, run_bot, is_bot_ready, db  # Import db dari b.py
 
 app = Flask(__name__, static_folder='.')
 
@@ -24,6 +23,9 @@ CORS(app, origins=[
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Jangan buat instance Database baru di sini! 
+# Kita sudah import db dari b.py
 
 # Bot thread
 bot_thread = None
@@ -65,9 +67,10 @@ def serve_js(path):
 
 @app.route('/<path:path>')
 def serve_static(path):
+    """Serve static files from root directory"""
     return send_from_directory('.', path)
 
-# ==================== API ENDPOINTS ====================
+# ==================== API ENDPOINTS BOT ====================
 
 @app.route('/api/bot/get-entity', methods=['POST'])
 def bot_get_entity():
@@ -170,7 +173,7 @@ def bot_status():
         'started': bot_started
     })
 
-# ==================== API ENDPOINTS DATABASE (SISANYA TETAP SAMA) ====================
+# ==================== API ENDPOINTS DATABASE ====================
 
 @app.route('/api/verify-user', methods=['POST', 'OPTIONS'])
 def verify_user():
@@ -639,6 +642,8 @@ def debug_webapp_requests():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ==================== CORS HEADERS ====================
+
 @app.after_request
 def after_request(response):
     """Add headers to all responses"""
@@ -654,6 +659,8 @@ def after_request(response):
         response.headers.add('Access-Control-Allow-Origin', origin)
     
     return response
+
+# ==================== MAIN ====================
 
 if __name__ == '__main__':
     logger.info("Starting Flask server on port 4000...")
