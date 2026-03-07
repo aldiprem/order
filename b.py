@@ -5,12 +5,16 @@ import threading
 import traceback
 import logging
 import os
+from dotenv import load_dotenv  # Tambahkan ini
 from database.data import Database
 
-# Konfigurasi
-API_ID = int(os.getenv('TELEGRAM_API_ID', ''))
-API_HASH = os.getenv('TELEGRAM_API_HASH', '')
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+# Load environment variables dari file .env
+load_dotenv()  # Tambahkan ini
+
+# Konfigurasi dari environment variables
+API_ID = int(os.getenv('TELEGRAM_API_ID', '24576633'))  # Beri default value
+API_HASH = os.getenv('TELEGRAM_API_HASH', '29931cf620fad738ee7f69442c98e2ee')
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8560327887:AAHCjef_6K20ZCzqDHuFkO5UpmWS9STYv7M')
 
 # Inisialisasi bot dan database
 bot = TelegramClient("indotag", API_ID, API_HASH)
@@ -19,8 +23,6 @@ db = Database()
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-load_dotenv()
 
 # Global event loop untuk bot
 bot_loop = None
