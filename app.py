@@ -5,12 +5,12 @@ import os
 import logging
 import threading
 import sqlite3
-import os
-from b import call_bot_sync, run_bot
+import time
+from b import call_bot_sync, run_bot, is_bot_ready
 
 app = Flask(__name__, static_folder='.')
 
-# Konfigurasi CORS yang lebih spesifik dan aman
+# Konfigurasi CORS
 CORS(app, origins=[
     "https://aldiprem.github.io",
     "http://localhost:4000",
@@ -28,18 +28,28 @@ logger = logging.getLogger(__name__)
 # Initialize database
 db = Database()
 
-# Thread untuk menjalankan bot
+# Bot thread
 bot_thread = None
+bot_started = False
 
 def start_bot_thread():
     """Start bot in separate thread"""
-    global bot_thread
+    global bot_thread, bot_started
     if bot_thread is None or not bot_thread.is_alive():
         bot_thread = threading.Thread(target=run_bot, daemon=True)
         bot_thread.start()
         logger.info("✅ Bot thread started")
+        bot_started = True
+        
+        # Tunggu bot siap
+        wait_start = time.time()
+        while time.time() - wait_start < 30:  # Wait max 30 seconds
+            if is_bot_ready():
+                logger.info("✅ Bot is ready")
+                break
+            time.sleep(0.5)
 
-# Panggil saat startup
+# Start bot thread
 start_bot_thread()
 
 # ==================== SERVE STATIC FILES ====================
@@ -58,10 +68,9 @@ def serve_js(path):
 
 @app.route('/<path:path>')
 def serve_static(path):
-    # Untuk file seperti config.js di root
     return send_from_directory('.', path)
 
-# ==================== API ENDPOINTS BOT ====================
+# ==================== API ENDPOINTS ====================
 
 @app.route('/api/bot/get-entity', methods=['POST'])
 def bot_get_entity():
@@ -74,10 +83,14 @@ def bot_get_entity():
             logger.error("❌ Missing username parameter")
             return jsonify({'success': False, 'error': 'Username diperlukan'}), 400
         
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            logger.warning("⚠️ Bot not ready yet")
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
         username = data.get('username')
         logger.info(f"🔍 Checking username: {username}")
         
-        # Gunakan call_bot_sync dari b.py
         result = call_bot_sync('get_entity', data)
         logger.info(f"📤 GET ENTITY response: {result}")
         
@@ -91,6 +104,11 @@ def bot_get_channel_creator():
     """Endpoint untuk mendapatkan creator/owner channel"""
     try:
         data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
         result = call_bot_sync('get_channel_creator', data)
         return jsonify(result)
     except Exception as e:
@@ -102,6 +120,11 @@ def bot_send_otp():
     """Endpoint untuk mengirim OTP ke user"""
     try:
         data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
         result = call_bot_sync('send_otp', data)
         return jsonify(result)
     except Exception as e:
@@ -113,6 +136,11 @@ def bot_send_channel_verification():
     """Endpoint untuk mengirim pesan verifikasi ke channel"""
     try:
         data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
         result = call_bot_sync('send_channel_verification', data)
         return jsonify(result)
     except Exception as e:
@@ -124,13 +152,28 @@ def bot_notify_requester():
     """Endpoint untuk mengirim notifikasi ke requester"""
     try:
         data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
         result = call_bot_sync('notify_requester', data)
         return jsonify(result)
     except Exception as e:
         logger.error(f"❌ Error in bot_notify_requester: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== API ENDPOINTS DATABASE ====================
+# ==================== ENDPOINT CEK BOT STATUS ====================
+
+@app.route('/api/bot/status', methods=['GET'])
+def bot_status():
+    """Cek status bot"""
+    return jsonify({
+        'ready': is_bot_ready(),
+        'started': bot_started
+    })
+
+# ==================== API ENDPOINTS DATABASE (SISANYA TETAP SAMA) ====================
 
 @app.route('/api/verify-user', methods=['POST', 'OPTIONS'])
 def verify_user():
@@ -496,11 +539,12 @@ def verify_otp():
         
         if success:
             # Kirim notifikasi ke requester via bot
-            call_bot_sync('notify_requester', {
-                'requester_id': requester_id,
-                'message': f'Username @{username} berhasil diverifikasi!',
-                'is_success': True
-            })
+            if is_bot_ready():
+                call_bot_sync('notify_requester', {
+                    'requester_id': requester_id,
+                    'message': f'Username @{username} berhasil diverifikasi!',
+                    'is_success': True
+                })
             
             return jsonify({'success': True, 'message': 'Verifikasi berhasil'})
         else:
