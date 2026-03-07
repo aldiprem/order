@@ -2757,8 +2757,8 @@
     
       // Gunakan contentSafeArea.top untuk header (biar turun)
       // Tapi batasi maksimal 40px agar tidak terlalu ekstrem
-      const maxOffset = 60;
-      let topOffset = 50;
+      const maxOffset = 80;
+      let topOffset = 60;
       
       if (topOffset > maxOffset) {
         console.log(`⚠️ Content safe area top too large (${topOffset}px), capping to ${maxOffset}px`);
