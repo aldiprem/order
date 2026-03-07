@@ -4,6 +4,7 @@ import asyncio
 import threading
 import traceback
 import logging
+import os
 from database.data import Database
 
 # Konfigurasi
