@@ -18,8 +18,8 @@
 
     // ==================== DOM ELEMENTS ====================
     const elements = {
-        inventoryPage: document.getElementById('inventoryPage'),
-        contentWrapper: null
+      inventoryPage: document.getElementById('inventoryPage'),
+      contentWrapper: null
     };
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -687,21 +687,23 @@
         });
     }
 
-    // ==================== INITIALIZATION ====================
     async function initInventory() {
-        console.log('📦 Initializing Inventory page...');
-
-        // Get current user
-        currentUser = getCurrentUser();
-
-        // Show loading skeleton
-        renderLoadingSkeleton();
-
-        // Load data
-        userUsernames = await loadUserUsernames();
-        
-        // Render
-        renderInventory();
+      console.log('📦 Initializing Inventory page...');
+      console.log('📦 inventoryPage element:', document.getElementById('inventoryPage'));
+    
+      // Get current user
+      currentUser = getCurrentUser();
+      console.log('📦 Current user:', currentUser);
+    
+      // Show loading skeleton
+      renderLoadingSkeleton();
+    
+      // Load data
+      userUsernames = await loadUserUsernames();
+      console.log('📦 Loaded usernames:', userUsernames);
+    
+      // Render
+      renderInventory();
     }
 
     // Export function untuk dipanggil dari script.js
