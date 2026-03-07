@@ -63,6 +63,52 @@ async def init_bot():
 async def setup_handlers():
     """Setup bot handlers"""
     
+    @bot.on(events.CallbackQuery(pattern="^/start$"))
+    async def handle_start(event):
+        try:
+            user = await event.get_sender()
+            user_id = user.id
+            first_name = user.first_name or ""
+            last_name = user.last_name or ""
+            mention = f"[{fullname}](tg://user?id={user_id})"
+            username = user.username
+            
+            fullname = f"{first_name} {last_name}".strip()
+            if not fullname:
+                fullbame = "NO NAME"
+            
+            logger.info(f"✅ User {fullname} ({username}) start bot.")
+            
+            db.add_user(
+                user_id=user_id,
+                username=username,
+                fullname=fullname
+            )
+            
+            msg = f"""
+👋 Hallo... {mention} (@{username})
+
+__Selamat datang di INDOTAG MARKET, Buka miniapp dan lakukan perdagangan yang nyata!__
+            """
+            
+            buttons = [
+              [Button.url("📱 OPEN MINIAPP", "https://t.me/indotagbot/market")]
+            ]
+            
+            await event.respond(mesg, buttons=buttons)
+            
+            db.add_activity_log(
+                user_id, "BOT_START", f"@{username} Start bot!"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Handle start error: {e}")
+            traceback.print_exc()
+            try:
+                await event.respond(f"❌ Terjadi kesalahan, segera hubungi admin!\n{e}")
+            except:
+                pass
+    
     @bot.on(events.CallbackQuery(pattern=b"verify_"))
     async def verify_callback(event):
         """Handle verification button press"""
