@@ -2799,11 +2799,43 @@
             renderGames();
       
             if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.expand();
-                window.Telegram.WebApp.ready();
-                console.log('📱 Telegram WebApp ready');
+              // 1. Expand dan ready seperti biasa
+              window.Telegram.WebApp.expand();
+              window.Telegram.WebApp.ready();
+              console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
+            
+              // 2. Cek apakah versi mendukung fullscreen (Bot API 8.0 ke atas)
+              //    Versi 8.0 sesuai dokumentasi setara dengan Telegram.WebApp.version 8.0
+              if (window.Telegram.WebApp.isVersionAtLeast('8.0')) {
+            
+                // Opsi A: Minta fullscreen langsung (mungkin但 butuh interaksi)
+                // window.Telegram.WebApp.requestFullscreen();
+            
+                // Opsi B (Rekomendasi): Minta fullscreen setelah app siap dan ada sedikit jeda
+                // atau lebih baik dipicu tombol "Fullscreen" di dalam app
+                setTimeout(() => {
+                  try {
+                    window.Telegram.WebApp.requestFullscreen();
+                    console.log('✅ Fullscreen requested');
+                  } catch (e) {
+                    console.warn('⚠️ Fullscreen request failed:', e);
+                  }
+                }, 500); // Jeda 500ms setelah ready
+            
+                // 3. Pantau perubahan status fullscreen
+                window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
+                  console.log('🔄 Fullscreen changed:', window.Telegram.WebApp.isFullscreen);
+                });
+            
+                window.Telegram.WebApp.onEvent('fullscreenFailed', () => {
+                  console.warn('❌ Fullscreen failed');
+                });
+            
+              } else {
+                console.log('ℹ️ Fullscreen not supported in this Telegram version');
+              }
             }
-      
+            
             console.log('✅ INDOTAG MARKET initialized successfully');
       
         } catch (error) {
