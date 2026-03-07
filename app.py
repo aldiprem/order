@@ -3,6 +3,11 @@ from flask_cors import CORS
 from database.data import Database
 import os
 import logging
+import asyncio
+import threading
+import requests
+import sqlite3
+from b import process_bot_request, run_bot
 
 app = Flask(__name__, static_folder='.')
 
@@ -24,7 +29,44 @@ logger = logging.getLogger(__name__)
 # Initialize database
 db = Database()
 
-# Serve static files
+# Thread untuk menjalankan bot
+bot_thread = None
+
+def start_bot_thread():
+    """Start bot in separate thread"""
+    global bot_thread
+    if bot_thread is None or not bot_thread.is_alive():
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        logger.info("✅ Bot thread started")
+
+# Panggil saat startup
+start_bot_thread()
+
+# ==================== FUNGSI UTILITY ====================
+
+def call_bot_sync(request_type, params, timeout=30):
+    """Panggil fungsi bot secara synchronous"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(
+            asyncio.wait_for(
+                process_bot_request(request_type, params),
+                timeout=timeout
+            )
+        )
+        loop.close()
+        return result
+    except asyncio.TimeoutError:
+        logger.error(f"Bot request timeout: {request_type}")
+        return {'success': False, 'error': 'Request timeout'}
+    except Exception as e:
+        logger.error(f"Error calling bot: {e}")
+        return {'success': False, 'error': str(e)}
+
+# ==================== SERVE STATIC FILES ====================
+
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
@@ -42,10 +84,48 @@ def serve_static(path):
     # Untuk file seperti config.js di root
     return send_from_directory('.', path)
 
-# API Routes
+# ==================== API ENDPOINTS BOT ====================
+
+@app.route('/api/bot/get-entity', methods=['POST'])
+def bot_get_entity():
+    """Endpoint untuk mendapatkan entity info dari username"""
+    data = request.json
+    result = call_bot_sync('get_entity', data)
+    return jsonify(result)
+
+@app.route('/api/bot/get-channel-creator', methods=['POST'])
+def bot_get_channel_creator():
+    """Endpoint untuk mendapatkan creator/owner channel"""
+    data = request.json
+    result = call_bot_sync('get_channel_creator', data)
+    return jsonify(result)
+
+@app.route('/api/bot/send-otp', methods=['POST'])
+def bot_send_otp():
+    """Endpoint untuk mengirim OTP ke user"""
+    data = request.json
+    result = call_bot_sync('send_otp', data)
+    return jsonify(result)
+
+@app.route('/api/bot/send-channel-verification', methods=['POST'])
+def bot_send_channel_verification():
+    """Endpoint untuk mengirim pesan verifikasi ke channel"""
+    data = request.json
+    result = call_bot_sync('send_channel_verification', data)
+    return jsonify(result)
+
+@app.route('/api/bot/notify-requester', methods=['POST'])
+def bot_notify_requester():
+    """Endpoint untuk mengirim notifikasi ke requester"""
+    data = request.json
+    result = call_bot_sync('notify_requester', data)
+    return jsonify(result)
+
+# ==================== API ENDPOINTS DATABASE ====================
+
 @app.route('/api/verify-user', methods=['POST', 'OPTIONS'])
 def verify_user():
-    # Handle preflight request
+    """Verifikasi user Telegram"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -53,7 +133,6 @@ def verify_user():
         user_data = request.json
         logger.info(f"Verifying user: {user_data.get('id')}")
         
-        # Add or update user in database
         db.add_user(
             user_id=user_data.get('id'),
             fullname=user_data.get('first_name', '') + ' ' + (user_data.get('last_name', '') or ''),
@@ -66,7 +145,7 @@ def verify_user():
 
 @app.route('/api/market', methods=['GET', 'OPTIONS'])
 def get_market():
-    # Handle preflight request
+    """Get all listed usernames for market"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -81,7 +160,7 @@ def get_market():
         
         logger.info(f"Market request with filters: search={search}, based_on={based_on}, type={type_filter}, price={min_price}-{max_price}, sort={sort_by}")
         
-        # Get all listed usernames (sudah termasuk shape dari database)
+        # Get all listed usernames
         usernames = db.get_listed_usernames()
         logger.info(f"Found {len(usernames)} listed usernames from database")
         
@@ -100,9 +179,9 @@ def get_market():
         usernames = [u for u in usernames if min_price <= (u[11] or 0) <= max_price]
         logger.info(f"After price filter: {len(usernames)} usernames")
         
-        # Filter by type (shape) - GUNAKAN SHAPE DARI DATABASE (index 12)
-        if type_filter:
-            usernames = [u for u in usernames if u[12] == type_filter]  # shape di index 12
+        # Filter by type (shape)
+        if type_filter and type_filter != 'all':
+            usernames = [u for u in usernames if u[12] == type_filter]
             logger.info(f"After type filter: {len(usernames)} usernames")
         
         # Sort results
@@ -114,8 +193,12 @@ def get_market():
             usernames.sort(key=lambda x: len(x[9] or '') if x[9] else 0)
         elif sort_by == 'char_desc':
             usernames.sort(key=lambda x: len(x[9] or '') if x[9] else 0, reverse=True)
+        elif sort_by == 'alpha_asc':
+            usernames.sort(key=lambda x: x[1].lower() if x[1] else '')
+        elif sort_by == 'alpha_desc':
+            usernames.sort(key=lambda x: x[1].lower() if x[1] else '', reverse=True)
         elif sort_by == 'latest':
-            usernames.sort(key=lambda x: x[13] or '', reverse=True)  # updated_at di index 13
+            usernames.sort(key=lambda x: x[14] or '', reverse=True)  # updated_at
         
         result = []
         for u in usernames:
@@ -132,7 +215,7 @@ def get_market():
                 'kind': u[13] if len(u) > 13 else 'MULCHAR INDO'
             })
         
-        logger.info(f"Returning {len(result)} formatted usernames with shape and kind from database")
+        logger.info(f"Returning {len(result)} formatted usernames")
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error in /api/market: {e}")
@@ -142,7 +225,7 @@ def get_market():
 
 @app.route('/api/based-on-list', methods=['GET', 'OPTIONS'])
 def get_based_on_list():
-    # Handle preflight request
+    """Get all unique based_on values"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -156,7 +239,7 @@ def get_based_on_list():
 
 @app.route('/api/username/<path:username>', methods=['GET', 'OPTIONS'])
 def get_username_detail(username):
-    # Handle preflight request
+    """Get detailed info about a specific username"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -165,14 +248,12 @@ def get_username_detail(username):
         clean_username = username.replace('@', '')
         logger.info(f"Getting detail for username: {clean_username}")
         
-        # Get username detail from database
         usn_detail = db.get_username_detail(clean_username)
         
         if not usn_detail:
             logger.warning(f"Username not found: {clean_username}")
             return jsonify({'error': 'Username not found'}), 404
         
-        # Format response
         result = {
             'id': usn_detail[0],
             'username': usn_detail[1],
@@ -201,7 +282,7 @@ def get_username_detail(username):
 
 @app.route('/api/user-usernames/<int:user_id>', methods=['GET', 'OPTIONS'])
 def get_user_usernames(user_id):
-    # Handle preflight request
+    """Get all usernames added by a specific user"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -226,7 +307,7 @@ def get_user_usernames(user_id):
 
 @app.route('/api/activity/<int:user_id>', methods=['GET', 'OPTIONS'])
 def get_user_activity(user_id):
-    # Handle preflight request
+    """Get activity logs for a user"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -247,24 +328,18 @@ def get_user_activity(user_id):
         logger.error(f"Error in /api/activity: {e}")
         return jsonify([]), 500
 
-# Tambahkan endpoint ini di app.py
-
 @app.route('/api/activities/all', methods=['GET', 'OPTIONS'])
 def get_all_activities():
-    # Handle preflight request
+    """Get all activities with pagination"""
     if request.method == 'OPTIONS':
         return '', 200
         
     try:
-        # Get page and limit from query parameters
         page = request.args.get('page', default=1, type=int)
         limit = request.args.get('limit', default=50, type=int)
         
         logger.info(f"Getting all activities, page={page}, limit={limit}")
         
-        # You need to create this method in Database class
-        # For now, we'll get activities from multiple users
-        # This is a placeholder - you need to implement get_all_activity_logs in data.py
         logs, total = db.get_all_activity_logs(page, limit)
         
         result = []
@@ -284,55 +359,15 @@ def get_all_activities():
         logger.error(f"Error in /api/activities/all: {e}")
         return jsonify([]), 500
 
-@app.after_request
-def after_request(response):
-    """Add headers to all responses"""
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    
-    # Untuk development, bisa ditambahkan origin spesifik
-    origin = request.headers.get('Origin')
-    if origin and (origin.startswith('https://aldiprem.github.io') or 
-                   origin.startswith('http://localhost') or 
-                   'trycloudflare.com' in origin):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-    
-    return response
-
-# ==================== ENDPOINT UNTUK REQUEST USERNAME ====================
-@app.route('/api/request-username', methods=['POST', 'OPTIONS'])
-def request_username():
-    if request.method == 'OPTIONS':
-        return '', 200
-        
-    try:
-        data = request.json
-        username = data.get('username')
-        user_id = data.get('user_id')
-        
-        # Bersihkan username
-        clean_username = username.replace('@', '')
-        
-        # Panggil bot untuk memproses (via API internal)
-        # Ini akan memanggil fungsi yang sama seperti di b.py
-        
-        # Untuk sementara, return sukses
-        return jsonify({'success': True, 'message': 'Request sent'})
-        
-    except Exception as e:
-        logger.error(f"Error in request-username: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/api/pending-requests/<int:user_id>', methods=['GET', 'OPTIONS'])
 def get_pending_requests(user_id):
+    """Get pending requests for a user"""
     if request.method == 'OPTIONS':
         return '', 200
         
     try:
         pending = db.get_user_pending_requests(user_id)
         
-        # Format untuk response
         result = []
         for req in pending:
             result.append({
@@ -349,60 +384,126 @@ def get_pending_requests(user_id):
         logger.error(f"Error in pending-requests: {e}")
         return jsonify([]), 500
 
-@app.route('/api/verify-otp', methods=['POST', 'OPTIONS'])
-def verify_otp():
-    if request.method == 'OPTIONS':
-        return '', 200
+@app.route('/api/create-verification-session', methods=['POST'])
+def create_verification_session():
+    """Buat session verifikasi baru"""
+    try:
+        data = request.json
+        username = data.get('username')
+        type_ = data.get('type')
+        requester_id = data.get('requester_id')
+        owner_id = data.get('owner_id')
         
+        if not username or not type_ or not requester_id:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Generate OTP untuk user
+        otp_code = None
+        if type_ == 'user':
+            otp_code = db.generate_otp()
+        
+        # Generate session ID
+        session_id = db.generate_verification_id()
+        
+        # Simpan di database
+        result = db.create_verification_session(
+            session_id,
+            username,
+            type_,
+            requester_id,
+            owner_id,
+            otp_code
+        )
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'session_id': session_id,
+                'otp_code': otp_code
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Gagal membuat session'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in create_verification_session: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/check-user-exists', methods=['POST'])
+def check_user_exists():
+    """Cek apakah user sudah ada di database"""
+    try:
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'success': False, 'error': 'Username diperlukan'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '')
+        
+        user = db.get_user_by_username(clean_username)
+        
+        return jsonify({
+            'success': True,
+            'exists': user is not None
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in check_user_exists: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/verify-otp', methods=['POST'])
+def verify_otp():
+    """Verifikasi OTP dari website"""
     try:
         data = request.json
         request_id = data.get('request_id')
         otp_code = data.get('otp_code')
+        user_id = data.get('user_id')
         
-        # Verifikasi OTP
-        # Ini perlu diintegrasikan dengan database
+        if not request_id or not otp_code or not user_id:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
         
-        return jsonify({'success': True})
+        # Cek session di database
+        session = db.get_verification_session(request_id)
         
-    except Exception as e:
-        logger.error(f"Error in verify-otp: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/debug/webapp-requests', methods=['GET'])
-def debug_webapp_requests():
-    """Debug endpoint to see all webapp requests"""
-    try:
-        conn = sqlite3.connect("database/indotag.db")
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
+        if not session:
+            return jsonify({'success': False, 'error': 'Sesi tidak valid'}), 404
         
-        # Cek apakah tabel ada
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='webapp_requests'")
-        if not cur.fetchone():
-            return jsonify({'error': 'Table webapp_requests not found'}), 404
-            
-        cur.execute("SELECT * FROM webapp_requests ORDER BY created_at DESC LIMIT 20")
-        rows = cur.fetchall()
+        if session[6] != otp_code:  # otp_code
+            return jsonify({'success': False, 'error': 'Kode OTP salah'}), 400
         
-        result = []
-        for row in rows:
-            result.append({
-                'id': row[0],
-                'request_id': row[1],
-                'username': row[2],
-                'requester_id': row[3],
-                'status': row[4],
-                'created_at': str(row[5]) if row[5] else None,
-                'updated_at': str(row[6]) if row[6] else None
+        # OTP benar - proses verifikasi
+        username = session[2]
+        type_ = session[3]
+        requester_id = session[4]
+        owner_id = session[5]
+        
+        # Update session
+        db.update_verification_session(request_id, status="verified")
+        
+        # Add username
+        success = db.add_username_request(username, type_, owner_id, None, requester_id)
+        
+        if success:
+            # Kirim notifikasi ke requester via bot
+            call_bot_sync('notify_requester', {
+                'requester_id': requester_id,
+                'message': f'Username @{username} berhasil diverifikasi!',
+                'is_success': True
             })
+            
+            return jsonify({'success': True, 'message': 'Verifikasi berhasil'})
+        else:
+            return jsonify({'success': False, 'error': 'Gagal menambahkan ke database'}), 500
         
-        conn.close()
-        return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error in verify_otp: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/webapp/add-username', methods=['POST', 'OPTIONS'])
 def webapp_add_username():
+    """Endpoint untuk menambah username dari webapp"""
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -440,11 +541,6 @@ def webapp_add_username():
         
         if success:
             print(f"✅ SUCCESS: Webapp request saved with ID: {request_id}")
-            
-            # Verifikasi data tersimpan
-            verify = db.get_verification_session(request_id)
-            print(f"Verification check: {verify}")
-            
             return jsonify({
                 'success': True, 
                 'message': 'Permintaan telah dikirim', 
@@ -460,92 +556,54 @@ def webapp_add_username():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-def process_webapp_username_request(username, requester_id):
-    """Proses permintaan username dari web app"""
+@app.route('/api/debug/webapp-requests', methods=['GET'])
+def debug_webapp_requests():
+    """Debug endpoint to see all webapp requests"""
     try:
-        # Import fungsi yang diperlukan dari bot
-        # Note: Ini akan dijalankan di thread terpisah, perlu hati-hati dengan asyncio
+        conn = sqlite3.connect("database/indotag.db")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
         
-        # Buat session ID untuk request ini
-        request_id = db.generate_verification_id()
+        # Cek apakah tabel ada
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='webapp_requests'")
+        if not cur.fetchone():
+            return jsonify({'error': 'Table webapp_requests not found'}), 404
+            
+        cur.execute("SELECT * FROM webapp_requests ORDER BY created_at DESC LIMIT 20")
+        rows = cur.fetchall()
         
-        # Simpan di database sebagai pending request dari web app
-        db.create_webapp_request(request_id, username, requester_id)
+        result = []
+        for row in rows:
+            result.append({
+                'id': row[0],
+                'request_id': row[1],
+                'username': row[2],
+                'requester_id': row[3],
+                'status': row[4],
+                'created_at': str(row[5]) if row[5] else None,
+                'updated_at': str(row[6]) if row[6] else None
+            })
         
-        # Di sini kita perlu mengirim notifikasi ke bot untuk diproses
-        # Cara termudah: simpan di database dan bot akan mengecek secara periodik
-        # atau gunakan mekanisme queue/celery
-        
-        return {'success': True, 'request_id': request_id}
-        
+        conn.close()
+        return jsonify(result)
     except Exception as e:
-        logger.error(f"Error processing webapp request: {e}")
-        return {'success': False, 'error': str(e)}
+        return jsonify({'error': str(e)}), 500
 
-def determine_username_type(username, based_on):
-    """Determine username type based on rules"""
-    if not based_on:
-        return "UNCOMMON"
+@app.after_request
+def after_request(response):
+    """Add headers to all responses"""
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
     
-    username_lower = username.lower()
-    based_on_lower = based_on.lower()
+    # Untuk development, bisa ditambahkan origin spesifik
+    origin = request.headers.get('Origin')
+    if origin and (origin.startswith('https://aldiprem.github.io') or 
+                   origin.startswith('http://localhost') or 
+                   'trycloudflare.com' in origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
     
-    # Check for OP (exact match)
-    if username_lower == based_on_lower:
-        return "OP"
-    
-    # Check for SCANON (adds 's' at end)
-    if username_lower == based_on_lower + 's':
-        return "SCANON"
-    
-    # Check for SOP (double letters)
-    for i in range(len(based_on_lower)-1):
-        if based_on_lower[i] == based_on_lower[i+1]:
-            if username_lower == based_on_lower[:i+1] + based_on_lower[i+1:]:
-                return "SOP"
-    
-    # Check for CANON (i to l or l to i)
-    canon_possible = False
-    for a, b in zip(username_lower, based_on_lower):
-        if (a == 'l' and b == 'i') or (a == 'i' and b == 'l'):
-            canon_possible = True
-        elif a != b:
-            canon_possible = False
-            break
-    if canon_possible and len(username_lower) == len(based_on_lower):
-        return "CANON"
-    
-    # Check for TAMPING (add letter at beginning or end)
-    if len(username_lower) == len(based_on_lower) + 1:
-        if username_lower.startswith(based_on_lower) or username_lower.endswith(based_on_lower):
-            return "TAMPING"
-    
-    # Check for TAMDAL (add letter in middle)
-    if len(username_lower) == len(based_on_lower) + 1:
-        for i in range(len(based_on_lower)):
-            if username_lower.startswith(based_on_lower[:i]) and username_lower[i+1:].startswith(based_on_lower[i:]):
-                return "TAMDAL"
-    
-    # Check for GANHUR (replace one letter)
-    if len(username_lower) == len(based_on_lower):
-        diff_count = sum(1 for a, b in zip(username_lower, based_on_lower) if a != b)
-        if diff_count == 1:
-            return "GANHUR"
-    
-    # Check for SWITCH (swap adjacent letters)
-    if len(username_lower) == len(based_on_lower):
-        for i in range(len(based_on_lower)-1):
-            switched = based_on_lower[:i] + based_on_lower[i+1] + based_on_lower[i] + based_on_lower[i+2:]
-            if switched == username_lower:
-                return "SWITCH"
-    
-    # Check for KURHUF (remove one letter)
-    if len(username_lower) == len(based_on_lower) - 1:
-        for i in range(len(based_on_lower)):
-            if username_lower == based_on_lower[:i] + based_on_lower[i+1:]:
-                return "KURHUF"
-    
-    return "UNCOMMON"
+    return response
 
 if __name__ == '__main__':
     logger.info("Starting Flask server on port 4000...")
