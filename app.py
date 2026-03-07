@@ -5,6 +5,8 @@ import logging
 import threading
 import sqlite3
 import time
+import signal
+import sys
 from b import call_bot_sync, run_bot, is_bot_ready, db  # Import db dari b.py
 
 app = Flask(__name__, static_folder='.')
@@ -30,6 +32,18 @@ logger = logging.getLogger(__name__)
 # Bot thread
 bot_thread = None
 bot_started = False
+shutdown_event = threading.Event()
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals"""
+    logger.info("🛑 Shutting down...")
+    shutdown_event.set()
+    # Close database connections
+    db.close_all_connections()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def start_bot_thread():
     """Start bot in separate thread"""
@@ -42,7 +56,7 @@ def start_bot_thread():
         
         # Tunggu bot siap
         wait_start = time.time()
-        while time.time() - wait_start < 30:  # Wait max 30 seconds
+        while time.time() - wait_start < 30 and not shutdown_event.is_set():  # Wait max 30 seconds
             if is_bot_ready():
                 logger.info("✅ Bot is ready")
                 break
@@ -664,4 +678,5 @@ def after_request(response):
 
 if __name__ == '__main__':
     logger.info("Starting Flask server on port 4000...")
-    app.run(host='0.0.0.0', port=4000, debug=True)
+    # Nonaktifkan debug mode untuk mencegah restart
+    app.run(host='0.0.0.0', port=4000, debug=False, use_reloader=False)
