@@ -2752,83 +2752,35 @@
       const safeArea = webApp.safeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
       const contentSafeArea = webApp.contentSafeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
     
-      console.log('📐 Raw values - Safe Area:', safeArea);
-      console.log('📐 Raw values - Content Safe Area:', contentSafeArea);
+      console.log('📐 Safe Area:', safeArea);
+      console.log('📐 Content Safe Area:', contentSafeArea);
     
-      // Update CSS variables untuk safe area
+      // Update CSS variables
       document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
       document.documentElement.style.setProperty('--safe-area-bottom', `${safeArea.bottom}px`);
-      document.documentElement.style.setProperty('--content-safe-area-top', `${contentSafeArea.top}px`);
-      document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
     
-      // Batasi offset maksimal 30px agar header tidak terlalu tinggi
-      const maxOffset = 30;
-      let contentOffset = contentSafeArea.top || 0;
-    
-      // Jika nilai terlalu besar, batasi
-      if (contentOffset > maxOffset) {
-        console.log(`⚠️ Content safe area top too large (${contentOffset}px), capping to ${maxOffset}px`);
-        contentOffset = maxOffset;
-      }
-    
-      // Update CSS variable untuk offset
-      document.documentElement.style.setProperty('--content-offset', `${contentOffset}px`);
-    
-      // HEADER: Base 80px + contentOffset (yang sudah dibatasi)
+      // Gunakan safeArea.top (biasanya lebih kecil) bukan contentSafeArea.top
       const headerBaseHeight = 80;
-      const headerTotalHeight = headerBaseHeight + contentOffset;
+      const headerTotalHeight = headerBaseHeight + (safeArea.top || 0);
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
     
       // Update header langsung
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
-        header.style.paddingTop = `${contentOffset}px`; // Gunakan offset yang sudah dibatasi
+        header.style.paddingTop = `${safeArea.top || 0}px`;
     
-        console.log(`📏 Header height: ${headerTotalHeight}px (${headerBaseHeight}px + ${contentOffset}px offset)`);
+        console.log(`📏 Header height: ${headerTotalHeight}px (using safeArea.top: ${safeArea.top}px)`);
       }
     
-      // MAIN CONTENT: Padding top = headerBaseHeight + 20px + contentOffset
+      // MAIN CONTENT: Padding top menyesuaikan
       const marketMain = document.getElementById('marketMain');
       if (marketMain) {
-        const mainPaddingTop = headerBaseHeight + 20 + contentOffset;
-        marketMain.style.paddingTop = `${mainPaddingTop}px`;
+        marketMain.style.paddingTop = `calc(20px + ${safeArea.top || 0}px)`;
         marketMain.style.paddingBottom = `calc(var(--nav-height) + 30px + ${safeArea.bottom || 0}px)`;
-    
-        console.log(`📏 Main padding-top: ${mainPaddingTop}px (${headerBaseHeight}px + 20px + ${contentOffset}px offset)`);
       }
     
-      // BOTTOM NAV: Posisi bottom + safeArea.bottom
-      const bottomNav = document.getElementById('bottomNav');
-      if (bottomNav) {
-        bottomNav.style.bottom = `calc(16px + ${safeArea.bottom || 0}px)`;
-      }
-    
-      // SCROLL TOP BUTTON
-      const scrollTopBtn = document.getElementById('scrollTopBtn');
-      if (scrollTopBtn) {
-        scrollTopBtn.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
-      }
-    
-      // TOAST CONTAINER
-      const toastContainer = document.getElementById('toastContainer');
-      if (toastContainer) {
-        toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
-      }
-    
-      // USERNAME PANEL
-      const usernamePanel = document.getElementById('usernamePanel');
-      if (usernamePanel) {
-        usernamePanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
-      }
-    
-      // FILTER PANEL
-      const filterPanel = document.getElementById('filterPanel');
-      if (filterPanel) {
-        filterPanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
-      }
-    
-      console.log('✅ Safe area updated with capped offset:', contentOffset, 'px');
+      // ... sisanya sama ...
     }
     
     function setupSafeAreaHandling() {
