@@ -1893,3 +1893,114 @@ body {
     margin-bottom: 16px;
     opacity: 0.3;
 }
+
+/* ===== NOTIFICATION DETAIL CARDS ===== */
+.detail-card {
+    animation: slideInCard 0.3s ease;
+}
+
+@keyframes slideInCard {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notification-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+}
+
+.notification-item.pending {
+    border-left-color: #f59e0b;
+}
+
+.notification-item:hover {
+    transform: translateX(4px);
+    background: rgba(64, 167, 227, 0.1);
+}
+
+.notification-type {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.notification-type.otp {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.notification-type.channel {
+    background: rgba(64, 167, 227, 0.2);
+    border: 1px solid rgba(64, 167, 227, 0.3);
+    color: #40a7e3;
+}
+
+.notification-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notification-title i {
+    color: #40a7e3;
+    font-size: 14px;
+}
+
+.notification-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.notification-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    align-items: center;
+}
+
+.notification-meta i {
+    color: #40a7e3;
+    margin-right: 4px;
+}
+
+/* Modal Input OTP */
+#otpInput {
+    font-size: 24px;
+    letter-spacing: 8px;
+    font-family: monospace;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #40a7e3;
+}
+
+#otpInput:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+/* Result Cards */
+#usernameCheckResult {
+    animation: fadeIn 0.3s ease;
+}
+
+#usernameCheckResult button {
+    margin-top: 12px;
+}
