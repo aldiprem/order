@@ -13,27 +13,48 @@
     --border-hover: rgba(64, 167, 227, 0.3);
 }
 
-/* Panel Container - Paling Atas */
+/* ===== USERNAME PANEL ===== */
 .username-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-height: 90vh;
-    width: 100%;
-    background: var(--panel-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: none;
-    border-top: 1px solid var(--panel-border);
-    border-radius: 24px 24px 0 0;
-    transform: translateY(100%);
-    transition: transform 0.3s ease-out;
-    z-index: 10000; /* LEBIH TINGGI DARI SEMUA ELEMEN */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 90vh;
+  width: 100%;
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  border-radius: 24px 24px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* ===== FILTER PANEL ===== */
+.filter-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--filter-panel-height);
+  background: rgba(20, 20, 20, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px 30px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+  padding-bottom: var(--safe-area-bottom);
 }
 
 .username-panel.show {
