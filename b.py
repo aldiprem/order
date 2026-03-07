@@ -7,9 +7,9 @@ import logging
 from database.data import Database
 
 # Konfigurasi
-API_ID = 24576633
-API_HASH = "29931cf620fad738ee7f69442c98e2ee"
-BOT_TOKEN = "8560327887:AAHCjef_6K20ZCzqDHuFkO5UpmWS9STYv7M"
+API_ID = int(os.getenv('TELEGRAM_API_ID', ''))
+API_HASH = os.getenv('TELEGRAM_API_HASH', '')
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 
 # Inisialisasi bot dan database
 bot = TelegramClient("indotag", API_ID, API_HASH)
@@ -18,6 +18,9 @@ db = Database()
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Global event loop untuk bot
+bot_loop = None
 
 # ==================== FUNGSI BOT CORE ====================
 
@@ -36,23 +39,27 @@ async def get_entity_info(username):
             entity = await bot.get_entity(username_with_at)
             logger.info(f"✅ Entity found: {type(entity).__name__} - ID: {entity.id}")
             
-            return entity
+            return {
+                'success': True,
+                'id': entity.id,
+                'username': username,
+                'type': 'channel' if isinstance(entity, Channel) else 'user' if isinstance(entity, User) else 'unknown'
+            }
         except Exception as e:
             error_str = str(e)
             logger.error(f"❌ Telethon error for {username_with_at}: {error_str}")
             
             # Kategorikan error
             if "Cannot find any entity" in error_str or "username not found" in error_str.lower():
-                raise Exception("ENTITY_NOT_FOUND")
+                return {'success': False, 'error': f'Username @{username} tidak ditemukan di Telegram'}
             elif "FLOOD_WAIT" in error_str:
-                wait_time = error_str.split("_")[-1] if "_" in error_str else "beberapa"
-                raise Exception(f"FLOOD_WAIT:{wait_time}")
+                return {'success': False, 'error': 'Terlalu banyak permintaan. Silakan coba lagi nanti.'}
             else:
-                raise Exception(f"TELEGRAM_ERROR:{error_str}")
+                return {'success': False, 'error': f'Kesalahan Telegram: {error_str}'}
             
     except Exception as e:
         logger.error(f"Error in get_entity_info for {username}: {str(e)}")
-        raise e
+        return {'success': False, 'error': str(e)}
 
 async def get_channel_creator(channel):
     """Get channel creator info"""
@@ -105,10 +112,10 @@ Jangan bagikan kode ini kepada siapapun.
             int(requester_id),
             f"✅ **Kode OTP telah dikirim ke @{username}**\n\nSilakan minta kode tersebut dan masukkan di website."
         )
-        return True
+        return {'success': True}
     except Exception as e:
         logger.error(f"Error sending OTP: {e}")
-        return False
+        return {'success': False, 'error': str(e)}
 
 async def send_channel_verification(channel_username, requester_id, requester_name, verification_id, is_admin_verification=False):
     """Send verification message to channel"""
@@ -142,10 +149,10 @@ Klik tombol di bawah untuk memverifikasi bahwa Anda adalah owner channel ini.
         
         buttons = [[Button.inline(button_text, data=f"verify_{verification_id}".encode())]]
         await bot.send_message(channel_with_at, verification_msg, buttons=buttons)
-        return True
+        return {'success': True}
     except Exception as e:
         logger.error(f"Error sending channel verification: {e}")
-        return False
+        return {'success': False, 'error': str(e)}
 
 async def notify_requester(requester_id, message, is_success=True):
     """Send notification to requester"""
@@ -153,10 +160,10 @@ async def notify_requester(requester_id, message, is_success=True):
         emoji = "✅" if is_success else "❌"
         full_message = f"{emoji} **Notifikasi**\n\n{message}"
         await bot.send_message(int(requester_id), full_message)
-        return True
+        return {'success': True}
     except Exception as e:
         logger.error(f"Error notifying requester: {e}")
-        return False
+        return {'success': False, 'error': str(e)}
 
 # ==================== FUNGSI UNTUK DIPANGGIL DARI FLASK ====================
 
@@ -167,20 +174,25 @@ async def process_bot_request(request_type, params):
             username = params.get('username')
             if username.startswith('@'):
                 username = username[1:]
-            entity = await get_entity_info(username)
-            if entity:
-                return {
-                    'success': True,
-                    'id': entity.id,
-                    'username': username,
-                    'type': 'channel' if isinstance(entity, Channel) else 'user' if isinstance(entity, User) else 'unknown'
-                }
-            return {'success': False, 'error': 'Entity not found'}
+            return await get_entity_info(username)
             
         elif request_type == 'get_channel_creator':
             username = params.get('username')
-            entity = await get_entity_info(username)
-            if entity and isinstance(entity, Channel):
+            entity_result = await get_entity_info(username)
+            if not entity_result.get('success'):
+                return entity_result
+            
+            # Dapatkan entity dari database atau dari hasil sebelumnya
+            try:
+                if not username.startswith('@'):
+                    username_with_at = '@' + username
+                else:
+                    username_with_at = username
+                entity = await bot.get_entity(username_with_at)
+                
+                if not isinstance(entity, Channel):
+                    return {'success': False, 'error': 'Bukan channel'}
+                
                 creator_id, creator_username = await get_channel_creator(entity)
                 return {
                     'success': True,
@@ -188,34 +200,32 @@ async def process_bot_request(request_type, params):
                     'creator_username': creator_username,
                     'channel_id': entity.id
                 }
-            return {'success': False, 'error': 'Not a channel'}
+            except Exception as e:
+                return {'success': False, 'error': str(e)}
             
         elif request_type == 'send_otp':
-            success = await send_otp_to_user(
+            return await send_otp_to_user(
                 params.get('user_id'),
                 params.get('username'),
                 params.get('otp_code'),
                 params.get('requester_id')
             )
-            return {'success': success}
             
         elif request_type == 'send_channel_verification':
-            success = await send_channel_verification(
+            return await send_channel_verification(
                 params.get('channel_username'),
                 params.get('requester_id'),
                 params.get('requester_name'),
                 params.get('verification_id'),
                 params.get('is_admin_verification', False)
             )
-            return {'success': success}
             
         elif request_type == 'notify_requester':
-            success = await notify_requester(
+            return await notify_requester(
                 params.get('requester_id'),
                 params.get('message'),
                 params.get('is_success', True)
             )
-            return {'success': success}
             
         else:
             return {'success': False, 'error': 'Unknown request type'}
@@ -276,15 +286,42 @@ async def verify_callback(event):
 
 async def start_bot():
     """Start the Telegram bot"""
+    global bot_loop
+    bot_loop = asyncio.get_running_loop()
     await bot.start(bot_token=BOT_TOKEN)
     logger.info("✅ Bot started successfully")
     await bot.run_until_disconnected()
 
 def run_bot():
-    """Run bot in event loop"""
+    """Run bot in event loop - fungsi ini akan dijalankan di thread terpisah"""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot())
+    try:
+        loop.run_until_complete(start_bot())
+    except Exception as e:
+        logger.error(f"Bot error: {e}")
+    finally:
+        loop.close()
+
+# ==================== FUNGSI UNTUK DIPANGGIL SINCHRONOUS DARI FLASK ====================
+
+def call_bot_sync(request_type, params):
+    """Wrapper synchronous untuk memanggil fungsi bot"""
+    try:
+        # Buat event loop baru untuk setiap request
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Jalankan async function
+        result = loop.run_until_complete(
+            process_bot_request(request_type, params)
+        )
+        
+        loop.close()
+        return result
+    except Exception as e:
+        logger.error(f"Error in call_bot_sync: {e}")
+        return {'success': False, 'error': str(e)}
 
 # Jangan jalankan Flask di sini, hanya export fungsi-fungsi yang diperlukan
-__all__ = ['bot', 'db', 'process_bot_request', 'run_bot']
+__all__ = ['bot', 'db', 'call_bot_sync', 'run_bot']
