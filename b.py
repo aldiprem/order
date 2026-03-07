@@ -63,7 +63,7 @@ async def init_bot():
 async def setup_handlers():
     """Setup bot handlers"""
     
-    @bot.on(events.CallbackQuery(pattern="^/start$"))
+    @bot.on(events.NewMessage(pattern="^/start$"))
     async def handle_start(event):
         try:
             user = await event.get_sender()
