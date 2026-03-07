@@ -2746,93 +2746,67 @@
     // ==================== SAFE AREA HANDLING ====================
     
     function updateSafeAreaInsets() {
-      if (!window.Telegram?.WebApp) {
-        console.warn('⚠️ Telegram WebApp not available');
-        return;
-      }
+      if (!window.Telegram?.WebApp) return;
     
       const webApp = window.Telegram.WebApp;
     
-      // Log semua properti yang tersedia
-      console.log('📱 WebApp Object:', {
-        version: webApp.version,
-        isFullscreen: webApp.isFullscreen,
-        safeAreaInset: webApp.safeAreaInset,
-        contentSafeAreaInset: webApp.contentSafeAreaInset
-      });
-    
-      // Dapatkan nilai safe area dengan default 0
+      // Dapatkan nilai safe area
       const safeArea = webApp.safeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
       const contentSafeArea = webApp.contentSafeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
     
-      console.log('📐 Safe Area Values:', {
-        safeAreaTop: safeArea.top,
-        safeAreaBottom: safeArea.bottom,
-        contentSafeAreaTop: contentSafeArea.top,
-        contentSafeAreaBottom: contentSafeArea.bottom
-      });
-    
-      // Hitung tinggi header baru (80px + safeArea.top)
-      const headerTotalHeight = 80 + (safeArea.top || 0);
-    
-      console.log('📏 Header height will be:', headerTotalHeight, 'px (80px +', safeArea.top, 'px)');
+      console.log('📐 Safe Area:', safeArea);
+      console.log('📐 Content Safe Area:', contentSafeArea);
     
       // Update CSS variables
       document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
       document.documentElement.style.setProperty('--safe-area-bottom', `${safeArea.bottom}px`);
-      document.documentElement.style.setProperty('--safe-area-left', `${safeArea.left}px`);
-      document.documentElement.style.setProperty('--safe-area-right', `${safeArea.right}px`);
-    
       document.documentElement.style.setProperty('--content-safe-area-top', `${contentSafeArea.top}px`);
       document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
     
-      // Set tinggi header total
+      // HEADER: Base 80px + safeArea.top
+      // Saat fullscreen, safeArea.top akan lebih besar (biasanya 40-60px)
+      const headerTotalHeight = 80 + (safeArea.top || 0);
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
     
-      // Update header height secara langsung juga
+      // Update header langsung
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
         header.style.paddingTop = `${safeArea.top || 0}px`;
-        console.log('✅ Header height updated to:', headerTotalHeight, 'px');
-      } else {
-        console.warn('⚠️ Header element not found');
       }
     
-      // Update main content padding top
+      // MAIN CONTENT: Padding top menyesuaikan contentSafeArea
       const marketMain = document.getElementById('marketMain');
       if (marketMain) {
         marketMain.style.paddingTop = `calc(20px + ${contentSafeArea.top || 0}px)`;
+        marketMain.style.paddingBottom = `calc(var(--nav-height) + 30px + ${safeArea.bottom || 0}px)`;
       }
     
-      // Update bottom navigation position
+      // BOTTOM NAV: Posisi bottom + safeArea.bottom
       const bottomNav = document.getElementById('bottomNav');
       if (bottomNav) {
         bottomNav.style.bottom = `calc(16px + ${safeArea.bottom || 0}px)`;
       }
     
-      // Update scroll to top button position
+      // SCROLL TOP BUTTON
       const scrollTopBtn = document.getElementById('scrollTopBtn');
       if (scrollTopBtn) {
         scrollTopBtn.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
       }
     
-      // Update toast container position
+      // TOAST CONTAINER
       const toastContainer = document.getElementById('toastContainer');
       if (toastContainer) {
         toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
       }
     }
     
-    // Panggil fungsi ini saat:
-    // 1. Setelah WebApp ready
-    // 2. Saat event safeAreaChanged
     function setupSafeAreaHandling() {
       if (!window.Telegram?.WebApp) return;
     
       const webApp = window.Telegram.WebApp;
     
-      // Update initial safe area
+      // Update initial
       updateSafeAreaInsets();
     
       // Listen for safe area changes
@@ -2846,10 +2820,10 @@
         updateSafeAreaInsets();
       });
     
-      // Also update when fullscreen changes
       webApp.onEvent('fullscreenChanged', () => {
         console.log('🔄 Fullscreen changed, updating safe area');
-        setTimeout(updateSafeAreaInsets, 100); // Small delay for transition
+        // Small delay for transition
+        setTimeout(updateSafeAreaInsets, 100);
       });
     }
 
@@ -2918,7 +2892,7 @@
               setupSafeAreaHandling();
             
               // 3. Cek fullscreen support
-              if (window.Telegram.WebApp.isVersionAtLeast('8.0')) {
+              if (window.Telegram.WebApp.isVersionAtLeast('6.0')) {
                 setTimeout(() => {
                   try {
                     window.Telegram.WebApp.requestFullscreen();
@@ -2926,7 +2900,7 @@
                   } catch (e) {
                     console.warn('⚠️ Fullscreen request failed:', e);
                   }
-                }, 500);
+                }, 200);
             
                 // Pantau perubahan fullscreen
                 window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
