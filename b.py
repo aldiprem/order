@@ -20,6 +20,8 @@ db = Database()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 # Global event loop untuk bot
 bot_loop = None
 
