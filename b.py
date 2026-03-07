@@ -70,10 +70,9 @@ async def setup_handlers():
             user_id = user.id
             first_name = user.first_name or ""
             last_name = user.last_name or ""
-            mention = f"[{fullname}](tg://user?id={user_id})"
             username = user.username
-            
             fullname = f"{first_name} {last_name}".strip()
+            mention = f"[{fullname}](tg://user?id={user_id})"
             if not fullname:
                 fullbame = "NO NAME"
             
