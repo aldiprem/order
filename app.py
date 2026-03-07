@@ -25,9 +25,6 @@ CORS(app, origins=[
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize database
-db = Database()
-
 # Bot thread
 bot_thread = None
 bot_started = False
