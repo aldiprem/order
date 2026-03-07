@@ -5,7 +5,8 @@ import os
 import logging
 import threading
 import sqlite3
-from b import call_bot_sync, run_bot  # Import call_bot_sync, bukan process_bot_request
+import os
+from b import call_bot_sync, run_bot
 
 app = Flask(__name__, static_folder='.')
 
