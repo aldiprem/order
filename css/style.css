@@ -202,7 +202,7 @@ body {
     padding-left: 20px;
     padding-right: 20px;
     display: flex;
-    align-items: flex-end; /* Konten di dalam header tetap di bawah */
+    align-items: flex-end;
     justify-content: space-between;
     position: relative;
     z-index: 100;
@@ -497,10 +497,17 @@ body {
 .page-content {
     display: none;
     animation: fadeIn 0.3s ease;
+    height: 100%;
 }
 
 .page-content.active {
     display: block;
+}
+
+.content-wrapper {
+    padding: 0 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
 @keyframes fadeIn {
