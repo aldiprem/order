@@ -89,9 +89,24 @@ def serve_static(path):
 @app.route('/api/bot/get-entity', methods=['POST'])
 def bot_get_entity():
     """Endpoint untuk mendapatkan entity info dari username"""
-    data = request.json
-    result = call_bot_sync('get_entity', data)
-    return jsonify(result)
+    try:
+        data = request.json
+        logger.info(f"📥 GET ENTITY request: {data}")
+        
+        if not data or 'username' not in data:
+            logger.error("❌ Missing username parameter")
+            return jsonify({'success': False, 'error': 'Username diperlukan'}), 400
+        
+        username = data.get('username')
+        logger.info(f"🔍 Checking username: {username}")
+        
+        result = call_bot_sync('get_entity', data)
+        logger.info(f"📤 GET ENTITY response: {result}")
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_get_entity: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/bot/get-channel-creator', methods=['POST'])
 def bot_get_channel_creator():
