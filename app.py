@@ -656,6 +656,82 @@ def debug_webapp_requests():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/update-based-on', methods=['POST', 'OPTIONS'])
+def update_based_on():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        based_on = data.get('based_on')
+        
+        if not username or based_on is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_based_on(username, based_on)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_based_on: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-listed-status', methods=['POST', 'OPTIONS'])
+def update_listed_status():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        status = data.get('status')
+        
+        if not username or not status:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_listed_status(username, status)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_listed_status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-kind', methods=['POST', 'OPTIONS'])
+def update_kind():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        kind = data.get('kind')
+        
+        if not username or not kind:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_kind(username, kind)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_kind: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-price', methods=['POST', 'OPTIONS'])
+def update_price():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        price = data.get('price')
+        
+        if not username or price is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_price(username, price)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_price: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== CORS HEADERS ====================
 
 @app.after_request
