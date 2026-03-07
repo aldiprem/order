@@ -2743,8 +2743,6 @@
         });
     }
 
-    // ==================== SAFE AREA HANDLING ====================
-    
     function updateSafeAreaInsets() {
       if (!window.Telegram?.WebApp) return;
     
@@ -2754,41 +2752,50 @@
       const safeArea = webApp.safeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
       const contentSafeArea = webApp.contentSafeAreaInset || { top: 0, bottom: 0, left: 0, right: 0 };
     
-      console.log('📐 Safe Area:', safeArea);
-      console.log('📐 Content Safe Area:', contentSafeArea);
+      console.log('📐 Raw values - Safe Area:', safeArea);
+      console.log('📐 Raw values - Content Safe Area:', contentSafeArea);
     
-      // Update CSS variables
+      // Update CSS variables untuk safe area
       document.documentElement.style.setProperty('--safe-area-top', `${safeArea.top}px`);
       document.documentElement.style.setProperty('--safe-area-bottom', `${safeArea.bottom}px`);
       document.documentElement.style.setProperty('--content-safe-area-top', `${contentSafeArea.top}px`);
       document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
     
-      // HEADER: Base 80px + contentSafeArea.top
+      // Batasi offset maksimal 30px agar header tidak terlalu tinggi
+      const maxOffset = 30;
+      let contentOffset = contentSafeArea.top || 0;
+    
+      // Jika nilai terlalu besar, batasi
+      if (contentOffset > maxOffset) {
+        console.log(`⚠️ Content safe area top too large (${contentOffset}px), capping to ${maxOffset}px`);
+        contentOffset = maxOffset;
+      }
+    
+      // Update CSS variable untuk offset
+      document.documentElement.style.setProperty('--content-offset', `${contentOffset}px`);
+    
+      // HEADER: Base 80px + contentOffset (yang sudah dibatasi)
       const headerBaseHeight = 80;
-      const headerTotalHeight = headerBaseHeight + (contentSafeArea.top || 0);
+      const headerTotalHeight = headerBaseHeight + contentOffset;
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
     
       // Update header langsung
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
-        header.style.paddingTop = `${contentSafeArea.top || 0}px`;
+        header.style.paddingTop = `${contentOffset}px`; // Gunakan offset yang sudah dibatasi
     
-        // Log untuk debugging
-        console.log(`📏 Header height: ${headerTotalHeight}px, padding-top: ${contentSafeArea.top || 0}px`);
+        console.log(`📏 Header height: ${headerTotalHeight}px (${headerBaseHeight}px + ${contentOffset}px offset)`);
       }
     
-      // MAIN CONTENT: Padding top harus SAMA dengan header height
-      // Tapi karena header sudah termasuk padding-top, kita perlu menyesuaikan
+      // MAIN CONTENT: Padding top = headerBaseHeight + 20px + contentOffset
       const marketMain = document.getElementById('marketMain');
       if (marketMain) {
-        // Padding top = headerBaseHeight (80px) + jarak tambahan (20px)
-        // Ini akan membuat konten pertama (search box) tepat di bawah header border
-        const mainPaddingTop = headerBaseHeight + 20 + (contentSafeArea.top || 0);
+        const mainPaddingTop = headerBaseHeight + 20 + contentOffset;
         marketMain.style.paddingTop = `${mainPaddingTop}px`;
         marketMain.style.paddingBottom = `calc(var(--nav-height) + 30px + ${safeArea.bottom || 0}px)`;
     
-        console.log(`📏 Main padding-top: ${mainPaddingTop}px`);
+        console.log(`📏 Main padding-top: ${mainPaddingTop}px (${headerBaseHeight}px + 20px + ${contentOffset}px offset)`);
       }
     
       // BOTTOM NAV: Posisi bottom + safeArea.bottom
@@ -2809,19 +2816,19 @@
         toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
       }
     
-      // USERNAME PANEL: Tambahkan padding bottom untuk safe area
+      // USERNAME PANEL
       const usernamePanel = document.getElementById('usernamePanel');
       if (usernamePanel) {
         usernamePanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
       }
     
-      // FILTER PANEL: Tambahkan padding bottom untuk safe area
+      // FILTER PANEL
       const filterPanel = document.getElementById('filterPanel');
       if (filterPanel) {
         filterPanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
       }
     
-      console.log('✅ Safe area updated - Header should now be flush with search box');
+      console.log('✅ Safe area updated with capped offset:', contentOffset, 'px');
     }
     
     function setupSafeAreaHandling() {
@@ -2863,7 +2870,6 @@
     
         // Inisialisasi AudioManager dengan Howler.js
         if (window.AudioManager) {
-          // Delay sedikit agar Howler.js siap
           setTimeout(() => {
             window.AudioManager.init();
           }, 100);
@@ -2871,6 +2877,16 @@
     
         if (window.Telegram?.WebApp) {
           console.log('📱 Telegram WebApp detected, version:', window.Telegram.WebApp.version);
+    
+          // Tampilkan semua properti WebApp untuk debugging
+          console.log('📱 WebApp properties:', {
+            version: window.Telegram.WebApp.version,
+            isFullscreen: window.Telegram.WebApp.isFullscreen,
+            safeAreaInset: window.Telegram.WebApp.safeAreaInset,
+            contentSafeAreaInset: window.Telegram.WebApp.contentSafeAreaInset,
+            platform: window.Telegram.WebApp.platform
+          });
+    
           initHaptic();
           setTimeout(() => {
             playFeedback('light', 'click');
@@ -2884,7 +2900,9 @@
                 impactOccurred: (style) => console.log(`📳 [BROWSER] Haptic: ${style}`),
                 notificationOccurred: (type) => console.log(`📳 [BROWSER] Notification: ${type}`),
                 selectionChanged: () => console.log(`📳 [BROWSER] Selection changed`)
-              }
+              },
+              safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
+              contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 }
             }
           };
           initHaptic();
@@ -2913,13 +2931,13 @@
           // 1. Expand dan ready
           window.Telegram.WebApp.expand();
           window.Telegram.WebApp.ready();
-          console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
+          console.log('📱 Telegram WebApp ready');
     
-          // 2. Setup safe area handling (langsung setelah ready)
+          // 2. Setup safe area handling
           setupSafeAreaHandling();
     
-          // 3. Cek fullscreen support
-          if (window.Telegram.WebApp.isVersionAtLeast('6.0')) {
+          // 3. Cek fullscreen support (minimal v8.0 untuk fullscreen)
+          if (window.Telegram.WebApp.isVersionAtLeast && window.Telegram.WebApp.isVersionAtLeast('8.0')) {
             setTimeout(() => {
               try {
                 window.Telegram.WebApp.requestFullscreen();
@@ -2927,23 +2945,26 @@
               } catch (e) {
                 console.warn('⚠️ Fullscreen request failed:', e);
               }
-            }, 200);
-    
-            // Pantau perubahan fullscreen
-            window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
-              console.log('🔄 Fullscreen changed:', window.Telegram.WebApp.isFullscreen);
-            });
-    
-            window.Telegram.WebApp.onEvent('fullscreenFailed', () => {
-              console.warn('❌ Fullscreen failed');
-            });
+            }, 500);
           } else {
-            console.log('ℹ️ Fullscreen not supported');
+            console.log('ℹ️ Fullscreen not supported (need v8.0+, current:', window.Telegram.WebApp.version, ')');
           }
     
-          // 4. Force update safe area setelah beberapa waktu
-          setTimeout(updateSafeAreaInsets, 300);
-          setTimeout(updateSafeAreaInsets, 1000);
+          // 4. Force update safe area multiple times
+          setTimeout(() => {
+            updateSafeAreaInsets();
+            console.log('📏 Force update 1');
+          }, 500);
+    
+          setTimeout(() => {
+            updateSafeAreaInsets();
+            console.log('📏 Force update 2');
+          }, 1000);
+    
+          setTimeout(() => {
+            updateSafeAreaInsets();
+            console.log('📏 Force update 3');
+          }, 2000);
         }
     
         console.log('✅ INDOTAG MARKET initialized successfully');
