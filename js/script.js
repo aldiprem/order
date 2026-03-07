@@ -2763,16 +2763,17 @@
       document.documentElement.style.setProperty('--content-safe-area-top', `${contentSafeArea.top}px`);
       document.documentElement.style.setProperty('--content-safe-area-bottom', `${contentSafeArea.bottom}px`);
     
-      // HEADER: Base 80px + safeArea.top
-      // Saat fullscreen, safeArea.top akan lebih besar (biasanya 40-60px)
-      const headerTotalHeight = 80 + (safeArea.top || 0);
+      // HEADER: Base 80px + contentSafeArea.top
+      // Dengan ini, border header akan mengikuti area konten yang aman
+      const headerBaseHeight = 80;
+      const headerTotalHeight = headerBaseHeight + (contentSafeArea.top || 0);
       document.documentElement.style.setProperty('--header-total-height', `${headerTotalHeight}px`);
     
       // Update header langsung
       const header = document.querySelector('.market-header');
       if (header) {
         header.style.height = `${headerTotalHeight}px`;
-        header.style.paddingTop = `${safeArea.top || 0}px`;
+        header.style.paddingTop = `${contentSafeArea.top || 0}px`; // Gunakan contentSafeArea
       }
     
       // MAIN CONTENT: Padding top menyesuaikan contentSafeArea
@@ -2799,6 +2800,20 @@
       if (toastContainer) {
         toastContainer.style.bottom = `calc(90px + ${safeArea.bottom || 0}px)`;
       }
+    
+      // USERNAME PANEL: Tambahkan padding bottom untuk safe area
+      const usernamePanel = document.getElementById('usernamePanel');
+      if (usernamePanel) {
+        usernamePanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
+      }
+    
+      // FILTER PANEL: Tambahkan padding bottom untuk safe area
+      const filterPanel = document.getElementById('filterPanel');
+      if (filterPanel) {
+        filterPanel.style.paddingBottom = `${safeArea.bottom || 0}px`;
+      }
+    
+      console.log('✅ Safe area updated - Header height:', headerTotalHeight, 'px');
     }
     
     function setupSafeAreaHandling() {
@@ -2825,105 +2840,113 @@
         // Small delay for transition
         setTimeout(updateSafeAreaInsets, 100);
       });
+    
+      // Juga update saat viewport berubah (misal rotasi)
+      window.addEventListener('resize', () => {
+        setTimeout(updateSafeAreaInsets, 50);
+      });
     }
 
-    // ==================== INITIALIZATION ====================
     async function init() {
-        showLoading(true);
-      
-        try {
-            console.log('📳 Initializing haptic feedback...');
-            
-            // Inisialisasi AudioManager dengan Howler.js
-            if (window.AudioManager) {
-                // Delay sedikit agar Howler.js siap
-                setTimeout(() => {
-                    window.AudioManager.init();
-                }, 100);
-            }
-      
-            if (window.Telegram?.WebApp) {
-                console.log('📱 Telegram WebApp detected, version:', window.Telegram.WebApp.version);
-                initHaptic();
-                setTimeout(() => {
-                    playFeedback('light', 'click');
-                    console.log('📳 Test feedback successful');
-                }, 500);
-            } else {
-                console.log('⚠️ Telegram WebApp not detected - running in browser mode');
-                window.Telegram = {
-                    WebApp: {
-                        HapticFeedback: {
-                            impactOccurred: (style) => console.log(`📳 [BROWSER] Haptic: ${style}`),
-                            notificationOccurred: (type) => console.log(`📳 [BROWSER] Notification: ${type}`),
-                            selectionChanged: () => console.log(`📳 [BROWSER] Selection changed`)
-                        }
-                    }
-                };
-                initHaptic();
-            }
-      
-            await initTelegramUser();
-            renderUserProfile();
-            startNotificationPolling();
-      
-            setupNavigation();
-            setupFilterPanel();
-            setupScrollHandling();
-      
-            setTimeout(() => {
-                setupHapticForButtons();
-                console.log('✅ Haptic buttons initialized');
-            }, 200);
-      
-            await loadMarketData();
-            await loadUserUsernames();
-            
-            setupPanel();
-            renderGames();
-      
-            if (window.Telegram?.WebApp) {
-              // 1. Expand dan ready
-              window.Telegram.WebApp.expand();
-              window.Telegram.WebApp.ready();
-              console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
-            
-              // 2. Setup safe area handling (langsung setelah ready)
-              setupSafeAreaHandling();
-            
-              // 3. Cek fullscreen support
-              if (window.Telegram.WebApp.isVersionAtLeast('6.0')) {
-                setTimeout(() => {
-                  try {
-                    window.Telegram.WebApp.requestFullscreen();
-                    console.log('✅ Fullscreen requested');
-                  } catch (e) {
-                    console.warn('⚠️ Fullscreen request failed:', e);
-                  }
-                }, 200);
-            
-                // Pantau perubahan fullscreen
-                window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
-                  console.log('🔄 Fullscreen changed:', window.Telegram.WebApp.isFullscreen);
-                });
-            
-                window.Telegram.WebApp.onEvent('fullscreenFailed', () => {
-                  console.warn('❌ Fullscreen failed');
-                });
-              } else {
-                console.log('ℹ️ Fullscreen not supported');
+      showLoading(true);
+    
+      try {
+        console.log('📳 Initializing haptic feedback...');
+    
+        // Inisialisasi AudioManager dengan Howler.js
+        if (window.AudioManager) {
+          // Delay sedikit agar Howler.js siap
+          setTimeout(() => {
+            window.AudioManager.init();
+          }, 100);
+        }
+    
+        if (window.Telegram?.WebApp) {
+          console.log('📱 Telegram WebApp detected, version:', window.Telegram.WebApp.version);
+          initHaptic();
+          setTimeout(() => {
+            playFeedback('light', 'click');
+            console.log('📳 Test feedback successful');
+          }, 500);
+        } else {
+          console.log('⚠️ Telegram WebApp not detected - running in browser mode');
+          window.Telegram = {
+            WebApp: {
+              HapticFeedback: {
+                impactOccurred: (style) => console.log(`📳 [BROWSER] Haptic: ${style}`),
+                notificationOccurred: (type) => console.log(`📳 [BROWSER] Notification: ${type}`),
+                selectionChanged: () => console.log(`📳 [BROWSER] Selection changed`)
               }
             }
-            
-            console.log('✅ INDOTAG MARKET initialized successfully');
-      
-        } catch (error) {
-            console.error('❌ Init error:', error);
-            showToast('Gagal memuat aplikasi', 'error');
-            try { playFeedback('error', 'error'); } catch (e) {}
-        } finally {
-            showLoading(false);
+          };
+          initHaptic();
         }
+    
+        await initTelegramUser();
+        renderUserProfile();
+        startNotificationPolling();
+    
+        setupNavigation();
+        setupFilterPanel();
+        setupScrollHandling();
+    
+        setTimeout(() => {
+          setupHapticForButtons();
+          console.log('✅ Haptic buttons initialized');
+        }, 200);
+    
+        await loadMarketData();
+        await loadUserUsernames();
+    
+        setupPanel();
+        renderGames();
+    
+        if (window.Telegram?.WebApp) {
+          // 1. Expand dan ready
+          window.Telegram.WebApp.expand();
+          window.Telegram.WebApp.ready();
+          console.log('📱 Telegram WebApp version:', window.Telegram.WebApp.version);
+    
+          // 2. Setup safe area handling (langsung setelah ready)
+          setupSafeAreaHandling();
+    
+          // 3. Cek fullscreen support
+          if (window.Telegram.WebApp.isVersionAtLeast('6.0')) {
+            setTimeout(() => {
+              try {
+                window.Telegram.WebApp.requestFullscreen();
+                console.log('✅ Fullscreen requested');
+              } catch (e) {
+                console.warn('⚠️ Fullscreen request failed:', e);
+              }
+            }, 200);
+    
+            // Pantau perubahan fullscreen
+            window.Telegram.WebApp.onEvent('fullscreenChanged', () => {
+              console.log('🔄 Fullscreen changed:', window.Telegram.WebApp.isFullscreen);
+            });
+    
+            window.Telegram.WebApp.onEvent('fullscreenFailed', () => {
+              console.warn('❌ Fullscreen failed');
+            });
+          } else {
+            console.log('ℹ️ Fullscreen not supported');
+          }
+    
+          // 4. Force update safe area setelah beberapa waktu
+          setTimeout(updateSafeAreaInsets, 300);
+          setTimeout(updateSafeAreaInsets, 1000);
+        }
+    
+        console.log('✅ INDOTAG MARKET initialized successfully');
+    
+      } catch (error) {
+        console.error('❌ Init error:', error);
+        showToast('Gagal memuat aplikasi', 'error');
+        try { playFeedback('error', 'error'); } catch (e) {}
+      } finally {
+        showLoading(false);
+      }
     }
 
     init();
