@@ -1,4 +1,3 @@
-<!-- index.html (Updated version with INVENTORY instead of PROFILE) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,7 +19,6 @@
     <!-- CSS -->
     <link rel="stylesheet" href="/order/css/panel.css">
     <link rel="stylesheet" href="/order/css/style.css">
-    <link rel="stylesheet" href="/order/css/inventory.css">
     
     <!-- Config -->
     <script src="/order/config.js"></script>
@@ -76,8 +74,8 @@
             <div class="page-content" id="activityPage">
                 <!-- Activity page content will be injected here -->
             </div>
-            <div class="page-content" id="inventoryPage">
-                <!-- Inventory page content will be injected here -->
+            <div class="page-content" id="profilePage">
+                <!-- Profile page content will be injected here -->
             </div>
         </main>
 
@@ -102,11 +100,11 @@
                     </div>
                     <span>ACTIVITY</span>
                 </button>
-                <button class="nav-item" data-page="inventory">
-                  <div class="nav-icon">
-                    <i class="fas fa-box"></i>
-                  </div>
-                  <span>INVENTORY</span>
+                <button class="nav-item" data-page="profile">
+                    <div class="nav-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span>PROFIL</span>
                 </button>
             </div>
             <div class="nav-indicator" id="navIndicator"></div>
@@ -149,55 +147,66 @@
         
           <div class="panel-footer">
             <button class="panel-btn btn-buy" id="panelBuyBtn">
-              <i class="fas fa-shopping-bag"></i>
-              BUY
+              <i class="fas fa-bolt"></i>
+              BUY NOW
             </button>
             <button class="panel-btn btn-offer" id="panelOfferBtn">
-              <i class="fas fa-handshake"></i>
-              OFFER
+              <i class="fas fa-hand-holding-usd"></i>
+              MAKE OFFER
             </button>
           </div>
         </div>
+        
+        <!-- Overlay untuk klik luar panel -->
+        <div class="panel-overlay" id="panelOverlay"></div>
 
-        <!-- Filter Panel -->
+        <!-- Filter Panel (Sliding from bottom) -->
         <div class="filter-panel" id="filterPanel">
             <div class="filter-panel-header">
-                <h2 class="filter-title">FILTER</h2>
-                <button class="filter-close-btn" id="filterClose">
+                <div class="filter-panel-handle"></div>
+                <h3>Filter Username</h3>
+                <button class="filter-close" id="filterClose">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-
+            
             <div class="filter-panel-content">
                 <!-- Type Filter - Collapsible -->
                 <div class="filter-section collapsible expanded" id="typeSection">
                     <div class="filter-section-header" data-section="type">
                         <label class="filter-label">
-                            <i class="fas fa-tags"></i>
-                            TYPE
+                            <i class="fas fa-tag"></i>
+                            TYPE USERNAME
                         </label>
                         <i class="fas fa-chevron-down section-arrow"></i>
                     </div>
                     <div class="filter-section-body" id="typeSectionBody">
                         <div class="filter-chips" id="typeFilterChips">
-                            <button class="chip active" data-type="all">All</button>
-                            <button class="chip" data-type="channel">Channel</button>
-                            <button class="chip" data-type="user">User</button>
+                            <button class="chip active" data-type="all">Semua</button>
+                            <button class="chip" data-type="OP">OP</button>
+                            <button class="chip" data-type="CANON">CANON</button>
+                            <button class="chip" data-type="SCANON">SCANON</button>
+                            <button class="chip" data-type="SOP">SOP</button>
+                            <button class="chip" data-type="TAMPING">TAMPING</button>
+                            <button class="chip" data-type="TAMDAL">TAMDAL</button>
+                            <button class="chip" data-type="GANHUR">GANHUR</button>
+                            <button class="chip" data-type="SWITCH">SWITCH</button>
+                            <button class="chip" data-type="KURHUF">KURHUF</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Price Filter - Collapsible -->
+                <!-- Price Range Filter - Collapsible -->
                 <div class="filter-section collapsible expanded" id="priceSection">
                     <div class="filter-section-header" data-section="price">
                         <label class="filter-label">
-                            <i class="fas fa-dollar-sign"></i>
-                            PRICE
+                            <i class="fas fa-credit-card"></i>
+                            PRICE RANGE
                         </label>
                         <i class="fas fa-chevron-down section-arrow"></i>
                     </div>
                     <div class="filter-section-body" id="priceSectionBody">
-                        <div class="price-range-input">
+                        <div class="price-range-inputs">
                             <div class="price-input-wrapper">
                                 <span class="price-prefix">Rp</span>
                                 <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
@@ -331,6 +340,6 @@
 
     <!-- JavaScript -->
     <script src="/order/js/script.js"></script>
-    <script src="/order/js/inventory.js"></script>
+    <script src="/order/js/sound.js"></script>
 </body>
 </html>
