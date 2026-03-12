@@ -906,9 +906,10 @@
       let usernamesHtml = '';
       if (userUsernames.length === 0) {
         usernamesHtml = `
-                <div class="empty-market" style="margin-top: 16px;">
+                <div class="empty-usernames">
                     <i class="fas fa-tag"></i>
                     <p>Belum ada username tersimpan</p>
+                    <p style="font-size: 12px; margin-top: 8px;">Klik ADD USERNAME untuk menambahkan</p>
                 </div>
             `;
       } else {
@@ -929,65 +930,87 @@
       }
     
       profilePage.innerHTML = `
-            <div class="profile-actions" style="display: flex; gap: 10px; margin-bottom: 16px;">
-                <button class="filter-btn apply" id="addUsernameBtn" style="flex: 2;">
-                    <i class="fas fa-plus-circle"></i> ADD USERNAME
-                </button>
-                <button class="filter-btn reset" id="notificationsBtn" style="flex: 1;">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-                </button>
-            </div>
+            <div class="content-wrapper" style="padding: 0; width: 100%; max-width: 100%; overflow-x: hidden;">
+                <div class="profile-actions" style="display: flex; gap: 10px; margin-bottom: 16px; width: 100%;">
+                    <button class="filter-btn apply" id="addUsernameBtn" style="flex: 2;">
+                        <i class="fas fa-plus-circle"></i> ADD USERNAME
+                    </button>
+                    <button class="filter-btn reset" id="notificationsBtn" style="flex: 1; position: relative;">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                    </button>
+                </div>
     
-            <div class="profile-card">
-                <div class="profile-header">
-                    <div class="profile-avatar-large">
-                        <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
-                    </div>
-                    <div class="profile-info-large">
-                        <div class="profile-name-large">${escapeHtml(fullName)}</div>
-                        <div class="profile-username-large">
-                            <i class="fas fa-at"></i>
-                            ${escapeHtml(username)}
+                <div class="profile-card" style="width: 100%;">
+                    <div class="profile-header">
+                        <div class="profile-avatar-large">
+                            <img src="${avatarUrl}" alt="${escapeHtml(fullName)}">
                         </div>
-                    </div>
-                    <div class="profile-stats-compact">
-                        <div class="profile-stats-row">
-                            <div class="stat-item">
-                                <i class="fas fa-tag"></i>
-                                <span class="stat-value">${totalUsernames}</span>
-                            </div>
-                            <span class="stat-separator">/</span>
-                            <div class="stat-item">
-                                <i class="fas fa-check-circle" style="color: #10b981;"></i>
-                                <span class="stat-value">${listedUsernames}</span>
+                        <div class="profile-info-large">
+                            <div class="profile-name-large">${escapeHtml(fullName)}</div>
+                            <div class="profile-username-large">
+                                <i class="fas fa-at"></i>
+                                ${escapeHtml(username)}
                             </div>
                         </div>
-                        <div class="listed-ratio">${listedUsernames}/${totalUsernames}</div>
-                        <div class="listed-label">LISTED</div>
+                        <div class="profile-stats-compact">
+                            <div class="profile-stats-row">
+                                <div class="stat-item">
+                                    <i class="fas fa-tag"></i>
+                                    <span class="stat-value">${totalUsernames}</span>
+                                </div>
+                                <span class="stat-separator">/</span>
+                                <div class="stat-item">
+                                    <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                                    <span class="stat-value">${listedUsernames}</span>
+                                </div>
+                            </div>
+                            <!-- Listed ratio dan label dihapus sesuai permintaan -->
+                        </div>
                     </div>
                 </div>
-            </div>
     
-            <div class="profile-section-title">
-                <i class="fas fa-tag"></i>
-                <h3>Username Saya</h3>
+                <div class="profile-section-title">
+                    <i class="fas fa-tag"></i>
+                    <h3>Username Saya</h3>
+                    <span style="margin-left: auto; color: var(--text-muted); font-size: 12px;">Total: ${totalUsernames}</span>
+                </div>
+                ${usernamesHtml}
+                
+                <!-- Spacer minimal untuk memastikan scroll mentok di border terakhir -->
+                <div style="height: 5px; width: 100%;"></div>
             </div>
-            ${usernamesHtml}
         `;
     
       // Tambahkan event listener untuk tombol add username
-      document.getElementById('addUsernameBtn').addEventListener('click', () => {
-        showAddUsernameModal();
-      });
+      const addBtn = document.getElementById('addUsernameBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          playFeedback('medium', 'pop');
+          showAddUsernameModal();
+        });
+      }
     
       // Tambahkan event listener untuk tombol notifikasi
-      document.getElementById('notificationsBtn').addEventListener('click', () => {
-        showNotificationsPanel();
-      });
+      const notifBtn = document.getElementById('notificationsBtn');
+      if (notifBtn) {
+        notifBtn.addEventListener('click', () => {
+          playFeedback('light', 'click');
+          showNotificationsPanel();
+        });
+      }
     
       // Load notifikasi pending
       loadPendingNotifications();
+    
+      // Pastikan profilePage tidak memiliki overflow yang salah
+      profilePage.style.overflowY = 'auto';
+      profilePage.style.overflowX = 'hidden';
+      profilePage.style.height = '100%';
+      profilePage.style.width = '100%';
+      profilePage.style.display = 'block';
+    
+      console.log('✅ Profile rendered with', userUsernames.length, 'usernames');
     }
 
     function renderGames() {
