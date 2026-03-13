@@ -216,12 +216,14 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0 20px; /* Hapus padding top, nanti di-set lewat margin-top */
+    padding: 0 16px;
     padding-bottom: calc(var(--nav-height) + 30px + var(--safe-area-bottom));
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     position: relative;
     overscroll-behavior-y: contain;
+    height: 100%;
+    width: 100%;
 }
 
 /* ===== MARKET HEADER ACTIONS (SEARCH BOX) ===== */
@@ -494,20 +496,61 @@ body {
     scroll-margin-top: 0;
 }
 
+/* Pastikan page-content bisa scroll dan tidak bisa scroll ke samping */
 .page-content {
     display: none;
     animation: fadeIn 0.3s ease;
     height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
 }
 
 .page-content.active {
     display: block;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
+/* Content wrapper dengan lebar penuh dan tanpa overflow */
 .content-wrapper {
-    padding: 0 20px;
-    margin-top: 20px;
+    padding: 0;
+    margin-top: 16px;
     margin-bottom: 20px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+/* ===== PERBAIKAN PENTING: HANYA TAMPILKAN ELEMEN PROFIL DI PAGE PROFIL ===== */
+#profilePage .profile-actions,
+#profilePage .profile-card,
+#profilePage .profile-section-title,
+#profilePage .profile-usernames-list,
+#profilePage .empty-usernames {
+    display: block;
+}
+
+/* SEMBUNYIKAN SEMUA ELEMEN PROFIL DI SEMUA PAGE KECUALI PROFIL PAGE */
+#marketPage .profile-actions,
+#marketPage .profile-card,
+#marketPage .profile-section-title,
+#marketPage .profile-usernames-list,
+#marketPage .empty-usernames,
+#activityPage .profile-actions,
+#activityPage .profile-card,
+#activityPage .profile-section-title,
+#activityPage .profile-usernames-list,
+#activityPage .empty-usernames,
+#gamesPage .profile-actions,
+#gamesPage .profile-card,
+#gamesPage .profile-section-title,
+#gamesPage .profile-usernames-list,
+#gamesPage .empty-usernames {
+    display: none !important;
 }
 
 @keyframes fadeIn {
@@ -895,7 +938,7 @@ body {
     height: 100%;
     position: relative;
     z-index: 5;
-    padding-right: 20px; /* Default padding */
+    padding-right: 20px;
     transition: padding-right 0.3s ease;
 }
 
@@ -904,7 +947,7 @@ body {
 }
 
 .market-search-box input:not(:placeholder-shown) {
-    padding-right: 80px; /* Space for both buttons when there's text */
+    padding-right: 80px;
 }
 
 .search-clear-btn {
@@ -919,7 +962,7 @@ body {
     justify-content: center;
     transition: all 0.2s ease;
     position: absolute;
-    right: 50px; /* Position left of submit button */
+    right: 50px;
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
@@ -1041,7 +1084,7 @@ body {
 .username-wrapper {
     display: flex;
     align-items: center;
-    gap: 0px; /* No gap between prefix and username */
+    gap: 0px;
     flex-wrap: wrap;
 }
 
@@ -1049,7 +1092,7 @@ body {
     color: var(--primary-color);
     font-weight: 700;
     font-size: 16px;
-    margin-right: 2px; /* Small spacing after @ */
+    margin-right: 2px;
 }
 
 .username {
@@ -1058,14 +1101,14 @@ body {
     background: linear-gradient(135deg, white, var(--primary-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-left: 0; /* Ensure no margin */
+    margin-left: 0;
 }
 
 .based-on-divider {
     color: rgba(255, 255, 255, 0.3);
     font-size: 14px;
     margin: 0 2px;
-    margin-left: 4px; /* Add small spacing after username */
+    margin-left: 4px;
 }
 
 .based-on-value {
@@ -1316,17 +1359,19 @@ body {
     display: flex;
     gap: 10px;
     margin-bottom: 16px;
+    width: 100%;
 }
 
 .profile-card {
     background: rgba(20, 20, 20, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 30px;
+    border-radius: 24px;
     padding: 16px 20px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     position: relative;
     box-shadow: var(--shadow-3d);
     min-height: auto;
+    width: 100%;
 }
 
 .profile-header {
@@ -1334,12 +1379,13 @@ body {
     align-items: center;
     gap: 16px;
     width: 100%;
+    flex-wrap: nowrap;
 }
 
 .profile-avatar-large {
-    width: 60px;
-    height: 60px;
-    border-radius: 30px;
+    width: 70px;
+    height: 70px;
+    border-radius: 35px;
     overflow: hidden;
     border: 2px solid var(--primary-color);
     position: relative;
@@ -1355,6 +1401,9 @@ body {
 .profile-info-large {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .profile-name-large {
@@ -1377,18 +1426,23 @@ body {
     gap: 4px;
 }
 
-/* Stats di sisi kanan - TAMPILAN 6/10 */
+.profile-username-large i {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Stats di sisi kanan - TANPA TEKS LISTED */
 .profile-stats-compact {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    gap: 2px;
     background: rgba(0, 0, 0, 0.3);
-    padding: 8px 12px;
+    padding: 8px 16px;
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     flex-shrink: 0;
+    min-width: 90px;
 }
 
 .profile-stats-row {
@@ -1414,32 +1468,15 @@ body {
     color: white;
 }
 
-.stat-label {
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 400;
-}
-
 .stat-separator {
     color: var(--text-muted);
     font-size: 12px;
 }
 
-/* Format 6/10 yang diminta */
-.profile-stats-compact .listed-ratio {
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--primary-color);
-    line-height: 1.2;
-    text-shadow: 0 0 10px rgba(64, 167, 227, 0.3);
-}
-
+/* Hapus format 6/10 dan listed-label */
+.profile-stats-compact .listed-ratio,
 .profile-stats-compact .listed-label {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 500;
+    display: none;
 }
 
 /* Hapus stats besar yang lama */
@@ -1452,6 +1489,7 @@ body {
     align-items: center;
     gap: 10px;
     margin-bottom: 16px;
+    margin-top: 8px;
 }
 
 .profile-section-title i {
@@ -1464,28 +1502,34 @@ body {
     font-weight: 600;
 }
 
+/* Container untuk list username - PENTING UNTUK SCROLL */
 .profile-usernames-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    margin-bottom: 0;
+    width: 100%;
 }
 
+/* Item username dengan border yang lebih rapi */
 .profile-username-item {
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 16px;
+    padding: 16px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
     transition: all 0.3s ease;
     position: relative;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    width: 100%;
 }
 
 .profile-username-item:hover {
     border-color: var(--primary-color);
     transform: translateX(4px);
+    background: rgba(64, 167, 227, 0.1);
 }
 
 .profile-username-info {
@@ -1502,18 +1546,58 @@ body {
     margin-right: 2px;
 }
 
+.profile-username-name {
+    color: white;
+    font-weight: 600;
+}
+
 .profile-username-type {
-    padding: 4px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .profile-username-price {
     color: #ffd700;
     font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 6px 12px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+/* Empty state untuk usernames */
+.empty-usernames {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: rgba(20, 20, 20, 0.9);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    text-align: center;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.empty-usernames i {
+    font-size: 48px;
+    color: var(--primary-color);
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-usernames p {
+    color: var(--text-muted);
+    font-size: 14px;
 }
 
 .bottom-nav.hide {
@@ -1618,12 +1702,25 @@ body {
     }
 
     .profile-header {
-        flex-direction: column;
-        text-align: center;
+        flex-wrap: nowrap;
     }
-
-    .profile-info-large {
-        text-align: center;
+    
+    .profile-stats-compact {
+        margin-left: auto;
+    }
+    
+    .profile-username-item {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .profile-username-info {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .profile-username-type {
+        margin-left: 0;
     }
 
     .filter-chips {
