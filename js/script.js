@@ -912,7 +912,7 @@
                 </div>
             `;
       } else {
-        usernamesHtml = '<div class="profile-usernames-list">';
+        usernamesHtml = '<div class="profile-usernames-list" id="profileUsernamesList">';
         userUsernames.forEach(u => {
           const template = document.getElementById('profileUsernameTemplate');
           const clone = document.importNode(template.content, true);
@@ -921,9 +921,12 @@
           clone.querySelector('.profile-username-type').textContent = u.listed_status === 'listed' ? 'LISTED' : 'UNLISTED';
           clone.querySelector('.profile-username-price').textContent = formatRupiah(u.price);
     
+          // Tambahkan data attribute untuk memudahkan pencarian
           const div = document.createElement('div');
+          div.className = 'profile-username-item';
+          div.setAttribute('data-username', u.username);
           div.appendChild(clone);
-          usernamesHtml += div.innerHTML;
+          usernamesHtml += div.outerHTML;
         });
         usernamesHtml += '</div>';
       }
@@ -947,8 +950,7 @@
                     <div class="profile-info-large">
                         <div class="profile-name-large">${escapeHtml(fullName)}</div>
                         <div class="profile-username-large">
-                            <i class="fas fa-at"></i>
-                            ${escapeHtml(username)}
+                            <i class="fas fa-at"></i> ${escapeHtml(username)}
                         </div>
                     </div>
                     <div class="profile-stats-compact">
@@ -984,6 +986,21 @@
       // Tambahkan event listener untuk tombol notifikasi
       document.getElementById('notificationsBtn').addEventListener('click', () => {
         showNotificationsPanel();
+      });
+    
+      // Tambahkan event listener untuk setiap item username
+      document.querySelectorAll('.profile-username-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+    
+          const username = item.getAttribute('data-username');
+          console.log('🔍 Profile username clicked:', username);
+    
+          if (username) {
+            showManageUsernamePanel(username);
+          }
+        });
       });
     
       // Load notifikasi pending
