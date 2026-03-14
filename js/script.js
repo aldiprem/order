@@ -2855,6 +2855,343 @@
       });
     }
 
+    // ==================== MANAGE USERNAME PANEL ====================
+    let currentManageUsername = null;
+    
+    function showManageUsernamePanel(username) {
+        console.log('🔍 showManageUsernamePanel called with:', username);
+        
+        // Cari data username dari userUsernames
+        const userData = userUsernames.find(u => u.username === username);
+        if (!userData) {
+            showToast('Data username tidak ditemukan', 'error');
+            return;
+        }
+        
+        currentManageUsername = userData;
+        
+        // Gunakan panel yang sama dengan detail username tapi dengan konten berbeda
+        if (!elements.usernamePanel) return;
+        
+        playFeedback('medium', 'pop');
+        
+        // Sembunyikan loading dan tampilkan panel dengan konten manage
+        elements.panelLoading.style.display = 'none';
+        elements.panelDetail.style.display = 'block';
+        elements.usernamePanel.classList.add('show');
+        
+        const overlay = document.getElementById('panelOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+            overlay.style.opacity = '1';
+        }
+        
+        document.body.classList.add('panel-open');
+        
+        // Render panel manage
+        renderManageUsernamePanel(userData);
+    }
+    
+    function renderManageUsernamePanel(data) {
+        if (!elements.panelUsername || !elements.panelInfoGrid) return;
+        
+        elements.panelUsername.textContent = `@${data.username}`;
+        
+        // Ganti judul panel
+        const panelTitle = document.querySelector('.panel-title');
+        if (panelTitle) {
+            panelTitle.textContent = 'KELOLA USERNAME';
+        }
+        
+        const priceText = formatRupiah(data.price);
+        const basedOnText = data.based_on || '-';
+        const listedStatus = data.listed_status === 'listed' ? 'LISTED' : 'UNLISTED';
+        const statusColor = data.listed_status === 'listed' ? '#10b981' : '#f59e0b';
+        
+        // Ubah badge
+        const badge = document.querySelector('.username-badge');
+        if (badge) {
+            badge.textContent = listedStatus;
+            badge.style.background = `linear-gradient(135deg, ${statusColor}, ${statusColor}dd)`;
+        }
+        
+        const infoGrid = `
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-link"></i> BASED ON</span>
+                <span class="info-value editable" data-field="based_on" data-value="${escapeHtml(data.based_on || '')}">
+                    ${basedOnText} <i class="fas fa-pen edit-icon"></i>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-coins"></i> HARGA</span>
+                <span class="info-value price editable" data-field="price" data-value="${data.price || 0}">
+                    ${priceText} <i class="fas fa-pen edit-icon"></i>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-check-circle"></i> STATUS</span>
+                <span class="info-value">
+                    <span class="status-toggle" data-status="${data.listed_status || 'unlisted'}" style="cursor: pointer;">
+                        <span class="badge" style="background: ${statusColor};">${listedStatus}</span>
+                        <i class="fas fa-sync-alt edit-icon" style="margin-left: 8px;"></i>
+                    </span>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label"><i class="fas fa-tag"></i> JENIS</span>
+                <span class="info-value">${(data.type || 'user').toUpperCase()}</span>
+            </div>
+        `;
+        
+        elements.panelInfoGrid.innerHTML = infoGrid;
+        
+        // Ubah tombol di footer
+        const panelFooter = document.querySelector('.panel-footer');
+        if (panelFooter) {
+            panelFooter.innerHTML = `
+                <button class="panel-btn btn-offer" id="cancelManageBtn" style="background: linear-gradient(135deg, #6b7280, #4b5563);">
+                    <i class="fas fa-times"></i> TUTUP
+                </button>
+                <button class="panel-btn btn-buy" id="saveManageBtn" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));">
+                    <i class="fas fa-save"></i> SIMPAN
+                </button>
+            `;
+            
+            document.getElementById('cancelManageBtn')?.addEventListener('click', () => {
+                hideUsernamePanel();
+                // Kembalikan judul panel
+                setTimeout(() => {
+                    const panelTitle = document.querySelector('.panel-title');
+                    if (panelTitle) panelTitle.textContent = 'DETAIL USERNAME';
+                }, 300);
+            });
+            
+            document.getElementById('saveManageBtn')?.addEventListener('click', saveManageChanges);
+        }
+        
+        // Tambahkan event listener untuk field yang bisa diedit
+        document.querySelectorAll('.info-value.editable').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const field = el.dataset.field;
+                const currentValue = el.dataset.value;
+                
+                if (field === 'based_on') {
+                    showEditBasedOnModal(currentValue);
+                } else if (field === 'price') {
+                    showEditPriceModal(currentValue);
+                }
+            });
+        });
+        
+        // Event listener untuk toggle status
+        document.querySelector('.status-toggle')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleListedStatus();
+        });
+    }
+    
+    function showEditBasedOnModal(currentValue) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-container">
+                <div class="modal-title"><i class="fas fa-link"></i> UBAH BASED ON</div>
+                <input type="text" class="modal-input" id="basedOnInput" value="${escapeHtml(currentValue)}" placeholder="Masukkan based on..." autocomplete="off">
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancelBasedOn"><i class="fas fa-times"></i> BATAL</button>
+                    <button class="modal-btn confirm" id="saveBasedOn"><i class="fas fa-check"></i> SIMPAN</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        setTimeout(() => {
+            modal.classList.add('show');
+            document.getElementById('basedOnInput')?.focus();
+        }, 10);
+        
+        document.getElementById('cancelBasedOn').addEventListener('click', () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        });
+        
+        document.getElementById('saveBasedOn').addEventListener('click', async () => {
+            const newBasedOn = document.getElementById('basedOnInput')?.value.trim();
+            
+            playFeedback('medium', 'pop');
+            
+            try {
+                // Gunakan endpoint /api/manage/update-based-on dengan user_id
+                const response = await fetchWithRetry(`${API_BASE_URL}/api/manage/update-based-on`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: currentManageUsername.username,
+                        based_on: newBasedOn,
+                        user_id: currentUser.id
+                    })
+                });
+                
+                if (response.success) {
+                    showToast('✅ Based on berhasil diperbarui', 'success');
+                    modal.classList.remove('show');
+                    setTimeout(() => modal.remove(), 300);
+                    
+                    // Update data lokal
+                    currentManageUsername.based_on = newBasedOn;
+                    
+                    // Refresh panel
+                    renderManageUsernamePanel(currentManageUsername);
+                    
+                    // Refresh data market dan user usernames
+                    loadMarketData();
+                    loadUserUsernames();
+                } else {
+                    showToast('❌ Gagal memperbarui based on', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating based on:', error);
+                showToast('❌ Gagal memperbarui based on', 'error');
+            }
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        });
+    }
+    
+    function showEditPriceModal(currentValue) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-container">
+                <div class="modal-title"><i class="fas fa-coins"></i> UBAH HARGA</div>
+                <div style="position: relative; margin-bottom: 20px;">
+                    <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--primary); font-weight: 600;">Rp</span>
+                    <input type="number" class="modal-input" id="priceInput" value="${currentValue || 0}" placeholder="0" min="0" style="padding-left: 50px;">
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancelPrice"><i class="fas fa-times"></i> BATAL</button>
+                    <button class="modal-btn confirm" id="savePrice"><i class="fas fa-check"></i> SIMPAN</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        setTimeout(() => {
+            modal.classList.add('show');
+            document.getElementById('priceInput')?.focus();
+        }, 10);
+        
+        document.getElementById('cancelPrice').addEventListener('click', () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        });
+        
+        document.getElementById('savePrice').addEventListener('click', async () => {
+            const newPrice = parseInt(document.getElementById('priceInput')?.value) || 0;
+            
+            playFeedback('medium', 'pop');
+            
+            try {
+                // Gunakan endpoint /api/manage/update-price dengan user_id
+                const response = await fetchWithRetry(`${API_BASE_URL}/api/manage/update-price`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: currentManageUsername.username,
+                        price: newPrice,
+                        user_id: currentUser.id
+                    })
+                });
+                
+                if (response.success) {
+                    showToast('✅ Harga berhasil diperbarui', 'success');
+                    modal.classList.remove('show');
+                    setTimeout(() => modal.remove(), 300);
+                    
+                    // Update data lokal
+                    currentManageUsername.price = newPrice;
+                    
+                    // Refresh panel
+                    renderManageUsernamePanel(currentManageUsername);
+                    
+                    // Refresh data market dan user usernames
+                    loadMarketData();
+                    loadUserUsernames();
+                } else {
+                    showToast('❌ Gagal memperbarui harga', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating price:', error);
+                showToast('❌ Gagal memperbarui harga', 'error');
+            }
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        });
+    }
+    
+    async function toggleListedStatus() {
+        if (!currentManageUsername) return;
+        
+        const newStatus = currentManageUsername.listed_status === 'listed' ? 'unlisted' : 'listed';
+        const statusText = newStatus === 'listed' ? 'LISTED' : 'UNLISTED';
+        
+        playFeedback('medium', 'pop');
+        
+        try {
+            // Gunakan endpoint /api/manage/update-listed-status dengan user_id
+            const response = await fetchWithRetry(`${API_BASE_URL}/api/manage/update-listed-status`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: currentManageUsername.username,
+                    status: newStatus,
+                    user_id: currentUser.id
+                })
+            });
+            
+            if (response.success) {
+                showToast(`✅ Status diubah menjadi ${statusText}`, 'success');
+                
+                // Update data lokal
+                currentManageUsername.listed_status = newStatus;
+                
+                // Refresh panel
+                renderManageUsernamePanel(currentManageUsername);
+                
+                // Refresh data market dan user usernames
+                loadMarketData();
+                loadUserUsernames();
+            } else {
+                showToast('❌ Gagal mengubah status', 'error');
+            }
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            showToast('❌ Gagal mengubah status', 'error');
+        }
+    }
+    
+    function saveManageChanges() {
+        // Fungsi ini dipanggil oleh tombol SIMPAN, tapi kita sudah menggunakan modal terpisah
+        // Jadi kita hanya menutup panel
+        hideUsernamePanel();
+        
+        // Kembalikan judul panel
+        setTimeout(() => {
+            const panelTitle = document.querySelector('.panel-title');
+            if (panelTitle) panelTitle.textContent = 'DETAIL USERNAME';
+        }, 300);
+        
+        showToast('Perubahan telah disimpan', 'success');
+    }
+
     async function init() {
       showLoading(true);
     
