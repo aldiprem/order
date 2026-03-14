@@ -1,307 +1,861 @@
 import sqlite3
-import json
-from datetime import datetime
-from pathlib import Path
+import datetime
+import random
+import string
+import pytz
+
+# Set timezone Asia/Jakarta (WIB)
+JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
+
+def get_jakarta_time():
+    """Get current time in Asia/Jakarta timezone"""
+    return datetime.datetime.now(JAKARTA_TZ).replace(tzinfo=None)
 
 class Database:
-    def __init__(self, db_path):
-        self.db_path = db_path
-        self.init_database()
+    def __init__(self, db_path="database/indotag.db"):
+        # Ensure database directory exists
+        import os
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self.cur = self.conn.cursor()
+        self.create_tables()
     
-    def get_connection(self):
-        """Get database connection"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-    
-    def init_database(self):
-        """Initialize database tables"""
-        with self.get_connection() as conn:
-            # Create users table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    telegram_id TEXT UNIQUE NOT NULL,
-                    telegram_username TEXT,
-                    telegram_first_name TEXT,
-                    telegram_last_name TEXT,
-                    telegram_photo_url TEXT,
-                    wallet_address TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Create sessions table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS sessions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    session_id TEXT UNIQUE,
-                    wallet_connected BOOLEAN DEFAULT 0,
-                    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
+    def create_tables(self):
+        # Tabel users
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER UNIQUE,
+            fullname TEXT,
+            username TEXT,
+            joined_at TIMESTAMP,
+            first_start TIMESTAMP,
+            last_start TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS added_usernames (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            type TEXT CHECK(type IN ('channel', 'user')),
+            owner_id INTEGER,
+            owner_username TEXT,
+            added_by INTEGER,
+            verified_at TIMESTAMP,
+            status TEXT DEFAULT 'pending',
+            verification_code TEXT,
+            based_on TEXT,
+            listed_status TEXT DEFAULT 'unlisted',
+            price INTEGER DEFAULT 0,
+            shape TEXT DEFAULT 'OP',
+            kind TEXT DEFAULT 'MULCHAR INDO',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (added_by) REFERENCES users(user_id),
+            FOREIGN KEY (owner_id) REFERENCES users(user_id)
+        )
+        """)
+        
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            user_id INTEGER,
+            action TEXT,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (username) REFERENCES added_usernames(username),
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        )
+        """)
+        
+        # Tabel verification_sessions (menyimpan sesi verifikasi)
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS verification_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT UNIQUE,
+            username TEXT,
+            type TEXT,
+            requester_id INTEGER,
+            owner_id INTEGER,
+            otp_code TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        self.conn.commit()
+        
+        self.migrate_add_shape_column()
+        self.migrate_add_kind_column()
 
-            # Create transactions table with IF NOT EXISTS
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    transaction_hash TEXT UNIQUE,
-                    amount_ton REAL,
-                    amount_nano TEXT,
-                    from_address TEXT,
-                    to_address TEXT,
-                    memo TEXT,
-                    status TEXT DEFAULT 'pending',
-                    nft_id TEXT,
-                    transaction_type TEXT DEFAULT 'deposit',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    confirmed_at TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            # Create withdraw_requests table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS withdraw_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    telegram_id TEXT,
-                    amount_ton REAL,
-                    destination_address TEXT,
-                    status TEXT DEFAULT 'pending',
-                    transaction_hash TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    processed_at TIMESTAMP
-                )
-            ''')
-            
-            # Create payment_tracking table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS payment_tracking (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    reference TEXT UNIQUE,
-                    body_base64_hash TEXT,
-                    telegram_id TEXT,
-                    amount REAL,
-                    status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            conn.commit()
-            print(f"✅ Database initialized at {self.db_path}")
-    
-    def save_user(self, telegram_id, telegram_username=None, 
-                  telegram_first_name=None, telegram_last_name=None,
-                  telegram_photo_url=None, wallet_address=None):
-        """Save or update user"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                INSERT INTO users (
-                    telegram_id, telegram_username, telegram_first_name,
-                    telegram_last_name, telegram_photo_url, wallet_address
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(telegram_id) DO UPDATE SET
-                    telegram_username = excluded.telegram_username,
-                    telegram_first_name = excluded.telegram_first_name,
-                    telegram_last_name = excluded.telegram_last_name,
-                    telegram_photo_url = excluded.telegram_photo_url,
-                    wallet_address = excluded.wallet_address,
-                    updated_at = CURRENT_TIMESTAMP
-                RETURNING id
-            ''', (
-                telegram_id, telegram_username, telegram_first_name,
-                telegram_last_name, telegram_photo_url, wallet_address
-            ))
-            result = cursor.fetchone()
-            conn.commit()
-            return result[0] if result else None
-    
-    def get_user(self, telegram_id):
-        """Get user by telegram ID"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                SELECT * FROM users WHERE telegram_id = ?
-            ''', (telegram_id,))
-            return cursor.fetchone()
-    
-    def update_wallet_address(self, telegram_id, wallet_address):
-        """Update user's wallet address"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE users 
-                SET wallet_address = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE telegram_id = ?
-            ''', (wallet_address, telegram_id))
-            conn.commit()
-    
-    def create_session(self, user_id, session_id):
-        """Create new session"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                INSERT INTO sessions (user_id, session_id)
-                VALUES (?, ?)
-            ''', (user_id, session_id))
-            conn.commit()
-    
-    def update_session_wallet(self, session_id, wallet_connected):
-        """Update session wallet status"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE sessions 
-                SET wallet_connected = ?, last_active = CURRENT_TIMESTAMP
-                WHERE session_id = ?
-            ''', (wallet_connected, session_id))
-            conn.commit()
-    
-    def save_transaction(self, user_id, transaction_hash, amount_ton, from_address, to_address, memo="", nft_id=None, transaction_type="deposit"):
-        """Save transaction record - langsung confirmed untuk deposit"""
-        with self.get_connection() as conn:
-            # Convert TON to nano if needed
-            amount_nano = str(int(amount_ton * 1_000_000_000))
-            
-            cursor = conn.execute('''
-                INSERT INTO transactions (
-                    user_id, transaction_hash, amount_ton, amount_nano, 
-                    from_address, to_address, memo, nft_id, transaction_type, status, confirmed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(transaction_hash) DO NOTHING
-                RETURNING id
-            ''', (
-                user_id, transaction_hash, amount_ton, amount_nano,
-                from_address, to_address, memo, nft_id, transaction_type, 'confirmed'
-            ))
-            result = cursor.fetchone()
-            conn.commit()
-            return result[0] if result else None
-    
-    def confirm_transaction(self, transaction_hash):
-        """Mark transaction as confirmed"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE transactions 
-                SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP
-                WHERE transaction_hash = ?
-            ''', (transaction_hash,))
-            conn.commit()
-    
-    def get_user_transactions(self, telegram_id, limit=20):
-        """Get all transactions for a user with limit"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                SELECT t.* FROM transactions t
-                JOIN users u ON t.user_id = u.id
-                WHERE u.telegram_id = ?
-                ORDER BY t.created_at DESC
-                LIMIT ?
-            ''', (telegram_id, limit))
-            return [dict(row) for row in cursor.fetchall()]
-    
-    def get_user_balance(self, telegram_id):
-        """Calculate user's total balance from confirmed transactions"""
+    def migrate_add_kind_column(self):
+        """Add kind column to existing tables if not exists"""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.execute('''
-                    SELECT COALESCE(SUM(amount_ton), 0) as total_balance
-                    FROM transactions t
-                    JOIN users u ON t.user_id = u.id
-                    WHERE u.telegram_id = ? 
-                    AND t.status = 'confirmed'
-                    AND t.transaction_type IN ('deposit', 'payment_received')
-                ''', (telegram_id,))
-                result = cursor.fetchone()
-                return float(result[0]) if result else 0.0
+            # Cek apakah kolom sudah ada
+            self.cur.execute("PRAGMA table_info(added_usernames)")
+            columns = [column[1] for column in self.cur.fetchall()]
+            
+            if 'kind' not in columns:
+                print("🔄 Migrating database: Adding kind column...")
+                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN kind TEXT DEFAULT 'MULCHAR INDO'")
+                self.conn.commit()
+                print("✅ Column kind added successfully")
+            
         except Exception as e:
-            print(f"Error getting balance: {e}")
-            return 0.0
-    
-    def save_withdraw_request(self, user_id, telegram_id, amount_ton, destination_address):
-        """Save withdraw request"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                INSERT INTO withdraw_requests (user_id, telegram_id, amount_ton, destination_address)
-                VALUES (?, ?, ?, ?)
-                RETURNING id
-            ''', (user_id, telegram_id, amount_ton, destination_address))
-            result = cursor.fetchone()
-            conn.commit()
-            return result[0] if result else None
-    
-    def get_withdraw_requests(self, telegram_id, limit=20):
-        """Get user withdraw requests"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                SELECT * FROM withdraw_requests 
-                WHERE telegram_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-            ''', (telegram_id, limit))
-            return [dict(row) for row in cursor.fetchall()]
-    
-    def update_withdraw_request(self, request_id, transaction_hash, status='completed'):
-        """Update withdraw request status"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE withdraw_requests 
-                SET status = ?, transaction_hash = ?, processed_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (status, transaction_hash, request_id))
-            conn.commit()
+            print(f"Error during kind migration: {e}")
+
+    def get_username_kind(self, username):
+        """Get kind value for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
             
-    # Tambahkan method ini di class Database
+            self.cur.execute("SELECT kind FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            return result[0] if result else "MULCHAR INDO"
+        except Exception as e:
+            print(f"Error getting username kind: {e}")
+            return "MULCHAR INDO"
     
-    def save_payment_tracking(self, reference, body_base64_hash, telegram_id, amount):
-        """Save payment tracking data"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                INSERT OR IGNORE INTO payment_tracking (reference, body_base64_hash, telegram_id, amount)
-                VALUES (?, ?, ?, ?)
-            ''', (reference, body_base64_hash, telegram_id, amount))
-            conn.commit()
-    
-    def update_withdraw_request_with_hash(self, transaction_hash, telegram_id):
-        """Update withdraw request with transaction hash"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE withdraw_requests 
-                SET transaction_hash = ?, status = 'completed', processed_at = CURRENT_TIMESTAMP
-                WHERE telegram_id = ? AND status = 'pending'
-                ORDER BY created_at DESC LIMIT 1
-            ''', (transaction_hash, telegram_id))
-            conn.commit()
+    def update_kind(self, username, kind):
+        """Update kind value for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
             
-    def save_withdraw_request_with_reference(self, user_id, telegram_id, amount_ton, destination_address, reference):
-        """Save withdraw request with reference"""
-        with self.get_connection() as conn:
-            cursor = conn.execute('''
-                INSERT INTO withdraw_requests (user_id, telegram_id, amount_ton, destination_address, reference, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-                RETURNING id
-            ''', (user_id, telegram_id, amount_ton, destination_address, reference, 'pending'))
-            result = cursor.fetchone()
-            conn.commit()
-            return result[0] if result else None
+            now = get_jakarta_time()
+            
+            self.cur.execute("""
+            UPDATE added_usernames 
+            SET kind = ?, updated_at = ? 
+            WHERE username = ?
+            """, (kind, now, username))
+            self.conn.commit()
+            
+            # Log activity
+            self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+            owner_result = self.cur.fetchone()
+            if owner_result:
+                self.add_activity_log(owner_result[0], "KIND_SET", 
+                                      f"Mengatur kind untuk @{username}: {kind}")
+            
+            print(f"✅ Kind saved: '{kind}' for @{username}")
+            return True
+        except Exception as e:
+            print(f"Error updating kind: {e}")
+            return False
+
+    def migrate_add_shape_column(self):
+        try:
+            # Cek apakah kolom sudah ada
+            self.cur.execute("PRAGMA table_info(added_usernames)")
+            columns = [column[1] for column in self.cur.fetchall()]
+            
+            if 'shape' not in columns:
+                print("🔄 Migrating database: Adding shape column...")
+                self.cur.execute("ALTER TABLE added_usernames ADD COLUMN shape TEXT DEFAULT 'OP'")
+                self.conn.commit()
+                print("✅ Column shape added successfully")
+            
+            # Update existing records dengan type yang sesuai
+            self.cur.execute("SELECT id, username, based_on FROM added_usernames WHERE shape IS NULL OR shape = ''")
+            rows = self.cur.fetchall()
+            
+            print(f"\n🔍 Migrating {len(rows)} records...")
+            
+            for row in rows:
+                usn_id = row[0]
+                username = row[1]
+                based_on = row[2]
+                
+                # Hitung type berdasarkan username dan based_on
+                shape = self.determine_shape_for_db(username, based_on)
+                
+                print(f"  - @{username} (based_on: '{based_on}') → shape: {shape}")
+                
+                self.cur.execute("UPDATE added_usernames SET shape = ? WHERE id = ?", (shape, usn_id))
+            
+            self.conn.commit()
+            print(f"✅ Updated {len(rows)} records with shape")
+            
+        except Exception as e:
+            print(f"Error during migration: {e}")
+
+    def determine_shape_for_db(self, username, based_on):
+        """Determine username type based on rules (HARUS SAMA PERSIS dengan b.py)"""
+        if not based_on or not username:
+            return "OP"
+        
+        username_lower = username.lower()
+        
+        # PENTING: Hapus spasi dari based_on untuk perbandingan (sama seperti di b.py)
+        based_on_no_spaces = based_on.replace(' ', '')
+        based_on_lower = based_on_no_spaces.lower()
+        
+        # 1. CEK OP (On Point) - tanpa perubahan (setelah spasi dihapus)
+        if username_lower == based_on_lower:
+            return "OP"
+        
+        # 2. CEK SCANON - penambahan 's' di akhir
+        if username_lower == based_on_lower + 's':
+            return "SCANON"
+        
+        # 3. CEK SOP (Semi On Point) - double letters
+        if len(based_on_lower) < len(username_lower):
+            for i in range(len(based_on_lower)):
+                if (based_on_lower[:i+1] + based_on_lower[i] + based_on_lower[i+1:]) == username_lower:
+                    return "SOP"
+        
+        # 4. CEK CANON - penggantian i ke l atau l ke i
+        if len(username_lower) == len(based_on_lower):
+            is_canon = True
+            diff_count = 0
+            for a, b in zip(username_lower, based_on_lower):
+                if a != b:
+                    # Cek apakah perbedaan adalah i↔l
+                    if (a == 'i' and b == 'l') or (a == 'l' and b == 'i'):
+                        diff_count += 1
+                    else:
+                        is_canon = False
+                        break
+            if is_canon and diff_count > 0:
+                return "CANON"
+        
+        # 5. CEK TAMPING (Tambah Pinggir)
+        if len(username_lower) == len(based_on_lower) + 1:
+            if username_lower.startswith(based_on_lower) or username_lower.endswith(based_on_lower):
+                return "TAMPING"
+        
+        # 6. CEK TAMDAL (Tambah Dalam)
+        if len(username_lower) == len(based_on_lower) + 1:
+            for i in range(len(based_on_lower)):
+                if (username_lower.startswith(based_on_lower[:i]) and 
+                    username_lower[i+1:].startswith(based_on_lower[i:])):
+                    return "TAMDAL"
+        
+        # 7. CEK GANHUR (Ganti Huruf)
+        if len(username_lower) == len(based_on_lower):
+            diff_count = 0
+            for a, b in zip(username_lower, based_on_lower):
+                if a != b:
+                    diff_count += 1
+            if diff_count == 1:
+                return "GANHUR"
+        
+        # 8. CEK SWITCH (Perpindahan Huruf)
+        if len(username_lower) == len(based_on_lower):
+            for i in range(len(based_on_lower) - 1):
+                switched = based_on_lower[:i] + based_on_lower[i+1] + based_on_lower[i] + based_on_lower[i+2:]
+                if switched == username_lower:
+                    return "SWITCH"
+        
+        # 9. CEK KURHUF (Kurang Huruf)
+        if len(username_lower) == len(based_on_lower) - 1:
+            for i in range(len(based_on_lower)):
+                removed = based_on_lower[:i] + based_on_lower[i+1:]
+                if removed == username_lower:
+                    return "KURHUF"
+        
+        return "OP"
+
+    def add_user(self, user_id, fullname, username=None):
+        now = get_jakarta_time()
+        self.cur.execute("""
+        INSERT OR REPLACE INTO users (user_id, fullname, username, joined_at, first_start, last_start, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, fullname, username, now, now, now, now))
+        self.conn.commit()
+        
+        # Log activity
+        self.add_activity_log(user_id, "USER_START", f"User memulai bot")
     
-    def update_withdraw_request_by_reference(self, reference, transaction_hash, status='completed'):
-        """Update withdraw request by reference"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE withdraw_requests 
-                SET status = ?, transaction_hash = ?, processed_at = CURRENT_TIMESTAMP
-                WHERE reference = ?
-            ''', (status, transaction_hash, reference))
-            conn.commit()
+    def update_user_last_start(self, user_id):
+        now = get_jakarta_time()
+        self.cur.execute("""
+        UPDATE users SET last_start = ?, updated_at = ? WHERE user_id = ?
+        """, (now, now, user_id))
+        self.conn.commit()
     
-    def update_payment_tracking_status(self, reference, status='completed', transaction_hash=None):
-        """Update payment tracking status"""
-        with self.get_connection() as conn:
-            conn.execute('''
-                UPDATE payment_tracking 
-                SET status = ?, transaction_hash = ?
-                WHERE reference = ?
-            ''', (status, transaction_hash, reference))
-            conn.commit()
+    def get_user(self, user_id):
+        self.cur.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        return self.cur.fetchone()
+    
+    def get_user_by_username(self, username):
+        if username.startswith('@'):
+            username = username[1:]
+        self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+        return self.cur.fetchone()
+    
+    def add_username_request(self, username, type_, owner_id, owner_username, added_by, shape=None):
+        """Add username with type detection"""
+        now = get_jakarta_time()
+        
+        if shape is None:
+            shape = "OP"
+        
+        try:
+            self.cur.execute("""
+            INSERT INTO added_usernames (
+                username, type, owner_id, owner_username, added_by, 
+                verified_at, status, shape, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (username, type_, owner_id, owner_username, added_by, now, 'verified', shape, now))
+            self.conn.commit()
+            
+            # Log activity
+            self.add_activity_log(added_by, "USERNAME_ADDED", 
+                                  f"Menambahkan username @{username} (tipe: {type_}, shape: {shape})")
+            
+            return True
+        except Exception as e:
+            print(f"Error adding username request: {e}")
+            return False
+
+    def get_user_added_usernames(self, user_id):
+        """Get all usernames added by a specific user (termasuk shape dan kind)"""
+        try:
+            self.cur.execute("""
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, shape, kind, updated_at 
+            FROM added_usernames 
+            WHERE added_by = ? AND status = 'verified'
+            ORDER BY verified_at DESC
+            """, (user_id,))
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting user added usernames: {e}")
+            return []
+    
+    def get_listed_usernames(self):
+        """Get all usernames with listed status (termasuk shape dan kind)"""
+        try:
+            self.cur.execute("""
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, shape, kind, updated_at 
+            FROM added_usernames 
+            WHERE listed_status = 'listed' AND status = 'verified'
+            ORDER BY updated_at DESC
+            """)
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting listed usernames: {e}")
+            return []
+    
+    def get_all_based_on(self):
+        """Get all unique based_on values"""
+        try:
+            self.cur.execute("""
+            SELECT DISTINCT based_on FROM added_usernames 
+            WHERE based_on IS NOT NULL AND based_on != ''
+            ORDER BY based_on
+            """)
+            return [row[0] for row in self.cur.fetchall()]
+        except Exception as e:
+            print(f"Error getting based_on list: {e}")
+            return []
+    
+    def get_username_detail(self, username):
+        """Get detailed info about a specific username (dengan shape dan kind)"""
+        try:
+            # Clean username if needed
+            if username.startswith('@'):
+                username = username[1:]
+            
+            # Ambil semua kolom termasuk shape dan kind
+            self.cur.execute("""
+            SELECT 
+                id, username, type, owner_id, owner_username, added_by, 
+                verified_at, status, verification_code, based_on, 
+                listed_status, price, shape, kind, updated_at 
+            FROM added_usernames 
+            WHERE username = ?
+            """, (username,))
+            
+            result = self.cur.fetchone()
+            
+            # Debug: tampilkan hasil dengan detail
+            if result:
+                print(f"\n🔍 DATABASE QUERY RESULT for @{username}:")
+                print(f"  id: {result[0]}")
+                print(f"  username: {result[1]}")
+                print(f"  type: {result[2]}")
+                print(f"  based_on: '{result[9]}'")
+                print(f"  shape: {result[12]} (index 12)")
+                print(f"  kind: {result[13]} (index 13)")  # KOLOM KIND
+                print(f"  updated_at: {result[14]}")
+            
+            return result
+        except Exception as e:
+            print(f"Error getting username detail: {e}")
+            return None
+    
+    def update_based_on(self, username, based_on):
+        """Update based_on value for a username dan update shape"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+            
+            now = get_jakarta_time()
+            
+            # Update based_on
+            self.cur.execute("""
+            UPDATE added_usernames 
+            SET based_on = ?, updated_at = ? 
+            WHERE username = ?
+            """, (based_on, now, username))
+            
+            # Ambil username untuk menghitung type
+            self.cur.execute("SELECT username FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            
+            if result:
+                usn = result[0]
+                # Hitung shape berdasarkan based_on yang baru
+                shape = self.determine_shape_for_db(usn, based_on)
+                
+                # DEBUG: Lihat perbandingan
+                print(f"\n🔍 DEBUG - Calculating shape for @{username}:")
+                print(f"  Username: {usn}")
+                print(f"  Based_on: '{based_on}'")
+                print(f"  Shape result: {shape}")
+                
+                # Update shape
+                self.cur.execute("""
+                UPDATE added_usernames 
+                SET shape = ? 
+                WHERE username = ?
+                """, (shape, username))
+            
+            self.conn.commit()
+            
+            # Log activity
+            self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+            owner_result = self.cur.fetchone()
+            if owner_result:
+                self.add_activity_log(owner_result[0], "BASED_ON_SET", 
+                                      f"Mengatur based_on untuk @{username}: {based_on} (type: {shape})")
+            
+            print(f"✅ Based_on saved with spaces: '{based_on}', type: {shape}")
+            return True
+        except Exception as e:
+            print(f"Error updating based_on: {e}")
+            return False
+    
+    def update_listed_status(self, username, status):
+        """Update listed/unlisted status for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+            
+            now = get_jakarta_time()
+            
+            # Cek dulu apakah username ada
+            self.cur.execute("SELECT id, listed_status FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            
+            if not result:
+                print(f"❌ Database: Username {username} tidak ditemukan!")
+                return False
+            
+            print(f"Database Before update - {username}: {result[1]}")
+            
+            # Lakukan update dengan pendekatan yang lebih sederhana
+            self.cur.execute("""
+            UPDATE added_usernames 
+            SET listed_status = ?, updated_at = ? 
+            WHERE username = ?
+            """, (status, now, username))
+            
+            # Commit perubahan
+            self.conn.commit()
+            
+            # Verifikasi setelah update dengan query terpisah
+            self.cur.execute("SELECT listed_status FROM added_usernames WHERE username = ?", (username,))
+            after = self.cur.fetchone()
+            print(f"Database After update - {username}: {after[0] if after else 'None'}")
+            
+            # Cek apakah update berhasil dengan membandingkan nilai
+            if after and after[0] == status:
+                # Log activity
+                self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+                owner_result = self.cur.fetchone()
+                if owner_result:
+                    self.add_activity_log(owner_result[0], "LISTED_STATUS", f"Mengubah status listed untuk @{username} menjadi {status}")
+                
+                print(f"✅ Database: Updated {username} status to {status}")
+                return True
+            else:
+                print(f"❌ Database: Failed to update {username} status")
+                return False
+                
+        except Exception as e:
+            print(f"Error updating listed status: {e}")
+            self.conn.rollback()  # Rollback jika terjadi error
+            return False
+    
+    def update_price(self, username, price):
+        """Update price for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+            
+            now = get_jakarta_time()
+            self.cur.execute("""
+            UPDATE added_usernames 
+            SET price = ?, updated_at = ? 
+            WHERE username = ?
+            """, (price, now, username))
+            self.conn.commit()
+            
+            # Log activity
+            self.cur.execute("SELECT added_by FROM added_usernames WHERE username = ?", (username,))
+            result = self.cur.fetchone()
+            if result:
+                self.add_activity_log(result[0], "PRICE_SET", f"Mengatur harga untuk @{username}: Rp {price:,}")
+            
+            return True
+        except Exception as e:
+            print(f"Error updating price: {e}")
+            return False
+    
+    def add_activity_log(self, user_id, action, details):
+        """Add activity log entry"""
+        try:
+            now = get_jakarta_time()
+            self.cur.execute("""
+            INSERT INTO activity_log (user_id, action, details, created_at)
+            VALUES (?, ?, ?, ?)
+            """, (user_id, action, details, now))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error adding activity log: {e}")
+            return False
+
+    def get_all_activity_logs(self, page=1, limit=50):
+        """Get all activity logs with pagination"""
+        try:
+            offset = (page - 1) * limit
+            self.cur.execute("""
+            SELECT * FROM activity_log 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+            """, (limit, offset))
+            logs = self.cur.fetchall()
+            
+            # Get total count for pagination
+            self.cur.execute("SELECT COUNT(*) FROM activity_log")
+            total = self.cur.fetchone()[0]
+            
+            return logs, total
+        except Exception as e:
+            print(f"Error getting all activity logs: {e}")
+            return [], 0
+
+    def get_activity_logs(self, user_id, page=1, limit=10):
+        """Get activity logs for a user with pagination"""
+        try:
+            offset = (page - 1) * limit
+            self.cur.execute("""
+            SELECT * FROM activity_log 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+            """, (user_id, limit, offset))
+            logs = self.cur.fetchall()
+            
+            # Get total count for pagination
+            self.cur.execute("SELECT COUNT(*) FROM activity_log WHERE user_id = ?", (user_id,))
+            total = self.cur.fetchone()[0]
+            
+            return logs, total
+        except Exception as e:
+            print(f"Error getting activity logs: {e}")
+            return [], 0
+
+    def create_verification_session(self, session_id, username, type_, requester_id, owner_id=None, otp_code=None):
+        now = get_jakarta_time()
+        try:
+            self.cur.execute("""
+            INSERT INTO verification_sessions (session_id, username, type, requester_id, owner_id, otp_code, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (session_id, username, type_, requester_id, owner_id, otp_code, now, now))
+            self.conn.commit()
+            return session_id
+        except Exception as e:
+            print(f"Error creating verification session: {e}")
+            return None
+    
+    def get_verification_session(self, session_id):
+        self.cur.execute("SELECT * FROM verification_sessions WHERE session_id = ?", (session_id,))
+        return self.cur.fetchone()
+    
+    def update_verification_session(self, session_id, **kwargs):
+        updates = []
+        values = []
+        for key, value in kwargs.items():
+            updates.append(f"{key} = ?")
+            values.append(value)
+        
+        values.append(session_id)
+        now = get_jakarta_time()
+        updates.append("updated_at = ?")
+        values.append(now)
+        
+        query = f"UPDATE verification_sessions SET {', '.join(updates)} WHERE session_id = ?"
+        try:
+            self.cur.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating session: {e}")
+            return False
+
+    def create_webapp_request(self, request_id, username, requester_id):
+        """Create a pending request from web app"""
+        try:
+            now = get_jakarta_time()
+            
+            # Pastikan tabel ada
+            self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS webapp_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id TEXT UNIQUE,
+                username TEXT,
+                requester_id INTEGER,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            self.conn.commit()
+            print(f"✅ Table webapp_requests created/verified")
+            
+            # Insert data
+            print(f"Inserting: request_id={request_id}, username={username}, requester_id={requester_id}")
+            
+            self.cur.execute("""
+            INSERT INTO webapp_requests (request_id, username, requester_id, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, (request_id, username, requester_id, 'pending', now, now))
+            
+            self.conn.commit()
+            
+            # Verifikasi
+            self.cur.execute("SELECT * FROM webapp_requests WHERE request_id = ?", (request_id,))
+            result = self.cur.fetchone()
+            if result:
+                print(f"✅ Data verified in database: {result}")
+            else:
+                print(f"❌ Data not found after insert!")
+            
+            return True
+        except Exception as e:
+            print(f"❌ Error creating webapp request: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def get_pending_webapp_requests(self, limit=10):
+        """Get pending requests from web app that need to be processed by bot"""
+        try:
+            self.cur.execute("""
+            SELECT * FROM webapp_requests 
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT ?
+            """, (limit,))
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting pending webapp requests: {e}")
+            return []
+    
+    def get_user_pending_requests(self, user_id):
+        """Get pending requests for a specific user"""
+        try:
+            self.cur.execute("""
+            SELECT * FROM webapp_requests 
+            WHERE requester_id = ? AND status = 'pending'
+            ORDER BY created_at DESC
+            """, (user_id,))
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting user pending requests: {e}")
+            return []
+    
+    def update_webapp_request_status(self, request_id, status):
+        """Update status of webapp request"""
+        try:
+            now = get_jakarta_time()
+            self.cur.execute("""
+            UPDATE webapp_requests 
+            SET status = ?, updated_at = ? 
+            WHERE request_id = ?
+            """, (status, now, request_id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating webapp request: {e}")
+            return False
+
+    def generate_verification_id(self, length=25):
+        chars = string.ascii_letters + string.digits
+        return ''.join(random.choice(chars) for _ in range(length))
+    
+    def generate_otp(self):
+        return ''.join(random.choice(string.digits) for _ in range(6))
+
+    def check_username_ownership(self, username, user_id):
+        """Cek apakah user adalah pemilik username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+                
+            self.cur.execute("""
+            SELECT added_by FROM added_usernames 
+            WHERE username = ? AND status = 'verified'
+            """, (username,))
+            
+            result = self.cur.fetchone()
+            
+            if result and result[0] == user_id:
+                return True
+                
+            return False
+        except Exception as e:
+            print(f"Error checking ownership: {e}")
+            return False
+    
+    def get_username_stats(self, user_id):
+        """Get statistics for user's usernames"""
+        try:
+            self.cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN listed_status = 'listed' THEN 1 ELSE 0 END) as listed,
+                SUM(price) as total_value,
+                AVG(price) as avg_price
+            FROM added_usernames 
+            WHERE added_by = ? AND status = 'verified'
+            """, (user_id,))
+            
+            result = self.cur.fetchone()
+            
+            return {
+                'total': result[0] or 0,
+                'listed': result[1] or 0,
+                'total_value': result[2] or 0,
+                'avg_price': int(result[3] or 0)
+            }
+        except Exception as e:
+            print(f"Error getting username stats: {e}")
+            return {'total': 0, 'listed': 0, 'total_value': 0, 'avg_price': 0}
+    
+    def get_recent_activities(self, user_id, limit=10):
+        """Get recent activities for user"""
+        try:
+            self.cur.execute("""
+            SELECT * FROM activity_log 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT ?
+            """, (user_id, limit))
+            
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting recent activities: {e}")
+            return []
+    
+    def get_username_history(self, username):
+        """Get edit history for a username"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+                
+            self.cur.execute("""
+            SELECT * FROM activity_log 
+            WHERE username = ? OR details LIKE ? 
+            ORDER BY created_at DESC 
+            LIMIT 20
+            """, (username, f'%@{username}%'))
+            
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting username history: {e}")
+            return []
+    
+    def update_multiple_fields(self, username, updates):
+        """Update multiple fields in one transaction"""
+        try:
+            if username.startswith('@'):
+                username = username[1:]
+                
+            now = get_jakarta_time()
+            
+            # Build SET clause dynamically
+            set_clause = []
+            values = []
+            
+            valid_fields = ['based_on', 'price', 'listed_status', 'kind', 'shape']
+            
+            for field, value in updates.items():
+                if field in valid_fields:
+                    set_clause.append(f"{field} = ?")
+                    values.append(value)
+            
+            if not set_clause:
+                return False
+                
+            set_clause.append("updated_at = ?")
+            values.append(now)
+            values.append(username)
+            
+            query = f"UPDATE added_usernames SET {', '.join(set_clause)} WHERE username = ?"
+            
+            self.cur.execute(query, values)
+            self.conn.commit()
+            
+            return self.cur.rowcount > 0
+            
+        except Exception as e:
+            print(f"Error updating multiple fields: {e}")
+            self.conn.rollback()
+            return False
+    
+    def log_edit_action(self, user_id, username, field, old_value, new_value):
+        """Log edit action with before/after values"""
+        try:
+            details = f"Edit {field} untuk @{username}: '{old_value}' → '{new_value}'"
+            self.add_activity_log(user_id, "EDIT_FIELD", details)
+            return True
+        except Exception as e:
+            print(f"Error logging edit action: {e}")
+            return False
+    
+    def get_username_by_owner(self, owner_id, limit=100):
+        """Get all usernames owned by a specific user"""
+        try:
+            self.cur.execute("""
+            SELECT * FROM added_usernames 
+            WHERE owner_id = ? AND status = 'verified'
+            ORDER BY updated_at DESC 
+            LIMIT ?
+            """, (owner_id, limit))
+            
+            return self.cur.fetchall()
+        except Exception as e:
+            print(f"Error getting username by owner: {e}")
+            return []
+
+    def close(self):
+        self.conn.close()
