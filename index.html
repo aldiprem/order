@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="HandheldFriendly" content="true">
     <meta name="MobileOptimized" content="width">
-    <title>INDOTAG MARKET</title>
+    <title>INDOTAG MARKET • Premium Username</title>
     
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
@@ -24,62 +24,59 @@
     <script src="/order/config.js"></script>
 </head>
 <body>
-    <!-- Loading Overlay -->
+    <!-- Premium Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-logo">
+            <i class="fas fa-crown"></i>
+        </div>
         <div class="loading-spinner"></div>
-        <div class="loading-text">Memuat INDOTAG MARKET...</div>
+        <div class="loading-text">INDOTAG <span>MARKET</span></div>
+        <div class="loading-sub">Premium Username Marketplace</div>
     </div>
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Scroll to Top Button (Floating) -->
+    <!-- Scroll to Top Button -->
     <button class="scroll-top-btn" id="scrollTopBtn">
         <i class="fas fa-arrow-up"></i>
     </button>
 
     <!-- Main Container -->
     <div class="market-container">
-        <!-- Header Card with User Profile -->
+        <!-- Premium Header -->
         <header class="market-header">
-            <div class="header-left">
-                <div class="logo-wrapper">
-                    <div class="logo-glow"></div>
-                    <i class="fas fa-tag"></i>
+            <div class="header-bg"></div>
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="logo-wrapper">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1>INDOTAG</h1>
+                        <span class="brand-sub">PREMIUM MARKET</span>
+                    </div>
                 </div>
-                <div class="brand-text">
-                    <h1>INDOTAG</h1>
-                    <span class="brand-sub">MARKET</span>
-                </div>
-            </div>
-            
-            <div class="header-right" id="userProfileHeader">
-                <div class="user-info-loading">
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
+                
+                <div class="header-right" id="userProfileHeader">
+                    <div class="user-info-loading">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <!-- Main Content (No pull-to-refresh) -->
+        <!-- Main Content -->
         <main class="market-main" id="marketMain">
-            <!-- Content will be dynamically loaded based on active tab -->
-            <div class="page-content active" id="marketPage">
-                <!-- Market page content will be injected here -->
-            </div>
-            <div class="page-content" id="gamesPage">
-                <!-- Games page content will be injected here -->
-            </div>
-            <div class="page-content" id="activityPage">
-                <!-- Activity page content will be injected here -->
-            </div>
-            <div class="page-content" id="profilePage">
-                <!-- Profile page content will be injected here -->
-            </div>
+            <div class="page-content active" id="marketPage"></div>
+            <div class="page-content" id="gamesPage"></div>
+            <div class="page-content" id="activityPage"></div>
+            <div class="page-content" id="profilePage"></div>
         </main>
 
-        <!-- Bottom Pagination Bar (Floating) -->
+        <!-- Premium Bottom Navigation -->
         <nav class="bottom-nav" id="bottomNav">
             <div class="nav-container">
                 <button class="nav-item active" data-page="market">
@@ -90,13 +87,13 @@
                 </button>
                 <button class="nav-item" data-page="games">
                     <div class="nav-icon">
-                        <i class="fas fa-gamepad"></i>
+                        <i class="fas fa-dice-d6"></i>
                     </div>
                     <span>GAMES</span>
                 </button>
                 <button class="nav-item" data-page="activity">
                     <div class="nav-icon">
-                        <i class="fas fa-history"></i>
+                        <i class="fas fa-clock"></i>
                     </div>
                     <span>ACTIVITY</span>
                 </button>
@@ -104,173 +101,158 @@
                     <div class="nav-icon">
                         <i class="fas fa-user"></i>
                     </div>
-                    <span>PROFIL</span>
+                    <span>PROFILE</span>
                 </button>
             </div>
             <div class="nav-indicator" id="navIndicator"></div>
         </nav>
 
-        <!-- Panel Detail Username -->
+        <!-- Premium Username Detail Panel -->
         <div class="username-panel" id="usernamePanel">
-          <div class="panel-handle"></div>
-        
-          <div class="panel-header">
-            <div class="panel-header-left">
-              <button class="cart-icon-btn" id="panelCartBtn">
-                <i class="fas fa-shopping-cart"></i>
-              </button>
-            </div>
-            <button class="panel-close-btn" id="panelCloseBtn">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        
-          <div class="panel-content" id="panelContent">
-            <!-- Loading State -->
-            <div class="panel-loading" id="panelLoading">
-              <div class="panel-spinner"></div>
-              <div class="panel-loading-text">Memuat detail username...</div>
-            </div>
-        
-            <!-- Content akan diisi oleh JavaScript -->
-            <div class="panel-detail" id="panelDetail" style="display: none;">
-              <h2 class="username-title" id="panelUsername">@username</h2>
-        
-              <!-- SATU KOLOM UNTUK SEMUA INFO -->
-              <div class="info-container">
-                <div class="info-grid" id="panelInfoGrid">
-                  <!-- Info rows akan diisi oleh JavaScript -->
+            <div class="panel-handle"></div>
+            
+            <div class="panel-header">
+                <div class="panel-header-left">
+                    <button class="panel-action-btn" id="panelCartBtn">
+                        <i class="fas fa-shopping-bag"></i>
+                    </button>
                 </div>
-              </div>
+                <div class="panel-title">DETAIL USERNAME</div>
+                <button class="panel-action-btn" id="panelCloseBtn">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-          </div>
-        
-          <div class="panel-footer">
-            <button class="panel-btn btn-buy" id="panelBuyBtn">
-              <i class="fas fa-bolt"></i>
-              BUY NOW
-            </button>
-            <button class="panel-btn btn-offer" id="panelOfferBtn">
-              <i class="fas fa-hand-holding-usd"></i>
-              MAKE OFFER
-            </button>
-          </div>
+            
+            <div class="panel-content" id="panelContent">
+                <div class="panel-loading" id="panelLoading">
+                    <div class="panel-spinner"></div>
+                    <div class="panel-loading-text">Memuat detail username...</div>
+                </div>
+                
+                <div class="panel-detail" id="panelDetail" style="display: none;">
+                    <div class="detail-header">
+                        <h2 class="username-title" id="panelUsername">@username</h2>
+                        <span class="username-badge" id="panelBadge">PREMIUM</span>
+                    </div>
+                    
+                    <div class="info-container">
+                        <div class="info-grid" id="panelInfoGrid"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-footer">
+                <button class="panel-btn btn-offer" id="panelOfferBtn">
+                    <i class="fas fa-gavel"></i>
+                    MAKE OFFER
+                </button>
+                <button class="panel-btn btn-buy" id="panelBuyBtn">
+                    <i class="fas fa-bolt"></i>
+                    BUY NOW
+                </button>
+            </div>
         </div>
         
-        <!-- Overlay untuk klik luar panel -->
+        <!-- Panel Overlay -->
         <div class="panel-overlay" id="panelOverlay"></div>
 
-        <!-- Filter Panel (Sliding from bottom) -->
+        <!-- Premium Filter Panel -->
         <div class="filter-panel" id="filterPanel">
+            <div class="filter-panel-handle"></div>
+            
             <div class="filter-panel-header">
-                <div class="filter-panel-handle"></div>
-                <h3>Filter Username</h3>
+                <h3><i class="fas fa-sliders-h"></i> FILTER USERNAME</h3>
                 <button class="filter-close" id="filterClose">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <div class="filter-panel-content">
-                <!-- Type Filter - Collapsible -->
-                <div class="filter-section collapsible expanded" id="typeSection">
-                    <div class="filter-section-header" data-section="type">
-                        <label class="filter-label">
-                            <i class="fas fa-tag"></i>
-                            TYPE USERNAME
-                        </label>
-                        <i class="fas fa-chevron-down section-arrow"></i>
+                <!-- Type Filter -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <i class="fas fa-tag"></i>
+                        <span>TYPE USERNAME</span>
                     </div>
-                    <div class="filter-section-body" id="typeSectionBody">
-                        <div class="filter-chips" id="typeFilterChips">
-                            <button class="chip active" data-type="all">Semua</button>
-                            <button class="chip" data-type="OP">OP</button>
-                            <button class="chip" data-type="CANON">CANON</button>
-                            <button class="chip" data-type="SCANON">SCANON</button>
-                            <button class="chip" data-type="SOP">SOP</button>
-                            <button class="chip" data-type="TAMPING">TAMPING</button>
-                            <button class="chip" data-type="TAMDAL">TAMDAL</button>
-                            <button class="chip" data-type="GANHUR">GANHUR</button>
-                            <button class="chip" data-type="SWITCH">SWITCH</button>
-                            <button class="chip" data-type="KURHUF">KURHUF</button>
-                        </div>
+                    <div class="filter-chips" id="typeFilterChips">
+                        <button class="chip active" data-type="all">All</button>
+                        <button class="chip" data-type="OP">OP</button>
+                        <button class="chip" data-type="CANON">CANON</button>
+                        <button class="chip" data-type="SCANON">SCANON</button>
+                        <button class="chip" data-type="SOP">SOP</button>
+                        <button class="chip" data-type="TAMPING">TAMPING</button>
+                        <button class="chip" data-type="TAMDAL">TAMDAL</button>
+                        <button class="chip" data-type="GANHUR">GANHUR</button>
+                        <button class="chip" data-type="SWITCH">SWITCH</button>
+                        <button class="chip" data-type="KURHUF">KURHUF</button>
                     </div>
                 </div>
 
-                <!-- Price Range Filter - Collapsible -->
-                <div class="filter-section collapsible expanded" id="priceSection">
-                    <div class="filter-section-header" data-section="price">
-                        <label class="filter-label">
-                            <i class="fas fa-credit-card"></i>
-                            PRICE RANGE
-                        </label>
-                        <i class="fas fa-chevron-down section-arrow"></i>
+                <!-- Price Range -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <i class="fas fa-coins"></i>
+                        <span>PRICE RANGE</span>
                     </div>
-                    <div class="filter-section-body" id="priceSectionBody">
-                        <div class="price-range-inputs">
+                    <div class="price-range-inputs">
+                        <div class="price-input-group">
+                            <span class="price-label">MIN</span>
                             <div class="price-input-wrapper">
                                 <span class="price-prefix">Rp</span>
-                                <input type="number" id="minPrice" placeholder="Min" min="0" value="0">
+                                <input type="number" id="minPrice" placeholder="0" min="0" value="0">
                             </div>
-                            <span class="price-separator">—</span>
+                        </div>
+                        <div class="price-separator">
+                            <i class="fas fa-minus"></i>
+                        </div>
+                        <div class="price-input-group">
+                            <span class="price-label">MAX</span>
                             <div class="price-input-wrapper">
                                 <span class="price-prefix">Rp</span>
-                                <input type="number" id="maxPrice" placeholder="Max" min="0" value="999999999">
+                                <input type="number" id="maxPrice" placeholder="999M" min="0" value="999999999">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sort By Filter - Collapsible -->
-                <div class="filter-section collapsible expanded" id="sortSection">
-                    <div class="filter-section-header" data-section="sort">
-                        <label class="filter-label">
-                            <i class="fas fa-sort-amount-down"></i>
-                            SORT BY
-                        </label>
-                        <i class="fas fa-chevron-down section-arrow"></i>
+                <!-- Sort By -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <i class="fas fa-sort-amount-down"></i>
+                        <span>SORT BY</span>
                     </div>
-                    <div class="filter-section-body" id="sortSectionBody">
-                        <div class="filter-select-wrapper">
-                            <select id="sortBy">
-                                <option value="latest">Lasted (Terbaru)</option>
-                                <option value="price_low">Low to High (Harga Terendah)</option>
-                                <option value="price_high">High to Low (Harga Tertinggi)</option>
-                                <option value="char_asc">Char Ascending (Karakter ↑)</option>
-                                <option value="char_desc">Char Descending (Karakter ↓)</option>
-                                <option value="alpha_asc">Alphabet Ascending (A-Z)</option>
-                                <option value="alpha_desc">Alphabet Descending (Z-A)</option>
-                            </select>
-                            <i class="fas fa-chevron-down select-arrow"></i>
-                        </div>
+                    <div class="filter-select-wrapper">
+                        <select id="sortBy">
+                            <option value="latest">📅 Terbaru</option>
+                            <option value="price_low">💰 Harga Terendah</option>
+                            <option value="price_high">💎 Harga Tertinggi</option>
+                            <option value="char_asc">📊 Karakter ↑</option>
+                            <option value="char_desc">📊 Karakter ↓</option>
+                            <option value="alpha_asc">🔤 A-Z</option>
+                            <option value="alpha_desc">🔤 Z-A</option>
+                        </select>
+                        <i class="fas fa-chevron-down select-arrow"></i>
                     </div>
                 </div>
 
-                <!-- Username Tag - Collapsible (Placeholder) -->
-                <div class="filter-section collapsible expanded" id="tagSection">
-                    <div class="filter-section-header" data-section="tag">
-                        <label class="filter-label">
-                            <i class="fas fa-at"></i>
-                            USERNAME TAG
-                        </label>
-                        <i class="fas fa-chevron-down section-arrow"></i>
-                    </div>
-                    <div class="filter-section-body" id="tagSectionBody">
-                        <div class="username-tag-placeholder">
-                            <i class="fas fa-clock"></i>
-                            <span>Coming Soon</span>
-                        </div>
+                <!-- Username Tag (Coming Soon) -->
+                <div class="filter-section coming-soon">
+                    <div class="filter-section-header">
+                        <i class="fas fa-hashtag"></i>
+                        <span>USERNAME TAG</span>
+                        <span class="coming-badge">SOON</span>
                     </div>
                 </div>
             </div>
 
             <div class="filter-panel-footer">
                 <button class="filter-btn reset" id="resetFilters">
-                    <i class="fas fa-undo-alt"></i>
-                    Reset
+                    <i class="fas fa-redo-alt"></i>
+                    RESET
                 </button>
                 <button class="filter-btn apply" id="applyFilters">
                     <i class="fas fa-check"></i>
-                    Terapkan
+                    APPLY FILTERS
                 </button>
             </div>
         </div>
@@ -283,14 +265,22 @@
                 <div class="username-wrapper">
                     <span class="username-prefix">@</span>
                     <span class="username"></span>
-                    <span class="based-on-divider">—</span>
-                    <span class="based-on-value"></span>
                 </div>
                 <span class="username-type-badge"></span>
             </div>
-            <div class="price-bubble">
-                <span class="price-value"></span>
+            <div class="card-body">
+                <div class="based-on-info">
+                    <i class="fas fa-link"></i>
+                    <span class="based-on-value"></span>
+                </div>
             </div>
+            <div class="card-footer">
+                <div class="price-bubble">
+                    <i class="fas fa-coins"></i>
+                    <span class="price-value"></span>
+                </div>
+            </div>
+            <div class="card-glow"></div>
         </div>
     </template>
 
@@ -303,7 +293,7 @@
                 <div class="activity-title"></div>
                 <div class="activity-meta">
                     <span class="activity-username"></span>
-                    <span class="activity-time"></span>
+                    <span class="activity-time"><i class="far fa-clock"></i> <span></span></span>
                 </div>
             </div>
         </div>
@@ -322,19 +312,26 @@
     <template id="profileUsernameTemplate">
         <div class="profile-username-item">
             <div class="profile-username-info">
-                <span class="profile-username-prefix">@</span>
+                <i class="fas fa-at"></i>
                 <span class="profile-username-name"></span>
             </div>
             <span class="profile-username-type"></span>
-            <div class="profile-username-price"></div>
+            <span class="profile-username-price"></span>
         </div>
     </template>
 
     <template id="gamesPlaceholderTemplate">
         <div class="games-placeholder">
-            <i class="fas fa-gamepad"></i>
-            <h3>GAMES</h3>
-            <p>Coming Soon</p>
+            <div class="games-icon">
+                <i class="fas fa-dice-d6"></i>
+            </div>
+            <h3>GAMES HUB</h3>
+            <p>Coming Soon • Q2 2024</p>
+            <div class="games-features">
+                <span><i class="fas fa-check"></i> Spin & Win</span>
+                <span><i class="fas fa-check"></i> Daily Rewards</span>
+                <span><i class="fas fa-check"></i> Leaderboard</span>
+            </div>
         </div>
     </template>
 
