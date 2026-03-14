@@ -951,3 +951,101 @@ body.panel-open .bottom-nav {
         display: none;
     }
 }
+
+/* ==================== MANAGE USERNAME STYLES ==================== */
+.info-value.editable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.info-value.editable:hover {
+    color: var(--primary);
+}
+
+.info-value.editable:hover .edit-icon {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.edit-icon {
+    font-size: 12px;
+    color: var(--primary);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+    transform: translateX(-4px);
+}
+
+.status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.status-toggle:hover .badge {
+    filter: brightness(1.2);
+}
+
+.status-toggle:hover .edit-icon {
+    opacity: 1;
+    transform: rotate(180deg);
+}
+
+/* Profile Username Item - Hover Effect */
+.profile-username-item {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.profile-username-item:hover {
+    transform: translateX(4px);
+    border-left-color: var(--primary);
+    background: rgba(139, 92, 246, 0.15);
+}
+
+/* Modal Input dengan Prefix Rp */
+.modal-input[style*="padding-left: 50px"] {
+    font-weight: 600;
+}
+
+/* Animation untuk status toggle */
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.status-toggle .fa-sync-alt {
+    transition: transform 0.3s ease;
+}
+
+.status-toggle:hover .fa-sync-alt {
+    animation: rotate 1s infinite linear;
+}
+
+/* Panel Footer dengan 2 tombol */
+.panel-footer .btn-offer,
+.panel-footer .btn-buy {
+    transition: all 0.3s ease;
+}
+
+.panel-footer .btn-offer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(107, 114, 128, 0.4);
+}
+
+/* Responsive untuk panel manage */
+@media (max-width: 480px) {
+    .info-value.editable {
+        font-size: 11px;
+        max-width: 50%;
+    }
+    
+    .edit-icon {
+        font-size: 10px;
+    }
+}
