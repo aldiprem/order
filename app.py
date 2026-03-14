@@ -1,611 +1,1008 @@
-import os
-import json
-import sqlite3
-from datetime import datetime
-from pathlib import Path
-from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory, make_response
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import sys
-import hashlib
-import hmac
-import base64
-import requests
+import os
+import logging
+import threading
+import sqlite3
 import time
-import asyncio
+import signal
+import sys
+from b import call_bot_sync, run_bot, is_bot_ready, db  # Import db dari b.py
 
-# Tambahkan path ke db folder
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from db.app import Database
+app = Flask(__name__, static_folder='.')
 
-# Load environment variables
-load_dotenv()
+# Konfigurasi CORS
+CORS(app, origins=[
+    "https://aldiprem.github.io",
+    "http://localhost:4000",
+    "http://127.0.0.1:4000",
+    "http://137.0.0.1:4000",
+    "https://*.trycloudflare.com",
+    "https://telegram.org",
+    "https://web.telegram.org"
+], supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Configuration
-TUNNEL_URL = os.getenv('TUNNEL_URL', 'http://localhost:3000')
-GITHUB_PAGES_URL = os.getenv('GITHUB_PAGES_URL', '')
-DB_PATH = os.getenv('DB_PATH', '/root/tunnel-static/users.db')
-STATIC_DIR = Path('/root/tunnel-static')
+# Jangan buat instance Database baru di sini! 
+# Kita sudah import db dari b.py
 
-# Ensure static directory exists
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
+# Bot thread
+bot_thread = None
+bot_started = False
+shutdown_event = threading.Event()
 
-# Initialize database
-db = Database(DB_PATH)
+def signal_handler(sig, frame):
+    """Handle shutdown signals"""
+    logger.info("🛑 Shutting down...")
+    shutdown_event.set()
+    # Close database connections
+    db.close_all_connections()
+    sys.exit(0)
 
-# Wallet address untuk menerima pembayaran
-WEB_ADDRESS = os.getenv('WEB_ADDRESS', '')
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
-# TON Center API Key (masih diperlukan untuk cek saldo)
-TONCENTER_API_KEY = os.getenv('TONCENTER_API_KEY', '')
+def start_bot_thread():
+    """Start bot in separate thread"""
+    global bot_thread, bot_started
+    if bot_thread is None or not bot_thread.is_alive():
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        logger.info("✅ Bot thread started")
+        bot_started = True
+        
+        # Tunggu bot siap
+        wait_start = time.time()
+        while time.time() - wait_start < 30 and not shutdown_event.is_set():  # Wait max 30 seconds
+            if is_bot_ready():
+                logger.info("✅ Bot is ready")
+                break
+            time.sleep(0.5)
 
-# Private key TIDAK DIGUNAKAN LAGI untuk withdraw otomatis
-# Tapi tetap dibaca untuk kompatibilitas ke belakang
-PRIVATE_KEY = os.getenv('PRIVATE_KEY', '')
-PRIVATE_KEY_BYTES = bytes.fromhex(PRIVATE_KEY) if PRIVATE_KEY else None
+# Start bot thread
+start_bot_thread()
 
-# Cek ketersediaan library TON (hanya untuk create-payload)
-try:
-    from pytoniq import begin_cell, Address
-    from pytoniq_core import Cell
-    TON_LIB_AVAILABLE = True
-    print("✅ pytoniq library tersedia untuk create-payload")
-except ImportError as e:
-    TON_LIB_AVAILABLE = False
-    print(f"⚠️ pytoniq tidak terinstall: {e}")
+# ==================== SERVE STATIC FILES ====================
 
-# ==================== ENDPOINT UNTUK MEMBUAT PAYLOAD ====================
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html')
 
-@app.route('/api/create-payload', methods=['POST'])
-def create_payload():
-    """Buat payload yang valid untuk TON Connect"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    amount_ton = float(data.get('amount_ton', 0))
-    
-    # Validasi
-    if amount_ton < 0.1:
-        return jsonify({'success': False, 'error': 'Minimum deposit 0.1 TON'}), 400
-    
-    # Get user dari database
-    user = db.get_user(telegram_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    
-    # Buat memo dengan format yang jelas
-    timestamp = int(datetime.now().timestamp())
-    memo_plain = f"deposit:{telegram_id}:{timestamp}"
-    
-    # Buat payload menggunakan pytoniq (jika tersedia)
-    if TON_LIB_AVAILABLE:
-        try:
-            # Buat Cell dengan comment
-            # Format yang benar untuk text comment di TON
-            cell = begin_cell() \
-                .store_uint(0, 32) \
-                .store_string(memo_plain) \
-                .end_cell()
-            
-            # Encode cell ke Base64 (Bag of Cells)
-            payload_base64 = base64.b64encode(cell.to_boc()).decode('utf-8')
-            
-            print(f"✅ Payload created with pytoniq: {payload_base64[:50]}...")
-            
-        except Exception as e:
-            print(f"❌ Error creating cell with pytoniq: {e}")
-            # Fallback ke metode sederhana jika pytoniq error
-            memo_bytes = memo_plain.encode('utf-8')
-            # Tambahkan prefix untuk text comment (0x00000000 dalam hex = 4 byte 0)
-            comment_prefix = b'\x00\x00\x00\x00'
-            full_bytes = comment_prefix + memo_bytes
-            payload_base64 = base64.b64encode(full_bytes).decode('utf-8')
-            print(f"⚠️ Using fallback payload method")
-    else:
-        # Fallback jika pytoniq tidak terinstall
-        # Format: 4 byte 0 (untuk text comment) + memo
-        memo_bytes = memo_plain.encode('utf-8')
-        comment_prefix = b'\x00\x00\x00\x00'
-        full_bytes = comment_prefix + memo_bytes
-        payload_base64 = base64.b64encode(full_bytes).decode('utf-8')
-        print(f"⚠️ Using fallback payload (pytoniq not installed)")
-    
-    # Konversi amount ke nano
-    amount_nano = str(int(amount_ton * 1_000_000_000))
-    
-    # Simpan ke database tracking (tanpa transaction_hash dulu)
-    if user:
-        db.save_transaction(
-            user_id=user['id'],
-            transaction_hash=None,
-            amount_ton=amount_ton,
-            from_address=None,
-            to_address=WEB_ADDRESS,
-            memo=memo_plain,
-            transaction_type='deposit'
-        )
-    
-    # Log untuk debugging
-    print(f"📤 Created payload for user {telegram_id}:")
-    print(f"   Amount: {amount_ton} TON ({amount_nano} nano)")
-    print(f"   Memo (plain): {memo_plain}")
-    print(f"   Payload length: {len(payload_base64)} chars")
-    print(f"   Payload (first 30): {payload_base64[:30]}...")
-    
-    return jsonify({
-        'success': True,
-        'transaction': {
-            'address': WEB_ADDRESS,
-            'amount': amount_nano,
-            'payload': payload_base64
-        },
-        'memo_plain': memo_plain
-    })
+@app.route('/css/<path:path>')
+def serve_css(path):
+    return send_from_directory('css', path)
 
-# ==================== ENDPOINT WITHDRAW MENGGUNAKAN TON PAY ====================
+@app.route('/js/<path:path>')
+def serve_js(path):
+    return send_from_directory('js', path)
 
-@app.route('/api/initiate-withdraw', methods=['POST'])
-def initiate_withdraw():
-    """Endpoint untuk memulai proses withdraw - menyimpan request dan memberikan reference"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    amount_ton = float(data.get('amount_ton', 0))
-    destination_address = data.get('destination_address')
-    
-    # Validasi input
-    if amount_ton < 0.1:
-        return jsonify({'success': False, 'error': 'Minimum withdraw 0.1 TON'}), 400
-    
-    if not destination_address or len(destination_address) < 30:
-        return jsonify({'success': False, 'error': 'Alamat tujuan tidak valid'}), 400
-    
-    # Cek user
-    user = db.get_user(telegram_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User tidak ditemukan'}), 404
-    
-    # Cek saldo
-    current_balance = db.get_user_balance(telegram_id)
-    if current_balance < amount_ton:
-        return jsonify({
-            'success': False, 
-            'error': f'Saldo tidak cukup. Anda memiliki {current_balance} TON'
-        }), 400
-    
-    # Buat reference unik untuk withdraw
-    timestamp = int(time.time())
-    reference = f"wd_{telegram_id}_{timestamp}"
-    
-    # Simpan request withdraw dengan reference
+@app.route('/<path:path>')
+def serve_static(path):
+    """Serve static files from root directory"""
+    return send_from_directory('.', path)
+
+# ==================== API ENDPOINTS BOT ====================
+
+@app.route('/api/bot/get-entity', methods=['POST'])
+def bot_get_entity():
+    """Endpoint untuk mendapatkan entity info dari username"""
     try:
-        # Perlu update method save_withdraw_request untuk menerima reference
-        # Untuk sementara, kita simpan di payment_tracking dulu
-        db.save_payment_tracking(reference, None, telegram_id, amount_ton)
+        data = request.json
+        logger.info(f"📥 GET ENTITY request: {data}")
         
-        # Juga simpan di withdraw_requests (asumsikan tabel sudah diupdate)
-        request_id = db.save_withdraw_request_with_reference(
-            user['id'], telegram_id, amount_ton, destination_address, reference
-        )
+        if not data or 'username' not in data:
+            logger.error("❌ Missing username parameter")
+            return jsonify({'success': False, 'error': 'Username diperlukan'}), 400
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            logger.warning("⚠️ Bot not ready yet")
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
+        username = data.get('username')
+        logger.info(f"🔍 Checking username: {username}")
+        
+        result = call_bot_sync('get_entity', data)
+        logger.info(f"📤 GET ENTITY response: {result}")
+        
+        return jsonify(result)
     except Exception as e:
-        print(f"⚠️ Error saving withdraw request: {e}")
-        # Fallback: simpan hanya di payment_tracking
-        request_id = None
-    
-    print(f"📤 Withdraw initiated for user {telegram_id}: {amount_ton} TON to {destination_address}")
-    print(f"   Reference: {reference}")
-    
-    return jsonify({
-        'success': True,
-        'reference': reference,
-        'amount_ton': amount_ton,
-        'destination_address': destination_address,
-        'message': 'Withdraw request recorded. Silakan lanjutkan dengan TON Pay di frontend.'
-    })
-
-@app.route('/api/verify-withdraw', methods=['POST'])
-def verify_withdraw():
-    """Verifikasi withdraw setelah transaksi berhasil di frontend"""
-    data = request.json
-    reference = data.get('reference')
-    transaction_hash = data.get('transaction_hash')
-    status = data.get('status', 'completed')
-    
-    if not reference:
-        return jsonify({'success': False, 'error': 'Reference tidak ditemukan'}), 400
-    
-    try:
-        # Cari tracking data berdasarkan reference
-        # Update status di payment_tracking
-        # TODO: Implement method di Database untuk update payment_tracking
-        
-        # Update withdraw_requests jika ada
-        # TODO: Implement method di Database untuk update withdraw_request berdasarkan reference
-        
-        # Catat transaksi withdraw di tabel transactions
-        # Kita perlu mendapatkan user_id dari reference
-        # Asumsi: reference format "wd_{telegram_id}_{timestamp}"
-        parts = reference.split('_')
-        if len(parts) >= 2:
-            telegram_id = parts[1]
-            user = db.get_user(telegram_id)
-            
-            if user and transaction_hash:
-                # Ambil amount dari payment_tracking atau data lain
-                # Untuk sementara, kita update status saja
-                print(f"✅ Withdraw confirmed: {reference} - {transaction_hash}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Withdraw verified and recorded'
-        })
-    except Exception as e:
-        print(f"❌ Error verifying withdraw: {e}")
+        logger.error(f"❌ Error in bot_get_entity: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== ENDPOINT LEGACY WITHDRAW (UNTUK KOMPATIBILITAS) ====================
-
-@app.route('/api/withdraw', methods=['POST'])
-def withdraw_legacy():
-    """Legacy endpoint - mengarahkan ke initiate-withdraw"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    amount_ton = float(data.get('amount_ton', 0))
-    destination_address = data.get('destination_address')
-    
-    # Panggil fungsi initiate_withdraw
-    return initiate_withdraw()
-
-def withdraw_manual(telegram_id, amount_ton, destination_address, user):
-    """Fallback manual withdraw (tidak digunakan lagi)"""
-    return jsonify({
-        'success': False,
-        'error': 'Withdraw otomatis tidak lagi menggunakan backend. Silakan gunakan TON Pay di frontend.'
-    }), 400
-
-# ==================== CEK SALDO WALLET ====================
-
-@app.route('/api/check-balance')
-def check_balance():
-    """Cek saldo wallet merchant"""
+@app.route('/api/bot/get-channel-creator', methods=['POST'])
+def bot_get_channel_creator():
+    """Endpoint untuk mendapatkan creator/owner channel"""
     try:
-        response = requests.get(
-            f'https://toncenter.com/api/v2/getAddressBalance',
-            params={'address': WEB_ADDRESS},
-            headers={'X-API-Key': TONCENTER_API_KEY},
-            timeout=10
+        data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
+        result = call_bot_sync('get_channel_creator', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_get_channel_creator: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/bot/send-otp', methods=['POST'])
+def bot_send_otp():
+    """Endpoint untuk mengirim OTP ke user"""
+    try:
+        data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
+        result = call_bot_sync('send_otp', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_send_otp: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/bot/send-channel-verification', methods=['POST'])
+def bot_send_channel_verification():
+    """Endpoint untuk mengirim pesan verifikasi ke channel"""
+    try:
+        data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
+        result = call_bot_sync('send_channel_verification', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_send_channel_verification: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/bot/notify-requester', methods=['POST'])
+def bot_notify_requester():
+    """Endpoint untuk mengirim notifikasi ke requester"""
+    try:
+        data = request.json
+        
+        # Cek apakah bot siap
+        if not is_bot_ready():
+            return jsonify({'success': False, 'error': 'Bot sedang memuat, silakan coba lagi', 'retry': True}), 503
+        
+        result = call_bot_sync('notify_requester', data)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"❌ Error in bot_notify_requester: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==================== ENDPOINT CEK BOT STATUS ====================
+
+@app.route('/api/bot/status', methods=['GET'])
+def bot_status():
+    """Cek status bot"""
+    return jsonify({
+        'ready': is_bot_ready(),
+        'started': bot_started
+    })
+
+# ==================== API ENDPOINTS DATABASE ====================
+
+@app.route('/api/verify-user', methods=['POST', 'OPTIONS'])
+def verify_user():
+    """Verifikasi user Telegram"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        user_data = request.json
+        logger.info(f"Verifying user: {user_data.get('id')}")
+        
+        db.add_user(
+            user_id=user_data.get('id'),
+            fullname=user_data.get('first_name', '') + ' ' + (user_data.get('last_name', '') or ''),
+            username=user_data.get('username')
+        )
+        return jsonify({'status': 'success', 'message': 'User verified'})
+    except Exception as e:
+        logger.error(f"Error in verify_user: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/market', methods=['GET', 'OPTIONS'])
+def get_market():
+    """Get all listed usernames for market"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        # Get filter parameters
+        search = request.args.get('search', '')
+        based_on = request.args.get('based_on', '')
+        type_filter = request.args.get('type', '')
+        min_price = request.args.get('min_price', type=int, default=0)
+        max_price = request.args.get('max_price', type=int, default=999999999)
+        sort_by = request.args.get('sort_by', 'latest')
+        
+        logger.info(f"Market request with filters: search={search}, based_on={based_on}, type={type_filter}, price={min_price}-{max_price}, sort={sort_by}")
+        
+        # Get all listed usernames
+        usernames = db.get_listed_usernames()
+        logger.info(f"Found {len(usernames)} listed usernames from database")
+        
+        # Filter by search
+        if search:
+            search = search.lower().replace('@', '')
+            usernames = [u for u in usernames if search in u[1].lower() or (u[9] and search in u[9].lower())]
+            logger.info(f"After search filter: {len(usernames)} usernames")
+        
+        # Filter by based_on
+        if based_on:
+            usernames = [u for u in usernames if u[9] == based_on]
+            logger.info(f"After based_on filter: {len(usernames)} usernames")
+        
+        # Filter by price range
+        usernames = [u for u in usernames if min_price <= (u[11] or 0) <= max_price]
+        logger.info(f"After price filter: {len(usernames)} usernames")
+        
+        # Filter by type (shape)
+        if type_filter and type_filter != 'all':
+            usernames = [u for u in usernames if u[12] == type_filter]
+            logger.info(f"After type filter: {len(usernames)} usernames")
+        
+        # Sort results
+        if sort_by == 'price_low':
+            usernames.sort(key=lambda x: x[11] or 0)
+        elif sort_by == 'price_high':
+            usernames.sort(key=lambda x: x[11] or 0, reverse=True)
+        elif sort_by == 'char_asc':
+            usernames.sort(key=lambda x: len(x[9] or '') if x[9] else 0)
+        elif sort_by == 'char_desc':
+            usernames.sort(key=lambda x: len(x[9] or '') if x[9] else 0, reverse=True)
+        elif sort_by == 'alpha_asc':
+            usernames.sort(key=lambda x: x[1].lower() if x[1] else '')
+        elif sort_by == 'alpha_desc':
+            usernames.sort(key=lambda x: x[1].lower() if x[1] else '', reverse=True)
+        elif sort_by == 'latest':
+            usernames.sort(key=lambda x: x[14] or '', reverse=True)  # updated_at
+        
+        result = []
+        for u in usernames:
+            result.append({
+                'id': u[0],
+                'username': u[1],
+                'type': u[2],
+                'owner_id': u[3],
+                'owner_username': u[4],
+                'based_on': u[9],
+                'price': u[11] or 0,
+                'updated_at': str(u[14]) if len(u) > 14 else None,
+                'username_type': u[12] if len(u) > 12 else 'OP',
+                'kind': u[13] if len(u) > 13 else 'MULCHAR INDO'
+            })
+        
+        logger.info(f"Returning {len(result)} formatted usernames")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /api/market: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify([]), 500
+
+@app.route('/api/based-on-list', methods=['GET', 'OPTIONS'])
+def get_based_on_list():
+    """Get all unique based_on values"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        based_on_list = db.get_all_based_on()
+        logger.info(f"Returning {len(based_on_list)} based_on options")
+        return jsonify(based_on_list)
+    except Exception as e:
+        logger.error(f"Error in /api/based-on-list: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/username/<path:username>', methods=['GET', 'OPTIONS'])
+def get_username_detail(username):
+    """Get detailed info about a specific username"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        # Clean username
+        clean_username = username.replace('@', '')
+        logger.info(f"Getting detail for username: {clean_username}")
+        
+        usn_detail = db.get_username_detail(clean_username)
+        
+        if not usn_detail:
+            logger.warning(f"Username not found: {clean_username}")
+            return jsonify({'error': 'Username not found'}), 404
+        
+        result = {
+            'id': usn_detail[0],
+            'username': usn_detail[1],
+            'type': usn_detail[2],
+            'owner_id': usn_detail[3],
+            'owner_username': usn_detail[4],
+            'added_by': usn_detail[5],
+            'verified_at': str(usn_detail[6]) if usn_detail[6] else None,
+            'status': usn_detail[7],
+            'based_on': usn_detail[9],
+            'listed_status': usn_detail[10],
+            'price': usn_detail[11] or 0,
+            'username_type': usn_detail[12] if len(usn_detail) > 12 else 'OP',
+            'kind': usn_detail[13] if len(usn_detail) > 13 else 'MULCHAR INDO',
+            'updated_at': str(usn_detail[14]) if len(usn_detail) > 14 else None
+        }
+        
+        logger.info(f"Returning detail for @{clean_username}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in /api/username/{username}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user-usernames/<int:user_id>', methods=['GET', 'OPTIONS'])
+def get_user_usernames(user_id):
+    """Get all usernames added by a specific user"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        logger.info(f"Getting usernames for user_id: {user_id}")
+        usernames = db.get_user_added_usernames(user_id)
+        result = []
+        for u in usernames:
+            result.append({
+                'id': u[0],
+                'username': u[1],
+                'type': u[2],
+                'based_on': u[9],
+                'listed_status': u[10],
+                'price': u[11] or 0
+            })
+        logger.info(f"Found {len(result)} usernames for user {user_id}")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /api/user-usernames: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/activity/<int:user_id>', methods=['GET', 'OPTIONS'])
+def get_user_activity(user_id):
+    """Get activity logs for a user"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        logger.info(f"Getting activity for user_id: {user_id}")
+        logs, total = db.get_activity_logs(user_id, page=1, limit=50)
+        result = []
+        for log in logs:
+            result.append({
+                'id': log[0],
+                'action': log[3],
+                'details': log[4],
+                'created_at': str(log[5]) if log[5] else None
+            })
+        logger.info(f"Found {len(result)} activity logs for user {user_id}")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /api/activity: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/activities/all', methods=['GET', 'OPTIONS'])
+def get_all_activities():
+    """Get all activities with pagination"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        page = request.args.get('page', default=1, type=int)
+        limit = request.args.get('limit', default=50, type=int)
+        
+        logger.info(f"Getting all activities, page={page}, limit={limit}")
+        
+        logs, total = db.get_all_activity_logs(page, limit)
+        
+        result = []
+        for log in logs:
+            result.append({
+                'id': log[0],
+                'username': log[1],
+                'user_id': log[2],
+                'action': log[3],
+                'details': log[4],
+                'created_at': str(log[5]) if log[5] else None
+            })
+            
+        logger.info(f"Found {len(result)} activities")
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /api/activities/all: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/pending-requests/<int:user_id>', methods=['GET', 'OPTIONS'])
+def get_pending_requests(user_id):
+    """Get pending requests for a user"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        pending = db.get_user_pending_requests(user_id)
+        
+        result = []
+        for req in pending:
+            result.append({
+                'id': req[1],  # request_id
+                'username': req[2],
+                'status': req[4],
+                'created_at': str(req[5]) if req[5] else None,
+                'type': 'webapp'
+            })
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in pending-requests: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/create-verification-session', methods=['POST'])
+def create_verification_session():
+    """Buat session verifikasi baru"""
+    try:
+        data = request.json
+        username = data.get('username')
+        type_ = data.get('type')
+        requester_id = data.get('requester_id')
+        owner_id = data.get('owner_id')
+        
+        if not username or not type_ or not requester_id:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Generate OTP untuk user
+        otp_code = None
+        if type_ == 'user':
+            otp_code = db.generate_otp()
+        
+        # Generate session ID
+        session_id = db.generate_verification_id()
+        
+        # Simpan di database
+        result = db.create_verification_session(
+            session_id,
+            username,
+            type_,
+            requester_id,
+            owner_id,
+            otp_code
         )
         
-        data = response.json()
-        if data.get('ok'):
-            balance_nano = int(data['result'])
-            balance_ton = balance_nano / 1_000_000_000
+        if result:
             return jsonify({
                 'success': True,
-                'balance_ton': balance_ton,
-                'balance_nano': balance_nano,
-                'address': WEB_ADDRESS
+                'session_id': session_id,
+                'otp_code': otp_code
             })
         else:
-            return jsonify({'success': False, 'error': data.get('error')})
+            return jsonify({'success': False, 'error': 'Gagal membuat session'}), 500
+            
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error in create_verification_session: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-
-# ==================== WITHDRAW HISTORY ====================
-
-@app.route('/api/withdraw-history/<telegram_id>')
-def get_withdraw_history(telegram_id):
-    """Get user withdraw history"""
+@app.route('/api/check-user-exists', methods=['POST'])
+def check_user_exists():
+    """Cek apakah user sudah ada di database"""
     try:
-        requests_data = db.get_withdraw_requests(telegram_id, 20)
-        return jsonify({'success': True, 'requests': requests_data})
+        data = request.json
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'success': False, 'error': 'Username diperlukan'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '')
+        
+        user = db.get_user_by_username(clean_username)
+        
+        return jsonify({
+            'success': True,
+            'exists': user is not None
+        })
+        
     except Exception as e:
+        logger.error(f"Error in check_user_exists: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/verify-otp', methods=['POST'])
+def verify_otp():
+    """Verifikasi OTP dari website"""
+    try:
+        data = request.json
+        request_id = data.get('request_id')
+        otp_code = data.get('otp_code')
+        user_id = data.get('user_id')
+        
+        if not request_id or not otp_code or not user_id:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Cek session di database
+        session = db.get_verification_session(request_id)
+        
+        if not session:
+            return jsonify({'success': False, 'error': 'Sesi tidak valid'}), 404
+        
+        if session[6] != otp_code:  # otp_code
+            return jsonify({'success': False, 'error': 'Kode OTP salah'}), 400
+        
+        # OTP benar - proses verifikasi
+        username = session[2]
+        type_ = session[3]
+        requester_id = session[4]
+        owner_id = session[5]
+        
+        # Update session
+        db.update_verification_session(request_id, status="verified")
+        
+        # Add username
+        success = db.add_username_request(username, type_, owner_id, None, requester_id)
+        
+        if success:
+            # Kirim notifikasi ke requester via bot
+            if is_bot_ready():
+                call_bot_sync('notify_requester', {
+                    'requester_id': requester_id,
+                    'message': f'Username @{username} berhasil diverifikasi!',
+                    'is_success': True
+                })
+            
+            return jsonify({'success': True, 'message': 'Verifikasi berhasil'})
+        else:
+            return jsonify({'success': False, 'error': 'Gagal menambahkan ke database'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error in verify_otp: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/webapp/add-username', methods=['POST', 'OPTIONS'])
+def webapp_add_username():
+    """Endpoint untuk menambah username dari webapp"""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    try:
+        data = request.json
+        print("\n" + "="*50)
+        print("📱 WEBAPP ADD USERNAME REQUEST RECEIVED")
+        print(f"Raw data: {data}")
+        
+        username = data.get('username')
+        user_id = data.get('user_id')
+        
+        print(f"Username: {username}")
+        print(f"User ID: {user_id}")
+        
+        if not username or not user_id:
+            print("❌ ERROR: Missing username or user_id")
+            return jsonify({'success': False, 'error': 'Username dan user_id diperlukan'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '').strip()
+        print(f"Cleaned username: {clean_username}")
+        
+        if not clean_username:
+            print("❌ ERROR: Invalid username format")
+            return jsonify({'success': False, 'error': 'Username tidak valid'}), 400
+        
+        # Buat session ID untuk request ini
+        request_id = db.generate_verification_id()
+        print(f"Generated request_id: {request_id}")
+        
+        # Simpan di database sebagai pending request dari web app
+        print("Attempting to save to database...")
+        success = db.create_webapp_request(request_id, clean_username, user_id)
+        
+        if success:
+            print(f"✅ SUCCESS: Webapp request saved with ID: {request_id}")
+            return jsonify({
+                'success': True, 
+                'message': 'Permintaan telah dikirim', 
+                'request_id': request_id
+            })
+        else:
+            print("❌ ERROR: Failed to save to database")
+            return jsonify({'success': False, 'error': 'Gagal menyimpan permintaan'}), 400
+        
+    except Exception as e:
+        print(f"❌ EXCEPTION: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/debug/webapp-requests', methods=['GET'])
+def debug_webapp_requests():
+    """Debug endpoint to see all webapp requests"""
+    try:
+        conn = sqlite3.connect("database/indotag.db")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Cek apakah tabel ada
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='webapp_requests'")
+        if not cur.fetchone():
+            return jsonify({'error': 'Table webapp_requests not found'}), 404
+            
+        cur.execute("SELECT * FROM webapp_requests ORDER BY created_at DESC LIMIT 20")
+        rows = cur.fetchall()
+        
+        result = []
+        for row in rows:
+            result.append({
+                'id': row[0],
+                'request_id': row[1],
+                'username': row[2],
+                'requester_id': row[3],
+                'status': row[4],
+                'created_at': str(row[5]) if row[5] else None,
+                'updated_at': str(row[6]) if row[6] else None
+            })
+        
+        conn.close()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/update-based-on', methods=['POST', 'OPTIONS'])
+def update_based_on():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        based_on = data.get('based_on')
+        
+        if not username or based_on is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_based_on(username, based_on)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_based_on: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-listed-status', methods=['POST', 'OPTIONS'])
+def update_listed_status():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        status = data.get('status')
+        
+        if not username or not status:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_listed_status(username, status)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_listed_status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-kind', methods=['POST', 'OPTIONS'])
+def update_kind():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        kind = data.get('kind')
+        
+        if not username or not kind:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_kind(username, kind)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_kind: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-price', methods=['POST', 'OPTIONS'])
+def update_price():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        price = data.get('price')
+        
+        if not username or price is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        success = db.update_price(username, price)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in update_price: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==================== CORS HEADERS ====================
+@app.after_request
+def after_request(response):
+    """Add headers to all responses"""
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    
+    origin = request.headers.get('Origin')
+    if origin and (origin.startswith('https://aldiprem.github.io') or 
+                   origin.startswith('http://localhost') or 
+                   'trycloudflare.com' in origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+    
+    return response
+
+# ==================== MANAGE USERNAME ENDPOINTS ====================
+
+@app.route('/api/manage/update-based-on', methods=['POST', 'OPTIONS'])
+def manage_update_based_on():
+    """Update based_on untuk username"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        based_on = data.get('based_on')
+        user_id = data.get('user_id')
+        
+        if not username or based_on is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Validasi kepemilikan username
+        if not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'success': False, 'error': 'Anda tidak memiliki akses ke username ini'}), 403
+        
+        success = db.update_based_on(clean_username, based_on)
+        
+        if success:
+            # Log activity
+            db.add_activity_log(user_id, "UPDATE_BASED_ON", f"Mengubah based_on @{clean_username} menjadi: {based_on}")
+            logger.info(f"✅ Based on updated for @{clean_username} by user {user_id}")
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in manage_update_based_on: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ==================== SEMUA ENDPOINT YANG SUDAH ADA ====================
+@app.route('/api/manage/update-price', methods=['POST', 'OPTIONS'])
+def manage_update_price():
+    """Update harga untuk username"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        price = data.get('price')
+        user_id = data.get('user_id')
+        
+        if not username or price is None:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Validasi kepemilikan username
+        if not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'success': False, 'error': 'Anda tidak memiliki akses ke username ini'}), 403
+        
+        success = db.update_price(clean_username, price)
+        
+        if success:
+            # Log activity
+            db.add_activity_log(user_id, "UPDATE_PRICE", f"Mengubah harga @{clean_username} menjadi: Rp {price:,}")
+            logger.info(f"✅ Price updated for @{clean_username} by user {user_id}")
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in manage_update_price: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/tonconnect-manifest.json')
-def tonconnect_manifest():
-    """Serve TON Connect manifest file"""
-    manifest = {
-        "url": TUNNEL_URL,
-        "name": "Marketplace NFT Testing",
-        "iconUrl": f"{GITHUB_PAGES_URL}/images/icon-web.png",
-        "termsOfUseUrl": f"{TUNNEL_URL}/terms",
-        "privacyPolicyUrl": f"{TUNNEL_URL}/privacy"
-    }
-    
-    response = make_response(jsonify(manifest))
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
 
-@app.route('/terms')
-def terms():
-    """Terms of use page"""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>Terms of Use</title></head>
-    <body>
-        <h1>Terms of Use</h1>
-        <p>Ini adalah halaman syarat dan ketentuan untuk testing.</p>
-    </body>
-    </html>
-    """
+@app.route('/api/manage/update-listed-status', methods=['POST', 'OPTIONS'])
+def manage_update_listed_status():
+    """Update listed/unlisted status untuk username"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        status = data.get('status')
+        user_id = data.get('user_id')
+        
+        if not username or not status:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        if status not in ['listed', 'unlisted']:
+            return jsonify({'success': False, 'error': 'Status tidak valid'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Validasi kepemilikan username
+        if not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'success': False, 'error': 'Anda tidak memiliki akses ke username ini'}), 403
+        
+        success = db.update_listed_status(clean_username, status)
+        
+        if success:
+            # Log activity
+            status_text = "LISTED" if status == 'listed' else "UNLISTED"
+            db.add_activity_log(user_id, "UPDATE_STATUS", f"Mengubah status @{clean_username} menjadi {status_text}")
+            logger.info(f"✅ Status updated for @{clean_username} by user {user_id}")
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in manage_update_listed_status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/privacy')
-def privacy():
-    """Privacy policy page"""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>Privacy Policy</title></head>
-    <body>
-        <h1>Privacy Policy</h1>
-        <p>Ini adalah halaman kebijakan privasi untuk testing.</p>
-    </body>
-    </html>
-    """
 
-@app.route('/api/user/<telegram_id>')
-def get_user(telegram_id):
-    """Get user data from database"""
-    user = db.get_user(telegram_id)
-    if user:
-        return jsonify({
-            'success': True,
-            'user': {
-                'telegram_id': user['telegram_id'],
-                'telegram_username': user['telegram_username'],
-                'telegram_first_name': user['telegram_first_name'],
-                'telegram_last_name': user['telegram_last_name'],
-                'telegram_photo_url': user['telegram_photo_url'],
-                'wallet_address': user['wallet_address'],
-                'created_at': user['created_at']
-            }
-        })
-    return jsonify({'success': False, 'error': 'User not found'}), 404
+@app.route('/api/manage/update-kind', methods=['POST', 'OPTIONS'])
+def manage_update_kind():
+    """Update kind/jenis untuk username"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        kind = data.get('kind')
+        user_id = data.get('user_id')
+        
+        if not username or not kind:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Validasi kepemilikan username
+        if not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'success': False, 'error': 'Anda tidak memiliki akses ke username ini'}), 403
+        
+        success = db.update_kind(clean_username, kind)
+        
+        if success:
+            # Log activity
+            db.add_activity_log(user_id, "UPDATE_KIND", f"Mengubah kind @{clean_username} menjadi: {kind}")
+            logger.info(f"✅ Kind updated for @{clean_username} by user {user_id}")
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in manage_update_kind: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/user', methods=['POST'])
-def save_user():
-    """Save or update user data"""
-    data = request.json
-    user_id = db.save_user(
-        telegram_id=data.get('telegram_id'),
-        telegram_username=data.get('telegram_username'),
-        telegram_first_name=data.get('telegram_first_name'),
-        telegram_last_name=data.get('telegram_last_name'),
-        telegram_photo_url=data.get('telegram_photo_url'),
-        wallet_address=data.get('wallet_address')
-    )
-    return jsonify({'success': True, 'user_id': user_id})
 
-@app.route('/api/user/wallet', methods=['POST'])
-def update_wallet():
-    """Update user's wallet address"""
-    data = request.json
-    db.update_wallet_address(
-        telegram_id=data.get('telegram_id'),
-        wallet_address=data.get('wallet_address')
-    )
-    return jsonify({'success': True})
+@app.route('/api/manage/bulk-update', methods=['POST', 'OPTIONS'])
+def manage_bulk_update():
+    """Update multiple fields sekaligus"""
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        user_id = data.get('user_id')
+        updates = data.get('updates', {})
+        
+        if not username or not user_id:
+            return jsonify({'success': False, 'error': 'Parameter tidak lengkap'}), 400
+        
+        # Bersihkan username
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Validasi kepemilikan username
+        if not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'success': False, 'error': 'Anda tidak memiliki akses ke username ini'}), 403
+        
+        success = True
+        changes = []
+        
+        # Proses setiap update
+        if 'based_on' in updates:
+            if db.update_based_on(clean_username, updates['based_on']):
+                changes.append(f"based_on: {updates['based_on']}")
+            else:
+                success = False
+                
+        if 'price' in updates:
+            if db.update_price(clean_username, updates['price']):
+                changes.append(f"harga: Rp {updates['price']:,}")
+            else:
+                success = False
+                
+        if 'listed_status' in updates:
+            if db.update_listed_status(clean_username, updates['listed_status']):
+                status_text = "LISTED" if updates['listed_status'] == 'listed' else "UNLISTED"
+                changes.append(f"status: {status_text}")
+            else:
+                success = False
+                
+        if 'kind' in updates:
+            if db.update_kind(clean_username, updates['kind']):
+                changes.append(f"kind: {updates['kind']}")
+            else:
+                success = False
+        
+        if success and changes:
+            # Log activity
+            changes_text = ", ".join(changes)
+            db.add_activity_log(user_id, "BULK_UPDATE", f"Update multiple untuk @{clean_username}: {changes_text}")
+            logger.info(f"✅ Bulk update for @{clean_username} by user {user_id}: {changes_text}")
+            
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f"Error in manage_bulk_update: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/health')
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.now().isoformat(),
-        'tunnel_url': TUNNEL_URL
-    })
 
-@app.route('/api/balance/<telegram_id>')
-def get_balance(telegram_id):
-    """Get user balance"""
-    balance = db.get_user_balance(telegram_id)
-    return jsonify({
-        'success': True,
-        'balance': balance,
-        'formatted': f"{balance} TON"
-    })
-
-@app.route('/api/transactions/<telegram_id>')
-def get_transactions(telegram_id):
-    """Get user transactions"""
-    limit = request.args.get('limit', 20, type=int)
-    transactions = db.get_user_transactions(telegram_id, limit)
-    return jsonify({
-        'success': True,
-        'transactions': transactions
-    })
-
-@app.route('/api/deposit-info')
-def deposit_info():
-    """Get deposit information"""
-    return jsonify({
-        'success': True,
-        'web_address': WEB_ADDRESS,
-        'min_deposit': 0.1,
-        'memo_required': False
-    })
-
-@app.route('/api/verify-transaction', methods=['POST'])
-def verify_transaction():
-    """Verify and record a transaction (untuk deposit)"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    transaction_hash = data.get('transaction_hash')
-    amount_ton = data.get('amount_ton')
-    from_address = data.get('from_address')
-    memo = data.get('memo', '')
+@app.route('/api/manage/get-detail/<path:username>', methods=['GET', 'OPTIONS'])
+def manage_get_detail(username):
+    """Get detailed info for manage panel"""
+    if request.method == 'OPTIONS':
+        return '', 200
     
-    # Get user from database
-    user = db.get_user(telegram_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    
-    # Simpan sebagai confirmed
-    tx_id = db.save_transaction(
-        user_id=user['id'],
-        transaction_hash=transaction_hash,
-        amount_ton=amount_ton,
-        from_address=from_address,
-        to_address=WEB_ADDRESS,
-        memo=memo,
-        transaction_type='deposit'
-    )
-    
-    if tx_id:
-        return jsonify({
-            'success': True,
-            'transaction_id': tx_id,
-            'message': 'Transaction recorded and confirmed!'
-        })
-    else:
-        return jsonify({
-            'success': False,
-            'error': 'Transaction already exists'
-        }), 400
-
-@app.route('/api/webhook/ton', methods=['POST'])
-def ton_webhook():
-    data = request.json
-    return jsonify({'success': True, 'message': 'Webhook received'})
-
-# Optional: Serve static files if needed locally
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """Serve static files from STATIC_DIR"""
-    return send_from_directory(STATIC_DIR, filename)
-
-@app.route('/api/create-deposit-transaction', methods=['POST'])
-def create_deposit_transaction():
-    """Create a properly formatted transaction message for deposit"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    amount_ton = float(data.get('amount_ton', 0))
-    
-    # Validasi
-    if amount_ton < 0.1:
-        return jsonify({'success': False, 'error': 'Minimum deposit 0.1 TON'}), 400
-    
-    # Get user dari database
-    user = db.get_user(telegram_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    
-    # Buat memo
-    timestamp = int(datetime.now().timestamp())
-    memo_plain = f"deposit_{telegram_id}_{timestamp}"
-    
-    if len(memo_plain) > 80:
-        memo_hash = hashlib.sha256(memo_plain.encode()).hexdigest()[:16]
-        memo_plain = f"dep_{telegram_id[-4:]}_{memo_hash}"
-    
-    memo_bytes = memo_plain.encode('utf-8')
-    memo_base64 = base64.b64encode(memo_bytes).decode('utf-8')
-    
-    amount_nano = str(int(amount_ton * 1_000_000_000))
-    
-    transaction_message = {
-        "address": WEB_ADDRESS,
-        "amount": amount_nano,
-        "payload": memo_base64
-    }
-    
-    if user:
-        db.save_transaction(
-            user_id=user['id'],
-            transaction_hash=None,
-            amount_ton=amount_ton,
-            from_address=None,
-            to_address=WEB_ADDRESS,
-            memo=memo_plain,
-            transaction_type='deposit'
-        )
-    
-    print(f"📤 Created transaction for user {telegram_id}: {amount_ton} TON")
-    
-    return jsonify({
-        'success': True,
-        'transaction_data': transaction_message,
-        'memo_plain': memo_plain
-    })
-
-@app.route('/api/create-tonpay-transaction', methods=['POST'])
-def create_tonpay_transaction():
-    """Buat transaksi menggunakan TON Pay API"""
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    amount_ton = float(data.get('amount_ton', 0))
-    
-    if amount_ton < 0.1:
-        return jsonify({'success': False, 'error': 'Minimum deposit 0.1 TON'}), 400
-    
-    user = db.get_user(telegram_id)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-    
-    timestamp = int(datetime.now().timestamp())
-    reference = f"deposit_{telegram_id}_{timestamp}"
-    body_hash = hashlib.sha256(reference.encode()).hexdigest()
-    
-    db.save_payment_tracking(reference, body_hash, telegram_id, amount_ton)
-    
-    message = {
-        "address": WEB_ADDRESS,
-        "amount": str(int(amount_ton * 1_000_000_000)),
-        "payload": None
-    }
-    
-    return jsonify({
-        'success': True,
-        'message': message,
-        'reference': reference,
-        'bodyBase64Hash': body_hash
-    })
-
-@app.route('/api/store-payment-tracking', methods=['POST'])
-def store_payment_tracking():
-    """Store payment tracking data"""
-    data = request.json
-    db.save_payment_tracking(
-        data.get('reference'),
-        data.get('bodyBase64Hash'),
-        data.get('telegram_id'),
-        data.get('amount')
-    )
-    return jsonify({'success': True})
-
+    try:
+        user_id = request.args.get('user_id', type=int)
+        clean_username = username.replace('@', '') if username.startswith('@') else username
+        
+        # Get username detail
+        detail = db.get_username_detail(clean_username)
+        
+        if not detail:
+            return jsonify({'error': 'Username not found'}), 404
+        
+        # Check ownership jika user_id diberikan
+        if user_id and not db.check_username_ownership(clean_username, user_id):
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Format response
+        result = {
+            'id': detail[0],
+            'username': detail[1],
+            'type': detail[2],
+            'owner_id': detail[3],
+            'owner_username': detail[4],
+            'added_by': detail[5],
+            'verified_at': str(detail[6]) if detail[6] else None,
+            'based_on': detail[9],
+            'listed_status': detail[10],
+            'price': detail[11] or 0,
+            'username_type': detail[12] if len(detail) > 12 else 'OP',
+            'kind': detail[13] if len(detail) > 13 else 'MULCHAR INDO',
+            'can_edit': True  # Tambahkan flag untuk UI
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in manage_get_detail: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ==================== MAIN ====================
+
 if __name__ == '__main__':
-    print(f"🚀 Flask server running on {TUNNEL_URL}")
-    print(f"📝 Manifest URL: {TUNNEL_URL}/tonconnect-manifest.json")
-    print(f"💾 Database path: {DB_PATH}")
-    print(f"💰 Web Address: {WEB_ADDRESS}")
-    print(f"🔑 TON Center API: {'✅ Tersedia' if TONCENTER_API_KEY else '❌ Tidak ada'}")
-    print(f"📦 TON Library: {'✅ pytoniq tersedia' if TON_LIB_AVAILABLE else '❌ Tidak ada'}")
-    print(f"\n📊 Endpoints available:")
-    print(f"   - /api/balance/<telegram_id>")
-    print(f"   - /api/transactions/<telegram_id>")
-    print(f"   - /api/deposit-info")
-    print(f"   - /api/verify-transaction")
-    print(f"   - /api/create-payload")
-    print(f"   - /api/initiate-withdraw (NEW - untuk memulai withdraw)")
-    print(f"   - /api/verify-withdraw (NEW - untuk verifikasi withdraw)")
-    print(f"   - /api/withdraw-history/<telegram_id>")
-    print(f"   - /api/check-balance")
-    print(f"\n⚠️  Private key TIDAK DIGUNAKAN untuk withdraw otomatis!")
-    print(f"   Withdraw menggunakan TON Pay di frontend sesuai dokumentasi.")
-    
-    app.run(
-        host=os.getenv('FLASK_HOST', '0.0.0.0'),
-        port=int(os.getenv('FLASK_PORT', 3000)),
-        debug=os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
-    )
+    logger.info("Starting Flask server on port 4000...")
+    # Nonaktifkan debug mode untuk mencegah restart
+    app.run(host='0.0.0.0', port=4000, debug=False, use_reloader=False)
